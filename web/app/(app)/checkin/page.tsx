@@ -26,7 +26,7 @@ export default async function CheckIn({
   const [starts, initial, habits, meds, weight] = await Promise.all([
     getPeriodStarts(),
     getDailyLog(dayKey),
-    getHabits(),
+    getHabits(todayISO.slice(0, 7)),
     getMeds(),
     getCurrentWeight(),
   ]);

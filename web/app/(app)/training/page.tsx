@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
-import { getPeriodStarts, getWorkoutTemplates } from "@/lib/data";
+import {
+  getPeriodStarts,
+  getWorkoutTemplates,
+  getWorkoutHistory,
+  getSportActivityDays,
+  getMigraineEventsSince,
+} from "@/lib/data";
 import { getRecentWorkouts } from "./actions";
 import { TrainingForm } from "./training-form";
 import { DeleteWorkoutButton } from "./delete-workout-button";
+import { TrainingChart } from "./training-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +47,17 @@ function formatDate(iso: string) {
 }
 
 export default async function TrainingPage() {
-  const [starts, workouts, templates] = await Promise.all([
+  const since26w = new Date();
+  since26w.setDate(since26w.getDate() - 26 * 7);
+  const sinceISO = since26w.toISOString().slice(0, 10);
+
+  const [starts, workouts, templates, workoutHistory, sportDays, migraines] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
     getWorkoutTemplates(),
+    getWorkoutHistory(sinceISO),
+    getSportActivityDays(sinceISO),
+    getMigraineEventsSince(sinceISO),
   ]);
   const { phase } = getCurrentCycle(starts);
   const tip = PHASE_TIP[phase];
@@ -64,9 +78,16 @@ export default async function TrainingPage() {
         лог активности · {PHASE_LABELS[phase]}
       </p>
 
+      {/* ── Инфографика ── */}
+      <TrainingChart
+        workouts={workoutHistory}
+        sports={sportDays}
+        migraines={migraines}
+      />
+
       {/* ── Директива фазы ── */}
       <div
-        className="mt-4 rounded-card border border-line bg-surface p-4"
+        className="mt-5 rounded-card border border-line bg-surface p-4"
         style={{ borderLeft: "3px solid var(--phase)" }}
       >
         <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">

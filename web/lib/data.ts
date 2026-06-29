@@ -104,16 +104,26 @@ export async function getMeds(): Promise<Med[]> {
   return seed.MEDS.map((m) => ({ ...m }));
 }
 
-export type HabitRow = { id: number; name: string; active: boolean };
+export type HabitRow = {
+  id: number;
+  name: string;
+  active: boolean;
+  started_month: string | null; // YYYY-MM inclusive
+  ended_month: string | null;   // YYYY-MM inclusive, null = ongoing
+};
 
-export async function getHabits(): Promise<string[]> {
+/** Возвращает имена привычек, активных в указанном месяце (YYYY-MM).
+ *  Без month — все активные (для обратной совместимости). */
+export async function getHabits(month?: string): Promise<string[]> {
   const db = supabaseAdmin();
   if (db) {
-    const { data, error } = await db
-      .from("habit")
-      .select("name")
-      .eq("active", true)
-      .order("sort", { ascending: true });
+    let q = db.from("habit").select("name").eq("active", true).order("sort", { ascending: true });
+    if (month) {
+      q = q
+        .or(`started_month.is.null,started_month.lte.${month}`)
+        .or(`ended_month.is.null,ended_month.gte.${month}`);
+    }
+    const { data, error } = await q;
     if (!error && data && data.length) {
       return data.map((r: { name: string }) => r.name);
     }
@@ -124,10 +134,23 @@ export async function getHabits(): Promise<string[]> {
 export async function getAllHabits(): Promise<HabitRow[]> {
   const db = supabaseAdmin();
   if (!db) return [];
-  const { data } = await db
+  const { data, error } = await db
     .from("habit")
-    .select("id, name, active")
+    .select("id, name, active, started_month, ended_month")
     .order("sort", { ascending: true });
+  if (error) {
+    // Migration 009 not yet run — select without month columns
+    const { data: d2 } = await db
+      .from("habit")
+      .select("id, name, active")
+      .order("sort", { ascending: true });
+    return (d2 ?? []).map((r) => ({
+      ...(r as { id: number; name: string; active: boolean }),
+      started_month: null,
+      ended_month: null,
+      sort: 0,
+    }));
+  }
   return (data ?? []) as HabitRow[];
 }
 
@@ -144,6 +167,7 @@ export type DailyLog = {
   habits_done: string[];
   sport_activities: string[] | null;
   note: string | null;
+  calorie_kcal: number | null;
 };
 
 export async function getDailyLog(date: string): Promise<DailyLog | null> {
@@ -198,6 +222,21 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
   }));
 }
 
+export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("migraine_event")
+    .select("event_date, aura, triptan")
+    .order("event_date", { ascending: true });
+  if (error || !data) return [];
+  return data.map((r: { event_date: string; aura: boolean; triptan: boolean }) => ({
+    date: r.event_date,
+    aura: r.aura,
+    triptan: r.triptan,
+  }));
+}
+
 export async function getMonthHabitStats(ym: string): Promise<{ done: number; daysLogged: number }> {
   const db = supabaseAdmin();
   if (!db) return { done: 0, daysLogged: 0 };
@@ -209,6 +248,23 @@ export async function getMonthHabitStats(ym: string): Promise<{ done: number; da
   const rows = (data ?? []) as { habits_done: string[] | null }[];
   const done = rows.reduce((s, r) => s + (r.habits_done?.length ?? 0), 0);
   return { done, daysLogged: rows.length };
+}
+
+export type CalorieEntry = { date: string; kcal: number };
+
+export async function getCalorieEntries(): Promise<CalorieEntry[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("daily_log")
+    .select("log_date, calorie_kcal")
+    .not("calorie_kcal", "is", null)
+    .order("log_date", { ascending: true });
+  if (error || !data) return [];
+  return (data as { log_date: string; calorie_kcal: number }[]).map((r) => ({
+    date: r.log_date,
+    kcal: r.calorie_kcal,
+  }));
 }
 
 export type ExerciseTemplate = {
@@ -281,4 +337,138 @@ export async function getWorkoutExercises(workoutId: string): Promise<ActualExer
   if (!db) return []
   const { data } = await db.from("workout_exercise").select("*").eq("workout_id", workoutId).order("order_index")
   return (data ?? []) as ActualExercise[]
+}
+
+export type WearableDay = {
+  date: string;
+  steps: number | null;
+  tdee_kcal: number | null;
+  hr_resting: number | null;
+  spo2_avg: number | null;
+  hrv_avg: number | null;
+};
+
+export async function getRecentWearableData(days = 28): Promise<WearableDay[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const { data, error } = await db
+    .from("daily_log")
+    .select("log_date, steps, tdee_kcal, hr_resting, spo2_avg, hrv_avg")
+    .gte("log_date", since.toISOString().slice(0, 10))
+    .not("steps", "is", null)
+    .order("log_date", { ascending: true });
+  if (error || !data) return [];
+  return (data as Array<{ log_date: string; steps: number | null; tdee_kcal: number | null; hr_resting: number | null; spo2_avg: number | null; hrv_avg: number | null }>)
+    .map(r => ({ date: r.log_date, steps: r.steps, tdee_kcal: r.tdee_kcal, hr_resting: r.hr_resting, spo2_avg: r.spo2_avg, hrv_avg: r.hrv_avg }));
+}
+
+export type SleepSession = {
+  log_date: string;
+  total_min: number | null;
+  quality_pct: number | null;
+  awake_min: number | null;
+  rem_min: number | null;
+  light_min: number | null;
+  deep_min: number | null;
+};
+
+export async function getRecentSleepData(days = 28): Promise<SleepSession[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const { data, error } = await db
+    .from("sleep_log")
+    .select("log_date, total_min, quality_pct, awake_min, rem_min, light_min, deep_min")
+    .gte("log_date", since.toISOString().slice(0, 10))
+    .order("log_date", { ascending: true });
+  if (error || !data) return [];
+  return data as SleepSession[];
+}
+
+export type WorkoutLogEntry = {
+  date: string;
+  type: string;
+  duration_min: number | null;
+  fatigue_pct: number | null;
+};
+
+export async function getWorkoutHistory(sinceISO: string): Promise<WorkoutLogEntry[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const { data } = await db
+    .from("workout_log")
+    .select("workout_date, type, duration_min, fatigue_pct")
+    .gte("workout_date", sinceISO)
+    .order("workout_date", { ascending: true });
+  return (data ?? []).map((r: { workout_date: string; type: string; duration_min: number | null; fatigue_pct: number | null }) => ({
+    date: r.workout_date,
+    type: r.type,
+    duration_min: r.duration_min,
+    fatigue_pct: r.fatigue_pct,
+  }));
+}
+
+export type SportDay = {
+  date: string;
+  activities: string[];
+};
+
+export async function getSportActivityDays(sinceISO: string): Promise<SportDay[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const { data } = await db
+    .from("daily_log")
+    .select("log_date, sport_activities")
+    .gte("log_date", sinceISO)
+    .not("sport_activities", "is", null)
+    .order("log_date", { ascending: true });
+  return (data ?? [])
+    .filter((r: { sport_activities: string[] | null }) => (r.sport_activities?.length ?? 0) > 0)
+    .map((r: { log_date: string; sport_activities: string[] }) => ({
+      date: r.log_date,
+      activities: r.sport_activities,
+    }));
+}
+
+export type CycleHistoryRow = {
+  start: string;         // YYYY-MM-DD
+  length: number;        // days until next cycle start
+  migraineDays: number[]; // 1-based day numbers within this cycle
+};
+
+export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+
+  const [{ data: starts }, { data: events }] = await Promise.all([
+    db.from("cycle_start").select("start_date").order("start_date", { ascending: true }),
+    db.from("migraine_event").select("event_date").order("event_date", { ascending: true }),
+  ]);
+
+  if (!starts?.length) return [];
+
+  const toMs = (s: string) => new Date(s).getTime();
+  const rows: CycleHistoryRow[] = [];
+
+  for (let i = 0; i < starts.length; i++) {
+    const startStr = starts[i].start_date as string;
+    const nextStr = (starts[i + 1]?.start_date as string) ?? null;
+    const startMs = toMs(startStr);
+    const nextMs = nextStr ? toMs(nextStr) : null;
+    const length = nextMs ? Math.round((nextMs - startMs) / 86400000) : 30;
+
+    const migraineDays = (events ?? [])
+      .filter(e => {
+        const eMs = toMs(e.event_date as string);
+        return eMs >= startMs && (!nextMs || eMs < nextMs);
+      })
+      .map(e => Math.round((toMs(e.event_date as string) - startMs) / 86400000) + 1);
+
+    rows.push({ start: startStr, length, migraineDays });
+  }
+
+  return rows.reverse(); // newest first
 }

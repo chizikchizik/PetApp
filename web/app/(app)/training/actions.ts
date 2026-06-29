@@ -21,7 +21,28 @@ export async function saveWorkout(dateISO: string, payload: WorkoutPayload): Pro
     note: payload.note || null,
   }).select("id");
   if (error) return { ok: false };
+
+  // Auto-mark «Спорт» (and «Бег» for run workouts) in habits_done for this day
+  const habitsToAdd = ["Спорт"];
+  if (/бег/i.test(payload.type)) habitsToAdd.push("Бег");
+  const { data: existingLog } = await db
+    .from("daily_log")
+    .select("habits_done")
+    .eq("log_date", dateISO)
+    .maybeSingle();
+  const current: string[] = existingLog?.habits_done ?? [];
+  const merged = [...new Set([...current, ...habitsToAdd])];
+  if (existingLog) {
+    await db.from("daily_log")
+      .update({ habits_done: merged, updated_at: new Date().toISOString() })
+      .eq("log_date", dateISO);
+  } else {
+    await db.from("daily_log")
+      .insert({ log_date: dateISO, habits_done: merged, updated_at: new Date().toISOString() });
+  }
+
   revalidatePath("/training");
+  revalidatePath("/checkin");
   return { ok: true, id: data?.[0]?.id };
 }
 
