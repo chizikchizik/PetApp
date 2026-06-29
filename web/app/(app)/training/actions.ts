@@ -71,6 +71,16 @@ export type WorkoutRow = {
   note: string | null;
 };
 
+export async function deleteWorkout(id: string): Promise<{ ok: boolean }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false };
+  await db.from("workout_exercise").delete().eq("workout_id", id);
+  const { error } = await db.from("workout_log").delete().eq("id", id);
+  if (error) return { ok: false };
+  revalidatePath("/training");
+  return { ok: true };
+}
+
 export async function getRecentWorkouts(): Promise<WorkoutRow[]> {
   const db = supabaseAdmin();
   if (!db) return [];

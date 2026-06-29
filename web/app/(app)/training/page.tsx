@@ -3,6 +3,7 @@ import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
 import { getPeriodStarts, getWorkoutTemplates } from "@/lib/data";
 import { getRecentWorkouts } from "./actions";
 import { TrainingForm } from "./training-form";
+import { DeleteWorkoutButton } from "./delete-workout-button";
 
 export const dynamic = "force-dynamic";
 
@@ -106,8 +107,11 @@ export default async function TrainingPage() {
                   <div className="font-sans font-semibold text-[14.5px] text-ink">
                     {w.type}
                   </div>
-                  <div className="shrink-0 font-mono text-[10px] text-ink-3">
-                    {formatDate(w.workout_date)}
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0 font-mono text-[10px] text-ink-3">
+                      {formatDate(w.workout_date)}
+                    </div>
+                    <DeleteWorkoutButton id={w.id} />
                   </div>
                 </div>
                 {w.fatigue_pct != null && (
