@@ -3,7 +3,7 @@ import type { WorkoutLogEntry, SportDay, MigraineEvent } from "@/lib/data";
 const C_GYM        = "rgba(190,140,60,0.88)";   // зал
 const C_VOLLEYBALL = "rgba(55,120,215,0.88)";   // волейбол
 const C_RUN        = "rgba(210,95,55,0.88)";    // бег
-const C_OTHER_W    = "rgba(160,130,180,0.82)";  // прочие тренировки
+const C_OTHER_W    = "rgba(80,175,85,0.78)";    // прочие тренировки
 const C_SPORT      = "rgba(55,165,130,0.72)";   // спорт (привычки)
 const C_EMPTY      = "rgba(130,130,130,0.09)";
 const C_MIG        = "#d04830";
@@ -21,7 +21,7 @@ const GAP  = 2;
 const STEP = CELL + GAP;
 const DAY_LABEL_W = 22;
 const MONTH_H = 16;
-const LEGEND_H = 28;
+const LEGEND_H = 0;
 
 const DAY_LABELS = ["ПН","ВТ","СР","ЧТ","ПТ","СБ","ВС"];
 const MONTHS_RU  = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
@@ -168,23 +168,19 @@ export function TrainingChart({
               })
             )}
 
-            {/* Legend — auto-computed from actual data */}
-            {legendItems.map(({ color, label, circle }, i) => {
-              const lx = DAY_LABEL_W + i * 62;
-              const ly = MONTH_H + 7 * STEP - GAP + 10;
-              return (
-                <g key={i}>
-                  {circle
-                    ? <circle cx={lx + 4} cy={ly + 4} r={4} fill={color} />
-                    : <rect x={lx} y={ly} width={9} height={9} rx={2} fill={color} />
-                  }
-                  <text x={lx + 12} y={ly + 8} fontSize={7} fill="rgba(100,100,100,0.55)" fontFamily="monospace">
-                    {label}
-                  </text>
-                </g>
-              );
-            })}
           </svg>
+        </div>
+        {/* Legend — outside scrollable SVG so it's always visible */}
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          {legendItems.map(({ color, label, circle }, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              {circle
+                ? <svg width={9} height={9}><circle cx={4.5} cy={4.5} r={4.5} fill={color} /></svg>
+                : <svg width={9} height={9}><rect width={9} height={9} rx={2} fill={color} /></svg>
+              }
+              <span className="font-mono text-[10px] text-ink-3">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
