@@ -250,37 +250,68 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
-    db.from("migraine_event")
-      .select("event_date, aura, triptan")
-      .gte("event_date", sinceISO)
-      .order("event_date", { ascending: true }),
-    uid,
-  );
-  if (error || !data) return [];
-  return data.map((r: { event_date: string; aura: boolean; triptan: boolean }) => ({
-    date: r.event_date,
-    aura: r.aura,
-    triptan: r.triptan,
-  }));
+  const [{ data: evData }, { data: logData }] = await Promise.all([
+    byUser(
+      db.from("migraine_event")
+        .select("event_date, aura, triptan")
+        .gte("event_date", sinceISO)
+        .order("event_date", { ascending: true }),
+      uid,
+    ),
+    byUser(
+      db.from("daily_log")
+        .select("log_date, migraine_aura")
+        .eq("migraine", true)
+        .gte("log_date", sinceISO)
+        .order("log_date", { ascending: true }),
+      uid,
+    ),
+  ]);
+  const seen = new Set<string>();
+  const result: MigraineEvent[] = [];
+  for (const r of (evData ?? [])) {
+    seen.add(r.event_date);
+    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
+  }
+  for (const r of (logData ?? [])) {
+    if (!seen.has(r.log_date)) {
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+    }
+  }
+  return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
-    db.from("migraine_event")
-      .select("event_date, aura, triptan")
-      .order("event_date", { ascending: true }),
-    uid,
-  );
-  if (error || !data) return [];
-  return data.map((r: { event_date: string; aura: boolean; triptan: boolean }) => ({
-    date: r.event_date,
-    aura: r.aura,
-    triptan: r.triptan,
-  }));
+  const [{ data: evData }, { data: logData }] = await Promise.all([
+    byUser(
+      db.from("migraine_event")
+        .select("event_date, aura, triptan")
+        .order("event_date", { ascending: true }),
+      uid,
+    ),
+    byUser(
+      db.from("daily_log")
+        .select("log_date, migraine_aura")
+        .eq("migraine", true)
+        .order("log_date", { ascending: true }),
+      uid,
+    ),
+  ]);
+  const seen = new Set<string>();
+  const result: MigraineEvent[] = [];
+  for (const r of (evData ?? [])) {
+    seen.add(r.event_date);
+    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
+  }
+  for (const r of (logData ?? [])) {
+    if (!seen.has(r.log_date)) {
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+    }
+  }
+  return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getMonthHabitStats(ym: string): Promise<{ done: number; daysLogged: number }> {
@@ -545,7 +576,7 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
   if (!db) return [];
   const uid = await getAppUserId();
 
-  const [{ data: starts }, { data: events }] = await Promise.all([
+  const [{ data: starts }, { data: events }, { data: logEvents }] = await Promise.all([
     byUser(
       db.from("cycle_start").select("start_date").order("start_date", { ascending: true }),
       uid,
@@ -554,9 +585,20 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
       db.from("migraine_event").select("event_date").order("event_date", { ascending: true }),
       uid,
     ),
+    byUser(
+      db.from("daily_log").select("log_date").eq("migraine", true).order("log_date", { ascending: true }),
+      uid,
+    ),
   ]);
 
   if (!starts?.length) return [];
+
+  // Merge migraine dates from both sources
+  const seen = new Set<string>();
+  const allMigDates: string[] = [];
+  for (const e of (events ?? [])) { seen.add(e.event_date); allMigDates.push(e.event_date); }
+  for (const e of (logEvents ?? [])) { if (!seen.has(e.log_date)) allMigDates.push(e.log_date); }
+  allMigDates.sort();
 
   const toMs = (s: string) => new Date(s).getTime();
   const rows: CycleHistoryRow[] = [];
@@ -568,12 +610,12 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
     const nextMs = nextStr ? toMs(nextStr) : null;
     const length = nextMs ? Math.round((nextMs - startMs) / 86400000) : 30;
 
-    const migraineDays = (events ?? [])
-      .filter((e: { event_date: string }) => {
-        const eMs = toMs(e.event_date);
+    const migraineDays = allMigDates
+      .filter((d) => {
+        const eMs = toMs(d);
         return eMs >= startMs && (!nextMs || eMs < nextMs);
       })
-      .map((e: { event_date: string }) => Math.round((toMs(e.event_date) - startMs) / 86400000) + 1);
+      .map((d) => Math.round((toMs(d) - startMs) / 86400000) + 1);
 
     rows.push({ start: startStr, length, migraineDays });
   }
