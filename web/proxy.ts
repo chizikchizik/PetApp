@@ -13,7 +13,9 @@ export function proxy(request: NextRequest) {
   }
 
   const cookie = request.cookies.get("verta_auth")?.value;
-  if (cookie === expected) return NextResponse.next();
+  const isLegacy = cookie === expected;
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie ?? "");
+  if (isLegacy || isUUID) return NextResponse.next();
 
   const url = request.nextUrl.clone();
   url.pathname = "/login";
