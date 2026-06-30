@@ -1,0 +1,13 @@
+# Personal health data — NEVER commit
+startdata/
+
+# macOS
+.DS_Store
+
+# Claude
+.claude/
+
+# Dev artifacts
+design/
+docs/
+prototype/

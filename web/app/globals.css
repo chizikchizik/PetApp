@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── VERTA Design System — светлая тема ── */
+:root {
+  --bg: #E7E5DF;
+  --bg-2: #EFEDE7;
+  --surface: #FBFAF7;
+  --surface-2: #F0EEE8;
+  --surface-3: #E6E3DC;
+  --line: #D6D2C9;
+  --line-2: #C2BDB2;
+  --ink: #16150F;
+  --ink-2: #54524A;
+  --ink-3: #8A877D;
+  --ink-4: #B4B0A5;
+  --warn: oklch(0.57 0.2 20);
+  --warn-soft: color-mix(in oklab, oklch(0.57 0.2 20) 14%, #FBFAF7);
+  /* фолликулярная по умолчанию */
+  --phase: oklch(0.68 0.17 134);
+  --phase-soft: color-mix(in oklab, oklch(0.68 0.17 134) 14%, #FBFAF7);
+  --phase-deep: oklch(0.5 0.14 134);
+  --on-phase: #FBFAF7;
+}
+
+/* ── VERTA — тёмная тема ── */
+.dark {
+  --bg: #0B0B0D;
+  --bg-2: #0F0F12;
+  --surface: #151518;
+  --surface-2: #1C1C20;
+  --surface-3: #242429;
+  --line: #2A2A31;
+  --line-2: #3A3A43;
+  --ink: #F4F3EF;
+  --ink-2: #9D9B95;
+  --ink-3: #66666C;
+  --ink-4: #45454B;
+  --warn: oklch(0.64 0.21 18);
+  --warn-soft: color-mix(in oklab, oklch(0.64 0.21 18) 14%, #151518);
+  /* фолликулярная по умолчанию */
+  --phase: oklch(0.86 0.19 134);
+  --phase-soft: color-mix(in oklab, oklch(0.86 0.19 134) 14%, #151518);
+  --phase-deep: oklch(0.86 0.19 134);
+  --on-phase: #0B0B0D;
+}
+
+/* ── Акцент по фазе цикла ── */
+.phase-menstrual {
+  --phase: oklch(0.57 0.2 20);
+  --phase-soft: color-mix(in oklab, oklch(0.57 0.2 20) 14%, #FBFAF7);
+  --phase-deep: oklch(0.5 0.18 20);
+  --on-phase: #fff;
+}
+.phase-follicular {
+  --phase: oklch(0.68 0.17 134);
+  --phase-soft: color-mix(in oklab, oklch(0.68 0.17 134) 14%, #FBFAF7);
+  --phase-deep: oklch(0.5 0.14 134);
+  --on-phase: #FBFAF7;
+}
+.phase-ovulatory {
+  --phase: oklch(0.66 0.14 70);
+  --phase-soft: color-mix(in oklab, oklch(0.66 0.14 70) 14%, #FBFAF7);
+  --phase-deep: oklch(0.5 0.12 70);
+  --on-phase: #FBFAF7;
+}
+.phase-luteal {
+  --phase: oklch(0.6 0.13 252);
+  --phase-soft: color-mix(in oklab, oklch(0.6 0.13 252) 14%, #FBFAF7);
+  --phase-deep: oklch(0.48 0.13 256);
+  --on-phase: #fff;
+}
+.dark .phase-menstrual {
+  --phase: oklch(0.64 0.21 18);
+  --phase-soft: color-mix(in oklab, oklch(0.64 0.21 18) 14%, #151518);
+  --phase-deep: oklch(0.72 0.2 18);
+  --on-phase: #fff;
+}
+.dark .phase-follicular {
+  --phase: oklch(0.86 0.19 134);
+  --phase-soft: color-mix(in oklab, oklch(0.86 0.19 134) 14%, #151518);
+  --phase-deep: oklch(0.86 0.19 134);
+  --on-phase: #0B0B0D;
+}
+.dark .phase-ovulatory {
+  --phase: oklch(0.83 0.16 80);
+  --phase-soft: color-mix(in oklab, oklch(0.83 0.16 80) 14%, #151518);
+  --phase-deep: oklch(0.83 0.16 80);
+  --on-phase: #0B0B0D;
+}
+.dark .phase-luteal {
+  --phase: oklch(0.77 0.12 250);
+  --phase-soft: color-mix(in oklab, oklch(0.77 0.12 250) 14%, #151518);
+  --phase-deep: oklch(0.78 0.12 250);
+  --on-phase: #0B0B0D;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-phase: var(--phase);
+  --color-phase-soft: var(--phase-soft);
+  --color-phase-deep: var(--phase-deep);
+  --color-on-phase: var(--on-phase);
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: 'Unbounded', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-card: 3px;
+  --radius-el: 3px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--phase-soft);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

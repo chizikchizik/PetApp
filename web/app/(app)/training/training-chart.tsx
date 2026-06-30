@@ -1,10 +1,20 @@
 import type { WorkoutLogEntry, SportDay, MigraineEvent } from "@/lib/data";
 
-const C_WORKOUT = "rgba(190,140,60,0.88)";
-const C_SPORT   = "rgba(55,165,130,0.72)";
-const C_BOTH    = "rgba(140,90,185,0.82)";
-const C_EMPTY   = "rgba(130,130,130,0.09)";
-const C_MIG     = "#d04830";
+const C_GYM        = "rgba(190,140,60,0.88)";   // зал
+const C_VOLLEYBALL = "rgba(55,120,215,0.88)";   // волейбол
+const C_RUN        = "rgba(210,95,55,0.88)";    // бег
+const C_OTHER_W    = "rgba(160,130,180,0.82)";  // прочие тренировки
+const C_SPORT      = "rgba(55,165,130,0.72)";   // спорт (привычки)
+const C_EMPTY      = "rgba(130,130,130,0.09)";
+const C_MIG        = "#d04830";
+
+function typeColor(types: string[]): string {
+  const s = types.join(" ").toLowerCase();
+  if (s.includes("волейбол")) return C_VOLLEYBALL;
+  if (s.includes("бег"))      return C_RUN;
+  if (s.includes("зал"))      return C_GYM;
+  return C_OTHER_W;
+}
 
 const CELL = 13;
 const GAP  = 2;
@@ -30,8 +40,11 @@ export function TrainingChart({
   sports: SportDay[];
   migraines: MigraineEvent[];
 }) {
-  const workoutMap = new Map<string, WorkoutLogEntry>();
-  for (const w of workouts) workoutMap.set(w.date, w);
+  const workoutTypeMap = new Map<string, string[]>();
+  for (const w of workouts) {
+    const existing = workoutTypeMap.get(w.date) ?? [];
+    workoutTypeMap.set(w.date, [...existing, w.type]);
+  }
 
   const sportSet = new Set<string>();
   for (const s of sports) sportSet.add(s.date);
@@ -74,7 +87,7 @@ export function TrainingChart({
   const wByDow = new Array(7).fill(0);
   const sByDow = new Array(7).fill(0);
   const mByDow = new Array(7).fill(0);
-  for (const w of workouts) wByDow[isoDow(w.date)]++;
+  for (const [date] of workoutTypeMap) wByDow[isoDow(date)]++;
   for (const s of sports)   sByDow[isoDow(s.date)]++;
   for (const m of migraines) mByDow[isoDow(m.date)]++;
   const maxBar = Math.max(...wByDow.map((w, i) => w + sByDow[i]), 1);
@@ -83,14 +96,16 @@ export function TrainingChart({
   const BAR_GAP  = 4;
   const BAR_STEP = BAR_W + BAR_GAP;
   const CHART_H  = 64;
+  const TOP_PAD  = 14;  // room for count label above tallest bar
   const BTXT_H   = 24;
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
-  const BAR_SVG_H = CHART_H + BTXT_H;
+  const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
 
   const legendItems = [
-    { color: C_WORKOUT, label: "тренировка" },
-    { color: C_SPORT,   label: "спорт" },
-    { color: C_BOTH,    label: "оба" },
+    { color: C_GYM,        label: "зал" },
+    { color: C_VOLLEYBALL, label: "волейбол" },
+    { color: C_RUN,        label: "бег" },
+    { color: C_SPORT,      label: "спорт" },
   ];
 
   return (
@@ -123,13 +138,13 @@ export function TrainingChart({
             {/* Cells */}
             {weeks.map((week, wi) =>
               week.map((date, di) => {
-                const hasW = workoutMap.has(date);
+                const types = workoutTypeMap.get(date);
+                const hasW = !!types;
                 const hasS = sportSet.has(date);
                 const hasM = migraineSet.has(date);
                 const future = date > todayISO;
                 const fill = future ? "none"
-                  : (hasW && hasS) ? C_BOTH
-                  : hasW ? C_WORKOUT
+                  : hasW ? typeColor(types!)
                   : hasS ? C_SPORT
                   : C_EMPTY;
                 const x = DAY_LABEL_W + wi * STEP;
@@ -147,7 +162,7 @@ export function TrainingChart({
 
             {/* Legend */}
             {legendItems.map(({ color, label }, i) => {
-              const lx = DAY_LABEL_W + i * 76;
+              const lx = DAY_LABEL_W + i * 62;
               const ly = MONTH_H + 7 * STEP - GAP + 10;
               return (
                 <g key={i}>
@@ -159,8 +174,8 @@ export function TrainingChart({
               );
             })}
             <g>
-              <circle cx={DAY_LABEL_W + 3 * 76 + 4} cy={MONTH_H + 7 * STEP - GAP + 14} r={4} fill={C_MIG} />
-              <text x={DAY_LABEL_W + 3 * 76 + 12} y={MONTH_H + 7 * STEP - GAP + 18} fontSize={7} fill="rgba(100,100,100,0.55)" fontFamily="monospace">
+              <circle cx={DAY_LABEL_W + 4 * 62 + 4} cy={MONTH_H + 7 * STEP - GAP + 14} r={4} fill={C_MIG} />
+              <text x={DAY_LABEL_W + 4 * 62 + 12} y={MONTH_H + 7 * STEP - GAP + 18} fontSize={7} fill="rgba(100,100,100,0.55)" fontFamily="monospace">
                 мигрень
               </text>
             </g>
@@ -189,30 +204,35 @@ export function TrainingChart({
               return (
                 <g key={i}>
                   {sH > 0 && (
-                    <rect x={x} y={CHART_H - sH} width={BAR_W} height={sH} rx={2} fill={C_SPORT} />
+                    <rect x={x} y={TOP_PAD + CHART_H - sH} width={BAR_W} height={sH} rx={2} fill={C_SPORT} />
                   )}
                   {wH > 0 && (
-                    <rect x={x} y={CHART_H - sH - wH} width={BAR_W} height={wH}
-                      rx={wH > 3 ? 2 : 0} fill={C_WORKOUT} />
+                    <rect x={x} y={TOP_PAD + CHART_H - sH - wH} width={BAR_W} height={wH}
+                      rx={wH > 3 ? 2 : 0} fill={C_GYM} />
                   )}
                   {total > 0 && (
-                    <text x={x + BAR_W / 2} y={CHART_H - sH - wH - 3}
+                    <text x={x + BAR_W / 2} y={TOP_PAD + CHART_H - sH - wH - 3}
                       textAnchor="middle" fontSize={8} fontFamily="monospace"
                       fill="rgba(80,80,80,0.65)">
                       {total}
                     </text>
                   )}
                   {/* Day label */}
-                  <text x={x + BAR_W / 2} y={CHART_H + 11}
+                  <text x={x + BAR_W / 2} y={TOP_PAD + CHART_H + 11}
                     textAnchor="middle" fontSize={8.5} fontFamily="monospace"
                     fill="rgba(80,80,80,0.6)">
                     {label}
                   </text>
-                  {/* Migraine dots under label */}
-                  {Array.from({ length: Math.min(mCnt, 5) }).map((_, mi) => (
-                    <circle key={mi} cx={x + BAR_W / 2 - (Math.min(mCnt, 5) - 1) * 3 + mi * 6}
-                      cy={CHART_H + 20} r={2} fill={C_MIG} />
-                  ))}
+                  {/* Migraine: dot + count */}
+                  {mCnt > 0 && (
+                    <g>
+                      <circle cx={x + BAR_W / 2 - 6} cy={TOP_PAD + CHART_H + 20} r={2.5} fill={C_MIG} />
+                      <text x={x + BAR_W / 2 - 1} y={TOP_PAD + CHART_H + 23.5}
+                        fontSize={7.5} fontFamily="monospace" fill={C_MIG}>
+                        {mCnt}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
