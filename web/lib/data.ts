@@ -366,7 +366,11 @@ export type ActualExercise = {
 export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
   const db = supabaseAdmin();
   if (!db) return [];
-  const { data } = await db.from("workout_template").select("*").eq("is_active", true).order("name");
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("workout_template").select("*").eq("is_active", true).order("name"),
+    uid,
+  );
   if (!data) return [];
   return data.map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -381,7 +385,11 @@ export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
 export async function getWeeklySchedule(): Promise<ScheduleDay[]> {
   const db = supabaseAdmin();
   if (!db) return [];
-  const { data } = await db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week");
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week"),
+    uid,
+  );
   return (data ?? []) as ScheduleDay[];
 }
 
