@@ -7,6 +7,7 @@ import {
   getSportActivityDays,
   getMigraineEventsSince,
   getWorkoutCountForYear,
+  getSportTypes,
 } from "@/lib/data";
 import { getRecentWorkouts } from "./actions";
 import { TrainingForm } from "./training-form";
@@ -41,10 +42,11 @@ export default async function TrainingPage() {
   const sinceISO = since26w.toISOString().slice(0, 10);
 
   const year = new Date().getFullYear();
-  const [starts, workouts, templates, workoutHistory, sportDays, migraines, yearCount] = await Promise.all([
+  const [starts, workouts, templates, sportTypes, workoutHistory, sportDays, migraines, yearCount] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
     getWorkoutTemplates(),
+    getSportTypes(),
     getWorkoutHistory(sinceISO),
     getSportActivityDays(sinceISO),
     getMigraineEventsSince(sinceISO),
@@ -174,7 +176,7 @@ export default async function TrainingPage() {
       </Link>
 
       {/* ── Добавить тренировку ── */}
-      <TrainingForm templates={templates} />
+      <TrainingForm templates={templates} sportTypes={sportTypes} />
 
       {/* ── История ── */}
       <WorkoutHistoryList workouts={workouts} />

@@ -572,3 +572,23 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
 
   return rows.reverse();
 }
+
+// Default sport types shown to new users and as fallback
+const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
+const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
+
+export async function getSportTypes(): Promise<string[]> {
+  const db = supabaseAdmin();
+  if (db) {
+    const uid = await getAppUserId();
+    const { data, error } = await byUser(
+      db.from("sport_type").select("name").order("sort", { ascending: true }),
+      uid,
+    );
+    if (!error && data && data.length) {
+      return data.map((r: { name: string }) => r.name);
+    }
+    if (uid && uid !== "__legacy__") return [...DEFAULT_SPORT_TYPES];
+  }
+  return [...LEGACY_SPORT_TYPES];
+}

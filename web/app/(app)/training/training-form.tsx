@@ -3,17 +3,7 @@ import { useState } from "react";
 import { saveWorkout, saveExercises } from "./actions";
 import type { WorkoutTemplate, ExerciseTemplate } from "@/lib/data";
 
-const TYPES = [
-  "Силовая",
-  "Функциональная",
-  "Бег",
-  "Волейбол",
-  "Скайдайв",
-  "Сноуборд",
-  "Скалодром",
-  "Групповая",
-  "Другое",
-];
+const FALLBACK_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
 
 // Map UI type labels to template type slugs
 const TYPE_SLUG: Record<string, string> = {
@@ -50,7 +40,8 @@ const emptyForm = (): FormState => ({
 
 type Mode = "form" | "exercises";
 
-export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
+export function TrainingForm({ templates, sportTypes }: { templates: WorkoutTemplate[]; sportTypes?: string[] }) {
+  const TYPES = [...(sportTypes ?? FALLBACK_TYPES), "Другое"];
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("form");
   const [s, setS] = useState<FormState>(emptyForm());
