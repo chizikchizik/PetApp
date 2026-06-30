@@ -99,9 +99,9 @@ export function TrainingChart({
   const BAR_W    = 38;
   const BAR_GAP  = 4;
   const BAR_STEP = BAR_W + BAR_GAP;
-  const CHART_H  = 64;
-  const TOP_PAD  = 14;  // room for count label above tallest bar
-  const BTXT_H   = 14; // just day labels now
+  const CHART_H  = 90;
+  const TOP_PAD  = 26;  // room for two stacked labels (total + мигрень)
+  const BTXT_H   = 16;
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
   const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
 
