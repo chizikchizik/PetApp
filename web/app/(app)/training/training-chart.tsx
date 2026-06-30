@@ -102,13 +102,19 @@ export function TrainingChart({
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
   const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
 
-  const legendItems = [
-    { color: C_GYM,        label: "зал" },
-    { color: C_VOLLEYBALL, label: "волейбол" },
-    { color: C_RUN,        label: "бег" },
-    { color: C_SPORT,      label: "спорт" },
-    { color: C_MIG,        label: "мигрень" },
-  ];
+  // Auto-build legend: top workout types by frequency, deduplicated by color
+  const typeCounts = new Map<string, number>();
+  for (const w of workouts) typeCounts.set(w.type, (typeCounts.get(w.type) ?? 0) + 1);
+  const colorToLabel = new Map<string, string>();
+  for (const [type] of [...typeCounts.entries()].sort((a, b) => b[1] - a[1])) {
+    const col = typeColor([type]);
+    if (!colorToLabel.has(col)) colorToLabel.set(col, type.toLowerCase());
+    if (colorToLabel.size >= 4) break;
+  }
+  type LegendItem = { color: string; label: string; circle?: boolean };
+  const legendItems: LegendItem[] = [...colorToLabel.entries()].map(([color, label]) => ({ color, label }));
+  if (sports.length > 0) legendItems.push({ color: C_SPORT, label: "спорт" });
+  if (migraines.length > 0) legendItems.push({ color: C_MIG, label: "мигрень", circle: true });
 
   return (
     <div className="mt-5 space-y-4">
@@ -162,25 +168,22 @@ export function TrainingChart({
               })
             )}
 
-            {/* Legend */}
-            {legendItems.map(({ color, label }, i) => {
+            {/* Legend — auto-computed from actual data */}
+            {legendItems.map(({ color, label, circle }, i) => {
               const lx = DAY_LABEL_W + i * 62;
               const ly = MONTH_H + 7 * STEP - GAP + 10;
               return (
                 <g key={i}>
-                  <rect x={lx} y={ly} width={9} height={9} rx={2} fill={color} />
+                  {circle
+                    ? <circle cx={lx + 4} cy={ly + 4} r={4} fill={color} />
+                    : <rect x={lx} y={ly} width={9} height={9} rx={2} fill={color} />
+                  }
                   <text x={lx + 12} y={ly + 8} fontSize={7} fill="rgba(100,100,100,0.55)" fontFamily="monospace">
                     {label}
                   </text>
                 </g>
               );
             })}
-            <g>
-              <circle cx={DAY_LABEL_W + 4 * 62 + 4} cy={MONTH_H + 7 * STEP - GAP + 14} r={4} fill={C_MIG} />
-              <text x={DAY_LABEL_W + 4 * 62 + 12} y={MONTH_H + 7 * STEP - GAP + 18} fontSize={7} fill="rgba(100,100,100,0.55)" fontFamily="monospace">
-                мигрень
-              </text>
-            </g>
           </svg>
         </div>
       </div>
