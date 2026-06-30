@@ -174,7 +174,13 @@ export default async function Login({
           className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
         />
         {e === "1" && (
-          <p className="text-[13px] font-medium text-warn">Неверный email или пароль</p>
+          <p className="text-[13px] font-medium text-warn">Неверный пароль</p>
+        )}
+        {e === "2" && (
+          <p className="text-[13px] font-medium text-warn">
+            Аккаунт не найден.{" "}
+            <a href="/register" className="underline underline-offset-2">Зарегистрироваться →</a>
+          </p>
         )}
         <button
           type="submit"

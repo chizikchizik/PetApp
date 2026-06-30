@@ -37,18 +37,29 @@ export async function createUser(email: string, password: string, displayName: s
   return data as { id: string; email: string; display_name: string }
 }
 
-export async function loginUser(email: string, password: string) {
+export async function loginUser(email: string, password: string): Promise<
+  { user: { id: string; email: string; displayName: string } } |
+  { error: "not_found" | "wrong_password" }
+> {
   const db = supabaseAdmin()
-  if (!db) return null
+  if (!db) return { error: "not_found" }
   const { data } = await db
     .from("app_user")
     .select("id, email, display_name, password_hash, password_salt")
     .eq("email", email.toLowerCase().trim())
     .single()
-  if (!data) return null
+  if (!data) return { error: "not_found" }
   const ok = await verifyPassword(password, data.password_salt as string, data.password_hash as string)
-  if (!ok) return null
-  return { id: data.id as string, email: data.email as string, displayName: data.display_name as string }
+  if (!ok) return { error: "wrong_password" }
+  return { user: { id: data.id as string, email: data.email as string, displayName: data.display_name as string } }
+}
+
+export async function deleteUnfinishedUser(email: string): Promise<void> {
+  const db = supabaseAdmin()
+  if (!db) return
+  await db.from("app_user").delete()
+    .eq("email", email.toLowerCase().trim())
+    .eq("onboarding_done", false)
 }
 
 export async function setAuthCookie(userId: string) {

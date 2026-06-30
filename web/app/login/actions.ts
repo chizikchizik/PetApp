@@ -24,8 +24,10 @@ export async function login(formData: FormData) {
   }
 
   // Email + password login
-  const user = await loginUser(email, pw);
-  if (!user) redirect("/login?e=1");
-  await setAuthCookie(user.id);
+  const result = await loginUser(email, pw);
+  if ("error" in result) {
+    redirect(result.error === "not_found" ? "/login?e=2" : "/login?e=1");
+  }
+  await setAuthCookie(result.user.id);
   redirect("/");
 }
