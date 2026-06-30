@@ -24,7 +24,7 @@ const GAP  = 2;
 const STEP = CELL + GAP;
 const DAY_LABEL_W = 22;
 const MONTH_H = 16;
-const LEGEND_H = 0;
+const LEGEND_H = 8;  // bottom padding inside SVG
 
 const DAY_LABELS = ["ПН","ВТ","СР","ЧТ","ПТ","СБ","ВС"];
 const MONTHS_RU  = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
