@@ -33,19 +33,27 @@ type ExerciseRow = ExerciseTemplate & {
 type FormState = {
   type: string | null;
   customType: string;
+  date: string;
   duration: string;
   fatigue_pct: number | null;
   note: string;
 };
 
-const emptyForm: FormState = { type: null, customType: "", duration: "", fatigue_pct: null, note: "" };
+const emptyForm = (): FormState => ({
+  type: null,
+  customType: "",
+  date: new Date().toISOString().slice(0, 10),
+  duration: "",
+  fatigue_pct: null,
+  note: "",
+});
 
 type Mode = "form" | "exercises";
 
 export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("form");
-  const [s, setS] = useState<FormState>(emptyForm);
+  const [s, setS] = useState<FormState>(emptyForm());
   const [workoutId, setWorkoutId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -76,8 +84,7 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
   async function save() {
     if (!effectiveType) return;
     setStatus("saving");
-    const today = new Date().toISOString().slice(0, 10);
-    const res = await saveWorkout(today, {
+    const res = await saveWorkout(s.date, {
       type: effectiveType,
       duration: s.duration ? parseInt(s.duration) : null,
       fatigue_pct: s.fatigue_pct,
@@ -92,7 +99,7 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
         setMode("exercises");
       } else {
         // No template for this type — close normally
-        setS(emptyForm);
+        setS(emptyForm());
         setOpen(false);
         setTimeout(() => setStatus("idle"), 2000);
       }
@@ -123,7 +130,7 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
       setTimeout(() => {
         setExStatus("idle");
         setMode("form");
-        setS(emptyForm);
+        setS(emptyForm());
         setWorkoutId(null);
         setExercises([]);
         setStatus("idle");
@@ -137,7 +144,7 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
 
   function skipExercises() {
     setMode("form");
-    setS(emptyForm);
+    setS(emptyForm());
     setWorkoutId(null);
     setExercises([]);
     setStatus("idle");
@@ -295,7 +302,17 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">дата</p>
+          <input
+            type="date"
+            value={s.date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setS({ ...s, date: e.target.value })}
+            className="mt-2 w-full rounded-[3px] border border-line bg-surface px-2 py-3 text-[13px] text-ink outline-none focus:border-phase"
+          />
+        </div>
         <div>
           <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">длительность, мин</p>
           <input
@@ -340,7 +357,7 @@ export function TrainingForm({ templates }: { templates: WorkoutTemplate[] }) {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => { setOpen(false); setS(emptyForm); }}
+          onClick={() => { setOpen(false); setS(emptyForm()); }}
           className="rounded-[3px] border border-line px-4 py-3 text-[13px] font-medium text-ink-3"
         >
           Отмена

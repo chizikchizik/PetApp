@@ -142,7 +142,8 @@ export async function getRecentWorkouts(): Promise<WorkoutRow[]> {
     db.from("workout_log")
       .select("id, workout_date, type, duration_min, fatigue_pct, note")
       .order("workout_date", { ascending: false })
-      .limit(30),
+      .order("created_at", { ascending: false })
+      .limit(200),
     uid,
   );
   return (data ?? []) as WorkoutRow[];
@@ -150,7 +151,7 @@ export async function getRecentWorkouts(): Promise<WorkoutRow[]> {
 
 export async function updateWorkout(
   id: string,
-  payload: { type: string; duration: number | null; fatigue_pct: number | null; note: string },
+  payload: { type: string; workout_date: string; duration: number | null; fatigue_pct: number | null; note: string },
 ): Promise<{ ok: boolean }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false };
@@ -158,6 +159,7 @@ export async function updateWorkout(
   const { error } = await byUser(
     db.from("workout_log").update({
       type: payload.type,
+      workout_date: payload.workout_date,
       duration_min: payload.duration,
       fatigue_pct: payload.fatigue_pct,
       note: payload.note || null,

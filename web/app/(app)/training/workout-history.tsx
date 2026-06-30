@@ -22,21 +22,28 @@ const LABEL = "font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3";
 
 type EditState = {
   type: string;
+  workout_date: string;
   duration: string;
   fatigue: number;
   note: string;
 };
 
+const PAGE_SIZE = 30;
+
 export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
   const [items, setItems] = useState(workouts);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [edit, setEdit] = useState<EditState>({ type: "", duration: "", fatigue: 50, note: "" });
+  const [edit, setEdit] = useState<EditState>({ type: "", workout_date: "", duration: "", fatigue: 50, note: "" });
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [showAll, setShowAll] = useState(false);
 
   if (items.length === 0) return null;
+
+  const visible = showAll ? items : items.slice(0, PAGE_SIZE);
+  const hidden = items.length - PAGE_SIZE;
 
   // ── helpers ──────────────────────────────────────────────────────────
   function openEdit(w: WorkoutRow) {
@@ -44,6 +51,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
     setEditingId(w.id);
     setEdit({
       type: w.type,
+      workout_date: w.workout_date,
       duration: w.duration_min?.toString() ?? "",
       fatigue: w.fatigue_pct ?? 50,
       note: w.note ?? "",
@@ -55,15 +63,16 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
     startTransition(async () => {
       const res = await updateWorkout(id, {
         type: edit.type,
+        workout_date: edit.workout_date,
         duration: dur,
         fatigue_pct: edit.fatigue,
         note: edit.note,
       });
       if (res.ok) {
         setItems(prev => prev.map(w => w.id === id
-          ? { ...w, type: edit.type, duration_min: dur, fatigue_pct: edit.fatigue, note: edit.note || null }
+          ? { ...w, type: edit.type, workout_date: edit.workout_date, duration_min: dur, fatigue_pct: edit.fatigue, note: edit.note || null }
           : w
-        ));
+        ).sort((a, b) => b.workout_date.localeCompare(a.workout_date)));
         setEditingId(null);
       }
     });
@@ -100,7 +109,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
   }
 
   function toggleSelectAll() {
-    setSelected(selected.size === items.length ? new Set() : new Set(items.map(w => w.id)));
+    setSelected(selected.size === visible.length ? new Set() : new Set(visible.map(w => w.id)));
   }
 
   // ── render ──────────────────────────────────────────────────────────
@@ -109,7 +118,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
       {/* Header row */}
       <div className="mt-5 flex items-center justify-between">
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          история · нагрузка
+          история · нагрузка · {items.length}
         </p>
         <button
           onClick={() => {
@@ -127,12 +136,12 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
           onClick={toggleSelectAll}
           className="mt-1.5 font-mono text-[10px] text-ink-3 underline underline-offset-2"
         >
-          {selected.size === items.length ? "снять всё" : "выбрать всё"}
+          {selected.size === visible.length ? "снять всё" : "выбрать всё"}
         </button>
       )}
 
       <div className="mt-2 space-y-2">
-        {items.map(w => (
+        {visible.map(w => (
           <div
             key={w.id}
             className={`rounded-card border bg-surface p-4 transition-colors ${
@@ -142,14 +151,26 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
             {editingId === w.id ? (
               /* ── Edit form ─────────────────────── */
               <div className="space-y-3">
-                <div>
-                  <div className={LABEL}>Тип тренировки</div>
-                  <input
-                    className={`mt-1 ${FIELD}`}
-                    value={edit.type}
-                    onChange={e => setEdit(s => ({ ...s, type: e.target.value }))}
-                    autoFocus
-                  />
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <div className={LABEL}>Тип тренировки</div>
+                    <input
+                      className={`mt-1 ${FIELD}`}
+                      value={edit.type}
+                      onChange={e => setEdit(s => ({ ...s, type: e.target.value }))}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="shrink-0">
+                    <div className={LABEL}>Дата</div>
+                    <input
+                      type="date"
+                      className={`mt-1 ${FIELD} w-[136px]`}
+                      value={edit.workout_date}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={e => setEdit(s => ({ ...s, workout_date: e.target.value }))}
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <div className="flex-1">
@@ -189,7 +210,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
                 <div className="flex gap-2 pt-0.5">
                   <button
                     onClick={() => saveEdit(w.id)}
-                    disabled={isPending || !edit.type.trim()}
+                    disabled={isPending || !edit.type.trim() || !edit.workout_date}
                     className="flex-1 rounded-[3px] py-1.5 font-mono text-[11px] font-semibold text-[var(--on-phase)] disabled:opacity-40"
                     style={{ background: "var(--phase)" }}
                   >
@@ -303,6 +324,16 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
           </div>
         ))}
       </div>
+
+      {/* Show more / less */}
+      {items.length > PAGE_SIZE && (
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="mt-3 w-full py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3 underline underline-offset-2"
+        >
+          {showAll ? "скрыть" : `показать все · ещё ${hidden}`}
+        </button>
+      )}
 
       {/* Bulk action bar — fixed above bottom nav */}
       {bulkMode && (
