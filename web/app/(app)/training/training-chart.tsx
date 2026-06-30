@@ -1,9 +1,10 @@
 import type { WorkoutLogEntry, SportDay, MigraineEvent } from "@/lib/data";
 
-const C_GYM        = "rgba(190,140,60,0.88)";   // зал
-const C_VOLLEYBALL = "rgba(140,90,200,0.88)";   // волейбол
+const C_GYM        = "rgba(190,140,60,0.88)";   // зал + спорт
+const C_VOLLEYBALL = "rgba(55,120,215,0.88)";   // волейбол
+const C_SNOWBOARD  = "rgba(140,90,200,0.88)";   // сноуборд
 const C_RUN        = "rgba(210,95,55,0.88)";    // бег
-const C_OTHER_W    = "rgba(80,175,85,0.78)";    // прочие тренировки
+const C_OTHER_W    = "rgba(80,175,85,0.78)";    // прочие (лыжи, бассейн…)
 const C_SPORT      = "rgba(55,165,130,0.72)";   // спорт (привычки)
 const C_EMPTY      = "rgba(130,130,130,0.09)";
 const C_MIG        = "#d04830";
@@ -13,6 +14,8 @@ function typeColor(types: string[]): string {
   if (s.includes("волейбол")) return C_VOLLEYBALL;
   if (s.includes("бег"))      return C_RUN;
   if (s.includes("зал"))      return C_GYM;
+  if (s.includes("спорт"))    return C_GYM;
+  if (s.includes("сноуборд")) return C_SNOWBOARD;
   return C_OTHER_W;
 }
 
@@ -109,7 +112,7 @@ export function TrainingChart({
   for (const [type] of [...typeCounts.entries()].sort((a, b) => b[1] - a[1])) {
     const col = typeColor([type]);
     if (!colorToLabel.has(col)) colorToLabel.set(col, type.toLowerCase());
-    if (colorToLabel.size >= 4) break;
+    if (colorToLabel.size >= 5) break;
   }
   type LegendItem = { color: string; label: string; circle?: boolean };
   const legendItems: LegendItem[] = [...colorToLabel.entries()].map(([color, label]) => ({ color, label }));
