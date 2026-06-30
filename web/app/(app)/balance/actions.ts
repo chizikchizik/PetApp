@@ -34,6 +34,7 @@ export type Scores = {
 export type Assessment = {
   id: string;
   assessed_at: string;
+  created_at: string;
   scores: Scores;
   note: string | null;
 };
@@ -68,8 +69,9 @@ export async function getAssessments(): Promise<Assessment[]> {
   const uid = await getAppUserId();
   const { data } = await byUser(
     db.from("balance_assessment")
-      .select("id, assessed_at, scores, note")
-      .order("assessed_at", { ascending: false })
+      .select("id, assessed_at, created_at, scores, note")
+      .not("scores", "is", null)
+      .order("created_at", { ascending: false })
       .limit(12),
     uid,
   );
@@ -78,6 +80,7 @@ export async function getAssessments(): Promise<Assessment[]> {
     return {
       id: r.id as string,
       assessed_at: r.assessed_at as string,
+      created_at: r.created_at as string,
       note: (r.note as string | null) ?? null,
       scores: {
         family:  s.family  ?? DEFAULT_SCORES.family,

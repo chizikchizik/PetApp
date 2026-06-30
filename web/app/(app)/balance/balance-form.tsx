@@ -24,6 +24,10 @@ function fmtDate(iso: string) {
   const d = new Date(iso + "T12:00:00");
   return `${d.getDate()} ${RU_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  return `${d.getDate()} ${RU_MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
 
 export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
   const latest = assessments[0];
@@ -34,8 +38,21 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isPending, startTransition] = useTransition();
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
-  const displayScores = editing ? scores : (latest?.scores ?? DEFAULT_SCORES);
+  const viewingAssessment = viewingId ? assessments.find(a => a.id === viewingId) : null;
+
+  const displayScores = editing
+    ? scores
+    : viewingAssessment
+      ? viewingAssessment.scores
+      : (latest?.scores ?? DEFAULT_SCORES);
+
+  const displayPrev = editing
+    ? (latest ? latest.scores : undefined)
+    : viewingAssessment
+      ? undefined
+      : prev?.scores;
 
   function setScore(key: keyof Scores, val: number) {
     setScores((s) => ({ ...s, [key]: Math.max(1, Math.min(10, val)) }));
@@ -48,6 +65,7 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       if (res.ok) {
         setStatus("saved");
         setEditing(false);
+        setViewingId(null);
         setNote("");
         setTimeout(() => setStatus("idle"), 2000);
       } else {
@@ -55,6 +73,12 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
         setTimeout(() => setStatus("idle"), 3000);
       }
     });
+  }
+
+  function startEditing() {
+    setScores(latest?.scores ?? DEFAULT_SCORES);
+    setViewingId(null);
+    setEditing(true);
   }
 
   const weak = SEGMENTS
@@ -67,18 +91,45 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
     <div>
       {/* Wheel */}
       <div className="flex justify-center mt-5">
-        <WheelSvg scores={displayScores} prev={editing && latest ? latest.scores : prev?.scores} />
+        <WheelSvg scores={displayScores} prev={displayPrev} />
       </div>
 
-      {/* Last assessment date */}
-      {latest && !editing && (
+      {/* Date label */}
+      {!editing && (
         <p className="mt-2 text-center font-mono text-[10px] text-ink-3">
-          последняя оценка · {fmtDate(latest.assessed_at)}
+          {viewingAssessment
+            ? `оценка · ${fmtDateTime(viewingAssessment.created_at)}`
+            : latest
+              ? `последняя оценка · ${fmtDate(latest.assessed_at)}`
+              : null}
         </p>
       )}
 
-      {/* Weak zones callout */}
-      {!editing && weak.length > 0 && (
+      {/* Viewing historical — scores breakdown */}
+      {!editing && viewingAssessment && (
+        <div className="mt-3 rounded-card border border-line bg-surface p-3.5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {SEGMENTS.map((s) => (
+              <div key={s.key} className="flex items-center justify-between">
+                <span className="font-sans text-[11px] text-ink-2">{s.label}</span>
+                <span className="font-mono text-[12px] font-semibold" style={{ color: "var(--phase)" }}>
+                  {viewingAssessment.scores[s.key]}/10
+                </span>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setViewingId(null)}
+            className="mt-3 w-full text-center font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3"
+          >
+            ← текущая оценка
+          </button>
+        </div>
+      )}
+
+      {/* Weak zones callout — only when viewing current */}
+      {!editing && !viewingAssessment && weak.length > 0 && (
         <div
           className="mt-4 rounded-card border p-3.5"
           style={{ borderColor: "var(--phase)", borderLeft: "3px solid var(--phase)" }}
@@ -101,13 +152,10 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       )}
 
       {/* Edit / New assessment button */}
-      {!editing && (
+      {!editing && !viewingAssessment && (
         <button
           type="button"
-          onClick={() => {
-            setScores(latest?.scores ?? DEFAULT_SCORES);
-            setEditing(true);
-          }}
+          onClick={startEditing}
           className="mt-4 w-full rounded-card border border-phase py-3 font-sans text-[14px] font-semibold text-phase-deep transition active:scale-[0.99]"
         >
           {latest ? "Обновить оценку" : "Оценить себя"}
@@ -191,7 +239,7 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       )}
 
       {/* History */}
-      {assessments.length > 1 && (
+      {assessments.length > 1 && !editing && (
         <div className="mt-6">
           <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">история</p>
           <div className="mt-2 space-y-2">
@@ -199,21 +247,30 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
               const avg = Math.round(
                 Object.values(a.scores).reduce((s, v) => s + v, 0) / SEGMENTS.length
               );
+              const isViewing = viewingId === a.id;
               return (
-                <div key={a.id} className="flex items-center gap-3 rounded-card border border-line bg-surface px-3.5 py-3">
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setViewingId(isViewing ? null : a.id)}
+                  className="flex w-full items-center gap-3 rounded-card border bg-surface px-3.5 py-3 text-left transition active:scale-[0.99]"
+                  style={{
+                    borderColor: isViewing ? "var(--phase)" : undefined,
+                  }}
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[11px] text-ink-2">{fmtDate(a.assessed_at)}</p>
+                    <p className="font-mono text-[11px] text-ink-2">{fmtDateTime(a.created_at)}</p>
                     {a.note && (
                       <p className="mt-0.5 font-sans text-[12px] text-ink-3 truncate">{a.note}</p>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
-                    <span className="font-mono text-[15px] font-semibold" style={{ color: "var(--phase)" }}>
+                    <span className="font-mono text-[15px] font-semibold" style={{ color: isViewing ? "var(--phase)" : undefined }}>
                       {avg}/10
                     </span>
                     <p className="font-mono text-[8px] text-ink-4">средний</p>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
