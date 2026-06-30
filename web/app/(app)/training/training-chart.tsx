@@ -1,7 +1,7 @@
 import type { WorkoutLogEntry, SportDay, MigraineEvent } from "@/lib/data";
 
 const C_GYM        = "rgba(190,140,60,0.88)";   // зал
-const C_VOLLEYBALL = "rgba(55,120,215,0.88)";   // волейбол
+const C_VOLLEYBALL = "rgba(140,90,200,0.88)";   // волейбол
 const C_RUN        = "rgba(210,95,55,0.88)";    // бег
 const C_OTHER_W    = "rgba(80,175,85,0.78)";    // прочие тренировки
 const C_SPORT      = "rgba(55,165,130,0.72)";   // спорт (привычки)
