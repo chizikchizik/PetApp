@@ -72,7 +72,20 @@ export async function getCurrentUser(): Promise<{ id: string; email: string; dis
   if (!isUUID) {
     // Legacy: cookie = password. Check PETAPP_PASSWORD env var
     if (cookie.value === process.env.PETAPP_PASSWORD) {
-      // Return a "legacy" user placeholder (null id = Marina's data without user_id)
+      // Try to resolve the real user from DB (data was migrated from NULL to first user's UUID)
+      const db = supabaseAdmin()
+      if (db) {
+        const { data } = await db
+          .from("app_user")
+          .select("id, email, display_name")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .single()
+        if (data) {
+          return { id: data.id as string, email: data.email as string, displayName: data.display_name as string }
+        }
+      }
+      // Fallback if DB unavailable
       return { id: "__legacy__", email: "marina@verta", displayName: "Марина" }
     }
     return null
