@@ -19,7 +19,7 @@ export async function register(formData: FormData) {
   try {
     const user = await createUser(email, password, displayName || "Пользователь");
     await setAuthCookie(user.id);
-    redirect("/");
+    redirect("/onboarding");
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("уже зарегистрирован")) redirect("/register?e=2");

@@ -62,39 +62,54 @@ export async function setAuthCookie(userId: string) {
   })
 }
 
-export async function getCurrentUser(): Promise<{ id: string; email: string; displayName: string } | null> {
+export type AppUser = {
+  id: string
+  email: string
+  displayName: string
+  weightGoalKg: number | null
+  weightStartKg: number | null
+  onboardingDone: boolean
+}
+
+const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done"
+
+function rowToUser(data: Record<string, unknown>): AppUser {
+  return {
+    id: data.id as string,
+    email: data.email as string,
+    displayName: (data.display_name as string) ?? "",
+    weightGoalKg: (data.weight_goal_kg as number | null) ?? null,
+    weightStartKg: (data.weight_start_kg as number | null) ?? null,
+    onboardingDone: (data.onboarding_done as boolean) ?? false,
+  }
+}
+
+export async function getCurrentUser(): Promise<AppUser | null> {
   const cookieStore = await cookies()
   const cookie = cookieStore.get(COOKIE_NAME)
   if (!cookie?.value) return null
 
-  // Check if it's a UUID (new format) or legacy password
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie.value)
   if (!isUUID) {
-    // Legacy: cookie = password. Check PETAPP_PASSWORD env var
     if (cookie.value === process.env.PETAPP_PASSWORD) {
-      // Try to resolve the real user from DB (data was migrated from NULL to first user's UUID)
       const db = supabaseAdmin()
       if (db) {
         const { data } = await db
           .from("app_user")
-          .select("id, email, display_name")
+          .select(USER_SELECT)
           .order("created_at", { ascending: true })
           .limit(1)
           .single()
-        if (data) {
-          return { id: data.id as string, email: data.email as string, displayName: data.display_name as string }
-        }
+        if (data) return rowToUser(data as Record<string, unknown>)
       }
-      // Fallback if DB unavailable
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина" }
+      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true }
     }
     return null
   }
 
-  // New format: cookie = user UUID
   const db = supabaseAdmin()
   if (!db) return null
-  const { data } = await db.from("app_user").select("id, email, display_name").eq("id", cookie.value).single()
+  const { data } = await db.from("app_user").select(USER_SELECT).eq("id", cookie.value).single()
   if (!data) return null
-  return { id: data.id as string, email: data.email as string, displayName: data.display_name as string }
+  return rowToUser(data as Record<string, unknown>)
 }

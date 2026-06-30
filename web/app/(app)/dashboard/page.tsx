@@ -13,6 +13,7 @@ import {
   WEIGHT_GOAL,
   type WearableDay,
 } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
 import { formatDay, pluralDays } from "@/lib/format";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -68,7 +69,8 @@ export default async function Dashboard() {
   const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [triptan, weights, currentWeight, habits, todayLog, habitStats, wearable] = await Promise.all([
+  const [user, triptan, weights, currentWeight, habits, todayLog, habitStats, wearable] = await Promise.all([
+    getCurrentUser(),
     getTriptanCount(ym),
     getRecentActualWeights(8),
     getCurrentWeight(),
@@ -79,8 +81,12 @@ export default async function Dashboard() {
   ]);
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
+  const displayName = user?.displayName || "VERTA";
+  const weightGoalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
+  const weightStartKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
+
   const triptanHigh = triptan >= 8;
-  const weightDelta = +(currentWeight - WEIGHT_GOAL.startKg).toFixed(1);
+  const weightDelta = +(currentWeight - weightStartKg).toFixed(1);
   const ws = weights.map((w) => w.actual);
   const wMin = Math.min(...ws);
   const wMax = Math.max(...ws);
@@ -110,7 +116,7 @@ export default async function Dashboard() {
             // {PHASE_LABELS[c.phase]}
           </div>
           <div className="mt-1.5 font-serif font-bold text-[23px] leading-[1.05] uppercase">
-            МАРИНА
+            {displayName.toUpperCase()}
           </div>
           <div className="mt-1.5 font-mono text-[11px] text-ink-3">
             ДЕНЬ {c.day} · {formatDateHeader(today)}
@@ -119,7 +125,7 @@ export default async function Dashboard() {
         <div className="flex items-center gap-2 pt-1">
           <ThemeToggle />
           <div className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full border border-line font-serif font-bold text-[13px] text-ink-2">
-            М
+            {displayName[0]?.toUpperCase() ?? "?"}
           </div>
         </div>
       </header>
@@ -266,7 +272,7 @@ export default async function Dashboard() {
             />
           </svg>
           <div className="mt-1.5 font-mono text-[10px] text-phase-deep">
-            {weightDelta < 0 ? "" : "+"}{weightDelta} · цель {WEIGHT_GOAL.kg}
+            {weightDelta < 0 ? "" : "+"}{weightDelta} · цель {weightGoalKg}
           </div>
         </Link>
 

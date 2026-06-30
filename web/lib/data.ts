@@ -39,6 +39,7 @@ export async function getPeriodStarts(): Promise<Date[]> {
     if (!error && data && data.length) {
       return data.map((r: { start_date: string }) => parseDate(r.start_date));
     }
+    if (uid && uid !== "__legacy__") return [];
   }
   return seed.periodStarts();
 }
@@ -65,6 +66,7 @@ export async function getRecentActualWeights(limit = 8): Promise<WeightPoint[]> 
         }))
         .reverse();
     }
+    if (uid && uid !== "__legacy__") return [];
   }
   return seed.WEIGHT.recent.map(([date, actual]) => ({ date, actual }));
 }
@@ -98,6 +100,7 @@ export async function getTriptanCount(ym: string): Promise<number> {
       uid,
     );
     if (!error && typeof count === "number") return count;
+    if (uid && uid !== "__legacy__") return 0;
   }
   return seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
 }
@@ -131,6 +134,7 @@ export async function getMeds(): Promise<Med[]> {
         }),
       );
     }
+    if (uid && uid !== "__legacy__") return [];
   }
   return seed.MEDS.map((m) => ({ ...m, habit_key: m.name }));
 }
@@ -157,6 +161,8 @@ export async function getHabits(month?: string): Promise<string[]> {
     if (!error && data && data.length) {
       return data.map((r: { name: string }) => r.name);
     }
+    // Real users with no habits yet get an empty list, not Marina's seed data
+    if (uid && uid !== "__legacy__") return [];
   }
   return [...seed.HABITS];
 }

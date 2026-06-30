@@ -1,13 +1,16 @@
+import { redirect } from "next/navigation";
 import { getCurrentCycle } from "@/lib/cycle";
 import { getPeriodStarts } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
 
-// Экраны читают живые данные из БД на каждый запрос (не статический снапшот).
 export const dynamic = "force-dynamic";
 
-// Общий шелл экранов: мобильная ширина + нижняя навигация.
-// Класс фазы цикла задаёт акцентный цвет всему поддереву.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.onboardingDone) redirect("/onboarding");
+
   const { phase } = getCurrentCycle(await getPeriodStarts());
   return (
     <div className={`phase-${phase} mx-auto flex min-h-dvh max-w-[430px] flex-col`}>
