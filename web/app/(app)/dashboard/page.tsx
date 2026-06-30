@@ -125,7 +125,8 @@ export default async function Dashboard() {
       </header>
 
       {/* ── Главный циферблат ── */}
-      <section className="relative overflow-hidden rounded-card border border-line bg-surface px-[18px] pb-5 pt-[22px]">
+      <Link href="/cycle" className="block">
+      <section className="relative overflow-hidden rounded-card border border-line bg-surface px-[18px] pb-5 pt-[22px] active:scale-[0.99] transition">
         <div className="absolute left-4 top-3 font-mono text-[9px] tracking-[0.16em] uppercase text-ink-3">
           цикл · {length} дн
         </div>
@@ -171,6 +172,7 @@ export default async function Dashboard() {
           {formatDay(c.nextPeriod.earliest)} – {formatDay(c.nextPeriod.latest)}
         </p>
       </section>
+      </Link>
 
       {/* ── Полоса готовности ── */}
       <div className="mt-3.5 flex overflow-hidden rounded-card border border-line bg-surface">
