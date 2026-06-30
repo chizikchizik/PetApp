@@ -1,7 +1,6 @@
 "use server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
 async function getUid(): Promise<string> {
   const user = await getCurrentUser();
@@ -65,5 +64,4 @@ export async function completeOnboarding() {
   const db = supabaseAdmin();
   if (!db) throw new Error("DB unavailable");
   await db.from("app_user").update({ onboarding_done: true }).eq("id", uid);
-  redirect("/");
 }

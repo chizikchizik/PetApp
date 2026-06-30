@@ -1,5 +1,6 @@
 "use client";
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { saveName, saveCycle, saveHabits, saveWeight, completeOnboarding } from "./actions";
 
 const SUGGESTED_HABITS = [
@@ -25,6 +26,7 @@ type Step = "name" | "cycle" | "habits" | "weight";
 const STEPS: Step[] = ["name", "cycle", "habits", "weight"];
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("name");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,8 @@ export default function OnboardingPage() {
             goalWeight ? parseFloat(goalWeight) : null
           );
           await completeOnboarding();
+          router.push("/");
+          return;
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
@@ -95,6 +99,7 @@ export default function OnboardingPage() {
     startTransition(async () => {
       try {
         await completeOnboarding();
+        router.push("/");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
       }
