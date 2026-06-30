@@ -111,7 +111,7 @@ export function TrainingChart({
   const colorToLabel = new Map<string, string>();
   for (const [type] of [...typeCounts.entries()].sort((a, b) => b[1] - a[1])) {
     const col = typeColor([type]);
-    if (!colorToLabel.has(col)) colorToLabel.set(col, type.toLowerCase());
+    if (!colorToLabel.has(col)) colorToLabel.set(col, col === C_OTHER_W ? "прочее" : type.toLowerCase());
     if (colorToLabel.size >= 5) break;
   }
   type LegendItem = { color: string; label: string; circle?: boolean };

@@ -10,7 +10,6 @@ import {
   getDailyLog,
   getMonthHabitStats,
   getRecentWearableData,
-  getMeds,
   WEIGHT_GOAL,
   type WearableDay,
 } from "@/lib/data";
@@ -69,15 +68,14 @@ export default async function Dashboard() {
   const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [triptan, weights, currentWeight, habits, todayLog, habitStats, wearable, meds] = await Promise.all([
+  const [triptan, weights, currentWeight, habits, todayLog, habitStats, wearable] = await Promise.all([
     getTriptanCount(ym),
     getRecentActualWeights(8),
     getCurrentWeight(),
-    getHabits(),
+    getHabits(ym),
     getDailyLog(todayStr),
     getMonthHabitStats(ym),
     getRecentWearableData(7),
-    getMeds(),
   ]);
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
@@ -94,12 +92,11 @@ export default async function Dashboard() {
     })
     .join(" ");
 
-  const MED_HABIT_KEYS = new Set(meds.map((m) => m.habit_key));
-  const userHabits = habits.filter((h) => !MED_HABIT_KEYS.has(h));
-  const habitsDoneToday = (todayLog?.habits_done ?? []).filter((h) => !MED_HABIT_KEYS.has(h)).length;
-  const totalHabits = userHabits.length;
+  const habitsSet = new Set(habits);
+  const habitsDoneToday = (todayLog?.habits_done ?? []).filter((h) => habitsSet.has(h)).length;
+  const totalHabits = habits.length;
   const monthPct = habitStats.daysLogged > 0 && totalHabits > 0
-    ? Math.round((habitStats.done / (userHabits.length * habitStats.daysLogged)) * 100)
+    ? Math.round((habitStats.done / (totalHabits * habitStats.daysLogged)) * 100)
     : 0;
   const tiptanPct = Math.min(100, Math.round((triptan / MIGRAINE.triptanThreshold) * 100));
   const ticks = buildTicks(c.day, length);
