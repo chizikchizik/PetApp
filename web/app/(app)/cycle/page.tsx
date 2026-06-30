@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { supabaseAdmin } from "@/lib/supabase/server";
 import { getPeriodStarts } from "@/lib/data";
 import { CycleCalendar } from "./cycle-calendar";
 
@@ -38,25 +37,9 @@ export default async function CyclePage({
       ? monthParam
       : currentMonth;
 
-  // Fetch period starts from DB (with fallback to seed data)
-  let periodStartStrings: string[];
-
-  const db = supabaseAdmin();
-  if (db) {
-    const { data, error } = await db
-      .from("cycle_start")
-      .select("start_date")
-      .order("start_date", { ascending: true });
-    if (!error && data && data.length > 0) {
-      periodStartStrings = data.map((r: { start_date: string }) => r.start_date);
-    } else {
-      const dates = await getPeriodStarts();
-      periodStartStrings = dates.map((d) => d.toISOString().slice(0, 10));
-    }
-  } else {
-    const dates = await getPeriodStarts();
-    periodStartStrings = dates.map((d) => d.toISOString().slice(0, 10));
-  }
+  const periodStartStrings = (await getPeriodStarts()).map((d) =>
+    d.toISOString().slice(0, 10),
+  );
 
   const [yearNum, monthNum] = month.split("-").map(Number);
   const monthLabel = `${MONTH_NAMES[monthNum - 1]} ${yearNum}`;
