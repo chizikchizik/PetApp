@@ -91,13 +91,14 @@ export function TrainingChart({
   for (const s of sports)   sByDow[isoDow(s.date)]++;
   for (const m of migraines) mByDow[isoDow(m.date)]++;
   const maxBar = Math.max(...wByDow.map((w, i) => w + sByDow[i]), 1);
+  const maxMig = Math.max(...mByDow, 1);
 
   const BAR_W    = 38;
   const BAR_GAP  = 4;
   const BAR_STEP = BAR_W + BAR_GAP;
   const CHART_H  = 64;
   const TOP_PAD  = 14;  // room for count label above tallest bar
-  const BTXT_H   = 24;
+  const BTXT_H   = 14; // just day labels now
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
   const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
 
@@ -106,6 +107,7 @@ export function TrainingChart({
     { color: C_VOLLEYBALL, label: "волейбол" },
     { color: C_RUN,        label: "бег" },
     { color: C_SPORT,      label: "спорт" },
+    { color: C_MIG,        label: "мигрень" },
   ];
 
   return (
@@ -223,16 +225,22 @@ export function TrainingChart({
                     fill="rgba(80,80,80,0.6)">
                     {label}
                   </text>
-                  {/* Migraine: dot + count */}
-                  {mCnt > 0 && (
-                    <g>
-                      <circle cx={x + BAR_W / 2 - 6} cy={TOP_PAD + CHART_H + 20} r={2.5} fill={C_MIG} />
-                      <text x={x + BAR_W / 2 - 1} y={TOP_PAD + CHART_H + 23.5}
-                        fontSize={7.5} fontFamily="monospace" fill={C_MIG}>
-                        {mCnt}
-                      </text>
-                    </g>
-                  )}
+                  {/* Migraine overlay bars — own scale */}
+                  {mCnt > 0 && (() => {
+                    const mH = (mCnt / maxMig) * CHART_H;
+                    const mY = TOP_PAD + CHART_H - mH;
+                    return (
+                      <g>
+                        <rect x={x} y={mY} width={BAR_W} height={mH}
+                          rx={2} fill="rgba(208,72,48,0.28)" />
+                        <text x={x + BAR_W / 2} y={mY - 2}
+                          textAnchor="middle" fontSize={7} fontFamily="monospace"
+                          fill={C_MIG}>
+                          {mCnt}
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </g>
               );
             })}
