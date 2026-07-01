@@ -669,39 +669,72 @@ export type MedIntakeDay = {
   medIds: string[];
   habitsDone: string[];
   migraine: boolean;
-  migraineMedNote: string | null;
+  migraineMeds: string | null; // meds text from migraine_event (MigreBot history)
 };
 
 export async function getMedIntakeDays(from: string, to: string): Promise<MedIntakeDay[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
+
+  // 1. daily_log: new-style med logging + habit tracking
+  const { data: logData } = await byUser(
     db.from("daily_log")
-      .select("log_date, meds_taken, habits_done, migraine, note")
+      .select("log_date, meds_taken, habits_done, migraine")
       .gte("log_date", from)
-      .lte("log_date", to)
-      .order("log_date"),
+      .lte("log_date", to),
     uid,
   );
-  if (error || !data) return [];
-  return (data as {
+
+  // 2. migraine_event: historical MigreBot data (meds column has medication text)
+  const { data: migData } = await byUser(
+    db.from("migraine_event")
+      .select("event_date, meds")
+      .gte("event_date", from)
+      .lte("event_date", to)
+      .not("meds", "is", null),
+    uid,
+  );
+
+  // Merge into a map keyed by date
+  const byDate = new Map<string, MedIntakeDay>();
+
+  for (const r of (logData ?? []) as {
     log_date: string;
     meds_taken: string[] | null;
     habits_done: string[] | null;
     migraine: boolean;
-    note: string | null;
-  }[])
-    .filter((r) =>
+  }[]) {
+    if (
       (r.meds_taken && r.meds_taken.length > 0) ||
       (r.habits_done && r.habits_done.length > 0) ||
       r.migraine
-    )
-    .map((r) => ({
-      date: r.log_date,
-      medIds: r.meds_taken ?? [],
-      habitsDone: r.habits_done ?? [],
-      migraine: r.migraine,
-      migraineMedNote: r.migraine && r.note ? r.note : null,
-    }));
+    ) {
+      byDate.set(r.log_date, {
+        date: r.log_date,
+        medIds: r.meds_taken ?? [],
+        habitsDone: r.habits_done ?? [],
+        migraine: r.migraine,
+        migraineMeds: null,
+      });
+    }
+  }
+
+  for (const m of (migData ?? []) as { event_date: string; meds: string | null }[]) {
+    const existing = byDate.get(m.event_date);
+    if (existing) {
+      existing.migraine = true;
+      existing.migraineMeds = m.meds;
+    } else {
+      byDate.set(m.event_date, {
+        date: m.event_date,
+        medIds: [],
+        habitsDone: [],
+        migraine: true,
+        migraineMeds: m.meds,
+      });
+    }
+  }
+
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
