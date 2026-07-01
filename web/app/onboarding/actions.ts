@@ -9,13 +9,6 @@ async function getUid(): Promise<string> {
   return user.id;
 }
 
-export async function saveName(name: string) {
-  const uid = await getUid();
-  const db = supabaseAdmin();
-  if (!db) throw new Error("DB unavailable");
-  await db.from("app_user").update({ display_name: name.trim() }).eq("id", uid);
-}
-
 export async function saveCycle(lastPeriodDate: string, cycleLength: number) {
   const uid = await getUid();
   const db = supabaseAdmin();

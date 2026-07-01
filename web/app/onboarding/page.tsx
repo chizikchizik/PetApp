@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveName, saveCycle, saveHabits, saveWeight, completeOnboarding } from "./actions";
+import { saveCycle, saveHabits, saveWeight, completeOnboarding } from "./actions";
 import { isoLocal } from "@/lib/format";
 
 const SUGGESTED_HABITS = [
@@ -23,28 +23,25 @@ function today() {
   return isoLocal(new Date());
 }
 
-type Step = "name" | "cycle" | "habits" | "weight";
-const STEPS: Step[] = ["name", "cycle", "habits", "weight"];
+type Step = "cycle" | "habits" | "weight";
+const STEPS: Step[] = ["cycle", "habits", "weight"];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("name");
+  const [step, setStep] = useState<Step>("cycle");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   // Step 1
-  const [name, setName] = useState("");
-
-  // Step 2
   const [lastPeriod, setLastPeriod] = useState(today());
   const [cycleLen, setCycleLen] = useState(28);
 
-  // Step 3
+  // Step 2
   const [checkedHabits, setCheckedHabits] = useState<Set<string>>(new Set());
   const [customHabit, setCustomHabit] = useState("");
   const [extraHabits, setExtraHabits] = useState<string[]>([]);
 
-  // Step 4
+  // Step 3
   const [currentWeight, setCurrentWeight] = useState("");
   const [goalWeight, setGoalWeight] = useState("");
 
@@ -70,11 +67,7 @@ export default function OnboardingPage() {
     setError(null);
     startTransition(async () => {
       try {
-        if (step === "name") {
-          if (!name.trim()) { setError("Введи имя"); return; }
-          await saveName(name.trim());
-          setStep("cycle");
-        } else if (step === "cycle") {
+        if (step === "cycle") {
           await saveCycle(lastPeriod, cycleLen);
           setStep("habits");
         } else if (step === "habits") {
@@ -122,31 +115,11 @@ export default function OnboardingPage() {
 
       <div className="flex-1 flex flex-col">
 
-        {/* ── Step 1: Name ── */}
-        {step === "name" && (
-          <div className="flex flex-col gap-6">
-            <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / 4</div>
-              <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Как тебя зовут?</h1>
-              <p className="mt-2 font-mono text-[12px] text-ink-3">Это имя будет отображаться в приложении</p>
-            </div>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleNext()}
-              placeholder="Имя"
-              autoFocus
-              className="w-full rounded-card border border-line bg-surface px-4 py-3.5 font-mono text-[15px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
-            />
-          </div>
-        )}
-
-        {/* ── Step 2: Cycle ── */}
+        {/* ── Step 1: Cycle ── */}
         {step === "cycle" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / 4</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / 3</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Твой цикл</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Для отслеживания фаз и прогнозов</p>
             </div>
@@ -176,11 +149,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 3: Habits ── */}
+        {/* ── Step 2: Habits ── */}
         {step === "habits" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 3 / 4</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / 3</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Привычки</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Выбери что хочешь отслеживать. Можно изменить позже.</p>
             </div>
@@ -234,11 +207,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 4: Weight ── */}
+        {/* ── Step 3: Weight ── */}
         {step === "weight" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 4 / 4</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 3 / 3</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Вес</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Необязательно — можно заполнить позже в разделе Вес</p>
             </div>
