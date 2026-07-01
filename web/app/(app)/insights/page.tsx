@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPeriodStarts, getMigraineEventsSince, getAllMigraineEvents, getCycleHistory } from "@/lib/data";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
+import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
 import { CycleHistoryChart } from "./cycle-history";
 
@@ -173,8 +174,8 @@ const MIG = "#d85a30";
 const MENS = "rgba(177,74,99,0.22)";
 
 export default async function Insights() {
-  const today = new Date();
-  const since = `${today.getFullYear() - 1}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const today = new Date(todayISOMoscow() + "T12:00:00");
+  const since = isoDaysFromTodayMoscow(-365);
   const [starts, recentEvents, allEvents, cycleHistory] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),

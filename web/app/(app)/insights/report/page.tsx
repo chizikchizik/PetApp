@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPeriodStarts, getMigraineEventsSince } from "@/lib/data";
-import { monthlyTriptan, perimenstrualStats, buildCycleCalendar } from "@/lib/insights";
+import { getPeriodStarts, getMigraineEventsSince, getMeds } from "@/lib/data";
+import { monthlyTriptan, cycleCorrelation, buildCycleCalendar, type CorrelationState } from "@/lib/insights";
+import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +20,32 @@ const PRINT_STYLES = `
   }
 `;
 
+// "Обсудить с врачом" вместо "Превышен" — это порог по ОДНОМУ препарату,
+// не диагноз МИГБ (для которого также нужны ≥15 дней ГБ/мес по ICHD-3 8.2).
 function triptanStatus(n: number): { label: string; color: string } {
-  if (n >= 10) return { label: "Превышен", color: "#b91c1c" };
+  if (n >= 10) return { label: "Обсудить с врачом", color: "#b91c1c" };
   if (n >= 7) return { label: "Близко к порогу", color: "#c2500a" };
   return { label: "Норма", color: "#166534" };
 }
+
+// Неголовокружительные, не-диагностические формулировки — окончательная оценка
+// связи с циклом делается врачом с учётом полной клинической картины, а не
+// одним процентом за год. См. рецензию Елены: бинарный порог ≥60% без учёта
+// размера выборки — overreach.
+const CORR_TEXT: Record<CorrelationState, (c: { peri: number; total: number; cycleCount: number; pct: number }) => string> = {
+  no_cycle: () => "Нет данных о цикле — оценка связи с циклом невозможна.",
+  no_migraine: () => "Нет записей о приступах за период.",
+  insufficient: (c) =>
+    `Недостаточно данных для оценки связи с циклом (${c.total} приступ${c.total === 1 ? "" : "а"}, ${c.cycleCount} цикл${c.cycleCount === 1 ? "" : "а"} с записями — нужно ≥5 приступов и ≥3 цикла).`,
+  low: (c) =>
+    `${c.peri} из ${c.total} приступов (${c.pct}%) — доля в окне цикла не превышает уровень случайного совпадения.`,
+  moderate: (c) =>
+    `${c.peri} из ${c.total} приступов (${c.pct}%) зафиксированы в окне −2…+3 дня от начала менструации — возможна частичная связь, обсудите с врачом.`,
+  high: (c) =>
+    `${c.peri} из ${c.total} приступов (${c.pct}%) зафиксированы в окне −2…+3 дня от начала менструации. Такой паттерн обсуждается в диагностике менструально-ассоциированной мигрени (ICHD-3, критерии A1.1/A1.2) — окончательную оценку делает врач.`,
+  very_high: (c) =>
+    `${c.peri} из ${c.total} приступов (${c.pct}%) зафиксированы в окне −2…+3 дня от начала менструации. Такой паттерн обсуждается в диагностике менструальной / менструально-ассоциированной мигрени (ICHD-3, критерии A1.1/A1.2) — окончательную оценку делает врач.`,
+};
 
 const MONTHS_RU: Record<string, string> = {
   янв: "Январь", фев: "Февраль", мар: "Март", апр: "Апрель",
@@ -32,16 +54,25 @@ const MONTHS_RU: Record<string, string> = {
 };
 
 export default async function MigraineReport() {
-  const today = new Date();
-  const since = `${today.getFullYear() - 1}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const [starts, events] = await Promise.all([
+  const todayISO = todayISOMoscow();
+  const today = new Date(todayISO + "T12:00:00");
+  const since = isoDaysFromTodayMoscow(-365);
+  const [starts, events, meds] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
+    getMeds(),
   ]);
 
-  const peri = perimenstrualStats(events, starts);
+  const corr = cycleCorrelation(events, starts);
   const bars = monthlyTriptan(events, today, 12);
   const cycles = buildCycleCalendar(starts, events, today, 6);
+
+  const auraTotal = events.length;
+  const auraCount = events.filter((e) => e.aura).length;
+  const auraPct = auraTotal ? Math.round((auraCount / auraTotal) * 100) : 0;
+
+  const prophylactic = meds.filter((m) => !m.isAsNeeded);
+  const asNeeded = meds.filter((m) => m.isAsNeeded);
 
   const generatedDate = today.toLocaleDateString("ru-RU", {
     day: "2-digit",
@@ -49,7 +80,7 @@ export default async function MigraineReport() {
     year: "numeric",
   });
 
-  const sinceDate = new Date(since).toLocaleDateString("ru-RU", {
+  const sinceDate = new Date(since + "T12:00:00").toLocaleDateString("ru-RU", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -84,7 +115,7 @@ export default async function MigraineReport() {
             Марина
           </h1>
           <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "11px", color: "#54524A", margin: 0 }}>
-            Период: {sinceDate} — {today.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" })}
+            Период: {sinceDate} — {generatedDate}
           </p>
           <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "11px", color: "#8A877D", margin: "2px 0 0" }}>
             Сформировано: {generatedDate}
@@ -96,27 +127,79 @@ export default async function MigraineReport() {
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Связь приступов с менструальным циклом
           </h2>
-          <p style={{ fontSize: "28px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, margin: "0 0 6px" }}>
-            {peri.pct}%
-          </p>
+          {corr.state !== "no_cycle" && corr.state !== "no_migraine" && (
+            <p style={{ fontSize: "28px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, margin: "0 0 6px" }}>
+              {corr.pct}%
+            </p>
+          )}
           <p style={{ fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
-            {peri.pct}% атак приходится на окно −2…+3 дней от начала менструации
-            ({peri.peri} из {peri.total} приступов за 12 месяцев).
-            {peri.pct >= 60
-              ? " Картина соответствует менструально-ассоциированной мигрени."
-              : " Устойчивой связи с циклом не выявлено."}
+            {CORR_TEXT[corr.state](corr)}
           </p>
         </section>
 
-        {/* 3. Таблица триптана по месяцам */}
+        {/* 3. Аура */}
         <section style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
-            Применение триптана — последние 12 месяцев
+            Приступы с аурой
+          </h2>
+          <p style={{ fontSize: "28px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, margin: "0 0 6px" }}>
+            {auraTotal ? `${auraPct}%` : "—"}
+          </p>
+          <p style={{ fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
+            {auraTotal
+              ? `${auraCount} из ${auraTotal} приступов за 12 месяцев сопровождались аурой.`
+              : "Нет записей о приступах за период."}
+          </p>
+        </section>
+
+        {/* 4. Профилактическая терапия */}
+        <section style={{ marginBottom: "28px" }}>
+          <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
+            Текущая терапия
+          </h2>
+          <p style={{ fontSize: "11px", fontFamily: "JetBrains Mono, monospace", color: "#54524A", margin: "0 0 4px" }}>
+            Профилактика
+          </p>
+          {prophylactic.length ? (
+            <ul style={{ margin: "0 0 12px", paddingLeft: "18px", fontSize: "13px", lineHeight: 1.6 }}>
+              {prophylactic.map((m) => (
+                <li key={m.id}>
+                  {m.name}
+                  {m.note ? ` — ${m.note}` : ""}
+                  {m.when ? ` · ${m.when}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ fontSize: "13px", color: "#8A877D", margin: "0 0 12px" }}>Не отмечена в приложении.</p>
+          )}
+          <p style={{ fontSize: "11px", fontFamily: "JetBrains Mono, monospace", color: "#54524A", margin: "0 0 4px" }}>
+            Купирование приступа
+          </p>
+          {asNeeded.length ? (
+            <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", lineHeight: 1.6 }}>
+              {asNeeded.map((m) => (
+                <li key={m.id}>
+                  {m.name}
+                  {m.note ? ` — ${m.note}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ fontSize: "13px", color: "#8A877D", margin: 0 }}>Не отмечено в приложении.</p>
+          )}
+        </section>
+
+        {/* 5. Таблица триптана по месяцам */}
+        <section style={{ marginBottom: "28px" }}>
+          <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
+            Приступы и приём триптана — последние 12 месяцев
           </h2>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #16150F" }}>
                 <th style={{ textAlign: "left", padding: "6px 8px 6px 0", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Месяц</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней с мигренью</th>
                 <th style={{ textAlign: "center", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней триптана</th>
                 <th style={{ textAlign: "center", padding: "6px 0 6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Статус</th>
               </tr>
@@ -130,6 +213,9 @@ export default async function MigraineReport() {
                       {MONTHS_RU[b.label] ?? b.label} {b.ym.slice(0, 4)}
                     </td>
                     <td style={{ textAlign: "center", padding: "5px 8px", fontFamily: "JetBrains Mono, monospace", fontSize: "13px", fontWeight: 500 }}>
+                      {b.total}
+                    </td>
+                    <td style={{ textAlign: "center", padding: "5px 8px", fontFamily: "JetBrains Mono, monospace", fontSize: "13px", fontWeight: 500 }}>
                       {b.triptan}
                     </td>
                     <td style={{ textAlign: "center", padding: "5px 0 5px 8px", color: status.color, fontSize: "11px", fontFamily: "JetBrains Mono, monospace" }}>
@@ -140,12 +226,16 @@ export default async function MigraineReport() {
               })}
             </tbody>
           </table>
-          <p style={{ marginTop: "8px", fontSize: "11px", color: "#54524A", fontFamily: "JetBrains Mono, monospace" }}>
-            Порог медикаментозно-абузусной головной боли: 10 дней/мес.
+          <p style={{ marginTop: "8px", fontSize: "11px", color: "#54524A", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.5 }}>
+            Дни приёма суматриптана в месяц (риск-фактор МИГБ при систематическом приёме
+            ≥10 дней/мес в течение ≥3 месяцев, ICHD-3, код 8.2). Указаны дни приёма только
+            этого препарата — если для купирования используются также другие обезболивающие,
+            их частоту нужно обсудить с врачом отдельно. Это не диагноз — окончательную
+            оценку даёт невролог с учётом общего числа дней головной боли в месяц.
           </p>
         </section>
 
-        {/* 4. Цикловой календарь */}
+        {/* 6. Цикловой календарь */}
         <section style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Мигрень × цикл — последние 6 циклов
@@ -191,11 +281,12 @@ export default async function MigraineReport() {
           </p>
         </section>
 
-        {/* 5. Футер */}
+        {/* 7. Футер */}
         <footer style={{ borderTop: "1px solid #D6D2C9", paddingTop: "12px", marginTop: "16px" }}>
           <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#8A877D", margin: 0, lineHeight: 1.6 }}>
             Сгенерировано приложением ВЕРТА · Данные из персонального дневника.<br />
-            Не является медицинским документом.
+            Не является медицинским документом. Все выводы — предварительные наблюдения по
+            логам пользователя, окончательную оценку и диагноз даёт лечащий врач.
           </p>
         </footer>
       </div>
