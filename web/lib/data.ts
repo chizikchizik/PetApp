@@ -420,17 +420,6 @@ export type WorkoutTemplate = {
   exercises: ExerciseTemplate[];
 };
 
-export type ScheduleDay = {
-  id: string;
-  day_of_week: number;
-  workout_type: string | null;
-  workout_label: string | null;
-  template_id: string | null;
-  is_rest: boolean;
-  time_start: string | null;
-  duration_min: number | null;
-};
-
 export type ActualExercise = {
   id: string;
   exercise_name: string;
@@ -463,19 +452,6 @@ export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
     duration_min: r.duration_min as number | null,
     exercises: (r.exercises as ExerciseTemplate[]) ?? [],
   }));
-}
-
-// Same "shared" pattern as getWorkoutTemplates: seed rows with app_user_id IS NULL
-// (if any exist) are visible to every user, plus each user's own schedule entries.
-export async function getWeeklySchedule(): Promise<ScheduleDay[]> {
-  const db = supabaseAdmin();
-  if (!db) return [];
-  const uid = await getAppUserId();
-  const query = db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week");
-  const { data } = uid
-    ? await query.or(`app_user_id.is.null,app_user_id.eq.${uid}`)
-    : await query.is("app_user_id", null);
-  return (data ?? []) as ScheduleDay[];
 }
 
 export async function getWorkoutExercises(workoutId: string): Promise<ActualExercise[]> {

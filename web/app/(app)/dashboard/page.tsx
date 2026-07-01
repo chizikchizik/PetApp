@@ -126,9 +126,12 @@ export default async function Dashboard() {
         </div>
         <div className="flex items-center gap-2 pt-1">
           <ThemeToggle />
-          <div className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full border border-line font-serif font-bold text-[13px] text-ink-2">
+          <Link
+            href="/profile"
+            className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full border border-line font-serif font-bold text-[13px] text-ink-2 transition active:scale-[0.95]"
+          >
             {displayName[0]?.toUpperCase() ?? "?"}
-          </div>
+          </Link>
         </div>
       </header>
 
