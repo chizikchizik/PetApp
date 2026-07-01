@@ -12,8 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "ru",
     orientation: "portrait",
     icons: [
-      { src: "/icon", sizes: "192x192", type: "image/png" },
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/api/pwa-icon?size=192", sizes: "192x192", type: "image/png" },
+      { src: "/api/pwa-icon?size=512", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
