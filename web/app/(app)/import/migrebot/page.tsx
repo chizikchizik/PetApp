@@ -22,8 +22,9 @@ export default function MigrebotImportPage() {
       <div className="mt-4 rounded-card border border-line bg-surface p-4">
         <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">Как это работает</p>
         <ul className="mt-2 space-y-1.5 font-sans text-[13px] text-ink-2 leading-snug">
-          <li>• Открой Migrebot → Настройки → Экспорт данных</li>
-          <li>• Выбери формат CSV и скачай файл</li>
+          <li>• В Migrebot напиши <span className="font-mono text-ink">/help</span></li>
+          <li>• Нажми кнопку <span className="font-mono text-ink">файл.xlsx</span></li>
+          <li>• Выбери <span className="font-mono text-ink">Скачать CSV</span></li>
           <li>• Загрузи файл ниже — ВЕРТА распарсит и сохранит историю</li>
           <li>• Не затронет вес, привычки и другие данные</li>
         </ul>
