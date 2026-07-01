@@ -3,7 +3,7 @@ import type { WorkoutLogEntry, SportDay, MigraineEvent, SportType } from "@/lib/
 // Fixed colors for non-workout data
 const C_SPORT = "rgba(55,165,130,0.72)";   // спорт из привычек (не из workout_log)
 const C_EMPTY = "rgba(130,130,130,0.09)";
-const C_MIG   = "#d04830";
+const C_MIG   = "#c8204a"; // малиновый — явно отличим от оранжевых тренировок
 const C_OTHER = "rgba(130,130,130,0.45)";  // тип не найден в sport_types
 
 // Build a case-insensitive lookup: lowercase name → color
@@ -127,7 +127,7 @@ export function TrainingChart({
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
   const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
   // Split column: workout on left (wider), migraine on right (narrow stripe)
-  const MIG_W    = 8;
+  const MIG_W    = 10;
   const MIG_GAP  = 2;
   const WORK_W   = BAR_W - MIG_W - MIG_GAP;
 
