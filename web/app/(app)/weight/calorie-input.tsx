@@ -97,20 +97,23 @@ export function CalorieInput({
 }) {
   const router = useRouter();
   const [v, setV] = useState("");
+  const [selectedDate, setSelectedDate] = useState(todayISO);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showAll, setShowAll] = useState(false);
   const [, startT] = useTransition();
 
-  const todayEntry = history.find((e) => e.date === todayISO);
+  const selectedEntry = history.find((e) => e.date === selectedDate);
   const pastEntries = [...history].filter((e) => e.date !== todayISO).reverse();
   const visible = showAll ? pastEntries : pastEntries.slice(0, 7);
+
+  const isToday = selectedDate === todayISO;
 
   function doSave() {
     const kcal = Number(v.replace(",", "."));
     if (!kcal || kcal < 100 || kcal > 10000) return;
     setStatus("saving");
     startT(async () => {
-      const r = await saveCalories(todayISO, kcal);
+      const r = await saveCalories(selectedDate, kcal);
       if (r.ok) {
         setStatus("saved");
         setV("");
@@ -125,16 +128,33 @@ export function CalorieInput({
 
   return (
     <div className="mt-3.5">
-      <p className="mb-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        калории
-      </p>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          калории
+        </p>
+        <input
+          type="date"
+          max={todayISO}
+          value={selectedDate}
+          onChange={(e) => {
+            if (e.target.value) {
+              setSelectedDate(e.target.value);
+              setV("");
+              setStatus("idle");
+            }
+          }}
+          className="rounded-[3px] border border-line bg-surface px-2 py-0.5 font-mono text-[11px] text-ink-2 outline-none focus:border-phase"
+        />
+      </div>
 
-      {todayEntry && (
+      {selectedEntry && (
         <div className="mb-2 rounded-[3px] border border-phase bg-surface px-4 py-3">
           <span className="font-mono text-[20px] font-semibold text-ink">
-            {todayEntry.kcal.toLocaleString("ru")}
+            {selectedEntry.kcal.toLocaleString("ru")}
           </span>
-          <span className="ml-1.5 font-mono text-[11px] text-ink-3">ккал сегодня</span>
+          <span className="ml-1.5 font-mono text-[11px] text-ink-3">
+            ккал {isToday ? "сегодня" : fmtDate(selectedDate)}
+          </span>
         </div>
       )}
 
@@ -144,7 +164,13 @@ export function CalorieInput({
           inputMode="numeric"
           step="1"
           value={v}
-          placeholder={todayEntry ? `обновить (${todayEntry.kcal})` : "ккал за сегодня"}
+          placeholder={
+            selectedEntry
+              ? `обновить (${selectedEntry.kcal})`
+              : isToday
+              ? "ккал за сегодня"
+              : `ккал за ${fmtDate(selectedDate)}`
+          }
           onChange={(e) => setV(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") doSave(); }}
           className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:text-[13px] placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
