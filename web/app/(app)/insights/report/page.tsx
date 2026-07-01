@@ -48,6 +48,63 @@ const CORR_TEXT: Record<CorrelationState, (c: { peri: number; total: number; cyc
     `${c.peri} из ${c.total} приступов (${c.pct}%) зафиксированы в окне −2…+3 дня от начала менструации. Такой паттерн обсуждается в диагностике менструальной / менструально-ассоциированной мигрени (ICHD-3, критерии A1.1/A1.2) — окончательную оценку делает врач.`,
 };
 
+const DOW_LABELS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+function isoDowLocal(dateISO: string): number {
+  const d = new Date(dateISO + "T12:00:00");
+  return (d.getDay() + 6) % 7; // 0=Пн … 6=Вс
+}
+
+// Print-safe day-of-week bars: fixed pixel widths/heights, not CSS grid/flex:1 —
+// same rendering fragility as the cycle calendar (see comment there), plus this
+// is a simpler chart than training/training-chart.tsx's SVG version, which is
+// built for an interactive/scrollable screen, not a fixed print page.
+function TrainingDowChart({ workouts, migraines }: { workouts: { date: string }[]; migraines: { date: string }[] }) {
+  const workoutByDow = new Array(7).fill(0);
+  const migByDow = new Array(7).fill(0);
+  for (const w of workouts) workoutByDow[isoDowLocal(w.date)]++;
+  for (const m of migraines) migByDow[isoDowLocal(m.date)]++;
+  const maxW = Math.max(...workoutByDow, 1);
+  const maxM = Math.max(...migByDow, 1);
+  const BAR_H = 60;
+
+  return (
+    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+      {DOW_LABELS_SHORT.map((label, i) => (
+        <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "28px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "2px", height: `${BAR_H}px` }}>
+            <div
+              title={`тренировок: ${workoutByDow[i]}`}
+              style={{
+                width: "11px",
+                height: `${Math.max(2, (workoutByDow[i] / maxW) * BAR_H)}px`,
+                background: "#8A877D",
+                borderRadius: "1px 1px 0 0",
+              }}
+            />
+            <div
+              title={`мигреней: ${migByDow[i]}`}
+              style={{
+                width: "11px",
+                height: `${Math.max(2, (migByDow[i] / maxM) * BAR_H)}px`,
+                background: "#16150F",
+                borderRadius: "1px 1px 0 0",
+              }}
+            />
+          </div>
+          <span style={{ marginTop: "4px", fontFamily: "JetBrains Mono, monospace", fontSize: "9px", color: "#8A877D" }}>
+            {label}
+          </span>
+        </div>
+      ))}
+      <div style={{ marginLeft: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#54524A" }}>
+        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#8A877D", borderRadius: "1px", marginRight: "5px" }} />тренировки</span>
+        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#16150F", borderRadius: "1px", marginRight: "5px" }} />мигрени</span>
+      </div>
+    </div>
+  );
+}
+
 // Тот же принцип, что и CORR_TEXT: наблюдение + размер выборки, без вердиктов —
 // "постэкзертационный" паттерн (тренировка → мигрень на следующий день) не диагноз,
 // его отмечает пользователь сама через приложение, а не медицинский алгоритм.
@@ -178,6 +235,11 @@ export default async function MigraineReport() {
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Связь приступов с физической нагрузкой
           </h2>
+          {workouts.length > 0 && (
+            <div style={{ marginBottom: "10px" }}>
+              <TrainingDowChart workouts={workouts} migraines={events} />
+            </div>
+          )}
           <p style={{ fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
             {trainingText(trainingPattern)}
           </p>
@@ -278,30 +340,32 @@ export default async function MigraineReport() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {cycles.map((cy, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div key={i} style={{ display: "flex", alignItems: "center" }}>
                 <span style={{ width: "32px", flexShrink: 0, textAlign: "right", fontFamily: "JetBrains Mono, monospace", fontSize: "9px", color: "#8A877D" }}>
                   {cy.label}
                 </span>
-                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(35, 1fr)", gap: "2px" }}>
+                {/* Fixed pixel widths, not CSS grid `fr` tracks or flex:1 — Chrome's
+                    print engine can collapse fr-sized grid tracks to 0 width when
+                    the grid is nested inside a flex item without a resolved width. */}
+                <div style={{ marginLeft: "8px", whiteSpace: "nowrap", lineHeight: 0 }}>
                   {cy.days.map((d) => (
                     <span
                       key={d.day}
                       title={`день ${d.day}`}
                       style={{
-                        display: "block",
+                        display: "inline-block",
+                        width: "6px",
                         height: "10px",
+                        marginRight: "1px",
                         borderRadius: "1px",
                         background: d.migraine ? "#16150F" : d.menstrual ? "rgba(177,74,99,0.4)" : "#E6E3DC",
-                        outline: d.isToday ? "2px solid #16150F" : "none",
-                        outlineOffset: "-2px",
+                        outline: d.isToday ? "1px solid #16150F" : "none",
+                        outlineOffset: "-1px",
                       }}
                     />
                   ))}
-                  {Array.from({ length: 35 - cy.days.length }, (_, j) => (
-                    <span key={`pad-${j}`} style={{ display: "block", height: "10px" }} />
-                  ))}
                 </div>
-                <span style={{ width: "24px", flexShrink: 0, fontFamily: "JetBrains Mono, monospace", fontSize: "9px", color: "#8A877D" }}>
+                <span style={{ marginLeft: "8px", width: "24px", flexShrink: 0, fontFamily: "JetBrains Mono, monospace", fontSize: "9px", color: "#8A877D" }}>
                   {cy.length}д
                 </span>
               </div>
