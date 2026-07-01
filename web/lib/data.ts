@@ -105,7 +105,7 @@ export async function getTriptanCount(ym: string): Promise<number> {
   return seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
 }
 
-export type Med = { id: string; name: string; note: string; when: string; habit_key: string };
+export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean };
 
 export async function getMeds(): Promise<Med[]> {
   const db = supabaseAdmin();
@@ -113,7 +113,7 @@ export async function getMeds(): Promise<Med[]> {
     const uid = await getAppUserId();
     const { data, error } = await byUser(
       db.from("medication")
-        .select("id, name, note, when_label, habit_key")
+        .select("id, name, note, when_label, habit_key, is_as_needed")
         .order("sort", { ascending: true }),
       uid,
     );
@@ -125,18 +125,20 @@ export async function getMeds(): Promise<Med[]> {
           note: string | null;
           when_label: string | null;
           habit_key: string | null;
+          is_as_needed: boolean | null;
         }) => ({
           id: r.id,
           name: r.name,
           note: r.note ?? "",
           when: r.when_label ?? "",
           habit_key: r.habit_key ?? r.name,
+          isAsNeeded: r.is_as_needed ?? false,
         }),
       );
     }
     if (uid && uid !== "__legacy__") return [];
   }
-  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name }));
+  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false }));
 }
 
 export type HabitRow = {
@@ -660,4 +662,32 @@ export async function getSportTypes(): Promise<SportType[]> {
     if (uid && uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
   }
   return toSportTypes(LEGACY_SPORT_TYPES);
+}
+
+export type MedIntakeDay = {
+  date: string;
+  medIds: string[];
+  migraine: boolean;
+};
+
+export async function getMedIntakeDays(from: string, to: string): Promise<MedIntakeDay[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const uid = await getAppUserId();
+  const { data, error } = await byUser(
+    db.from("daily_log")
+      .select("log_date, meds_taken, migraine")
+      .gte("log_date", from)
+      .lte("log_date", to)
+      .order("log_date"),
+    uid,
+  );
+  if (error || !data) return [];
+  return (data as { log_date: string; meds_taken: string[] | null; migraine: boolean }[])
+    .filter((r) => (r.meds_taken && r.meds_taken.length > 0) || r.migraine)
+    .map((r) => ({
+      date: r.log_date,
+      medIds: r.meds_taken ?? [],
+      migraine: r.migraine,
+    }));
 }

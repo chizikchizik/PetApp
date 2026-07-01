@@ -73,7 +73,8 @@ export async function saveCheckin(
 
 export async function createMed(
   name: string,
-  whenLabel: string,
+  whenLabel: string | null,
+  isAsNeeded = false,
 ): Promise<{ ok: boolean; error?: string }> {
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Введи название" };
@@ -83,7 +84,8 @@ export async function createMed(
   const { error } = await db.from("medication").insert({
     id: `custom_${Date.now()}`,
     name: trimmed,
-    when_label: whenLabel || "утро",
+    when_label: isAsNeeded ? null : (whenLabel?.trim() || null),
+    is_as_needed: isAsNeeded,
     sort: 99,
     habit_key: trimmed,
     app_user_id: uid,
