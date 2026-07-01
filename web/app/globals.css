@@ -18,9 +18,9 @@
   --warn: oklch(0.57 0.2 20);
   --warn-soft: color-mix(in oklab, oklch(0.57 0.2 20) 14%, #FBFAF7);
   /* фолликулярная по умолчанию */
-  --phase: oklch(0.68 0.17 134);
-  --phase-soft: color-mix(in oklab, oklch(0.68 0.17 134) 14%, #FBFAF7);
-  --phase-deep: oklch(0.5 0.14 134);
+  --phase: oklch(0.5 0.15 134);
+  --phase-soft: color-mix(in oklab, oklch(0.5 0.15 134) 14%, #FBFAF7);
+  --phase-deep: oklch(0.4 0.13 134);
   --on-phase: #FBFAF7;
 }
 
@@ -54,15 +54,15 @@
   --on-phase: #fff;
 }
 .phase-follicular {
-  --phase: oklch(0.68 0.17 134);
-  --phase-soft: color-mix(in oklab, oklch(0.68 0.17 134) 14%, #FBFAF7);
-  --phase-deep: oklch(0.5 0.14 134);
+  --phase: oklch(0.5 0.15 134);
+  --phase-soft: color-mix(in oklab, oklch(0.5 0.15 134) 14%, #FBFAF7);
+  --phase-deep: oklch(0.4 0.13 134);
   --on-phase: #FBFAF7;
 }
 .phase-ovulatory {
-  --phase: oklch(0.66 0.14 70);
-  --phase-soft: color-mix(in oklab, oklch(0.66 0.14 70) 14%, #FBFAF7);
-  --phase-deep: oklch(0.5 0.12 70);
+  --phase: oklch(0.5 0.13 70);
+  --phase-soft: color-mix(in oklab, oklch(0.5 0.13 70) 14%, #FBFAF7);
+  --phase-deep: oklch(0.4 0.11 70);
   --on-phase: #FBFAF7;
 }
 .phase-luteal {
