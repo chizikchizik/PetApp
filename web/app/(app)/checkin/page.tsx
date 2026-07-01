@@ -35,7 +35,7 @@ export default async function CheckIn({
     getMedMonthlyCounts(dayKey.slice(0, 7)),
     getMigraineTriggers(),
   ]);
-  const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28);
+  const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
 
   // layout.tsx sets the phase-${phase} CSS class root-wide based on TODAY —
   // it can't see this page's own ?date= param. When viewing a different day,

@@ -12,7 +12,7 @@ export const PHASE_LABELS: Record<Phase, string> = {
 };
 
 const DAY = 86_400_000;
-const MENSTRUAL_DAYS = 5; // приблизительная длительность менструации
+export const DEFAULT_MENSTRUAL_DAYS = 5; // приблизительная длительность менструации
 const LUTEAL_LENGTH = 14; // лютеиновая фаза относительно постоянна
 const RECENT_CYCLES = 12; // последние циклы для статистики
 
@@ -51,9 +51,9 @@ export function cycleStats(starts: Date[]): CycleStats {
 }
 
 /** Фаза по дню цикла и средней длине. Овуляция ≈ длина − 14. */
-export function phaseForDay(day: number, length: number): Phase {
+export function phaseForDay(day: number, length: number, menstrualDays = DEFAULT_MENSTRUAL_DAYS): Phase {
   const ovulation = Math.max(12, Math.round(length) - LUTEAL_LENGTH);
-  if (day <= MENSTRUAL_DAYS) return "menstrual";
+  if (day <= menstrualDays) return "menstrual";
   if (day >= ovulation - 1 && day <= ovulation + 1) return "ovulatory";
   if (day < ovulation - 1) return "follicular";
   return "luteal";
@@ -77,7 +77,12 @@ export interface CycleInfo {
   inMigraineWindow: boolean;
 }
 
-export function getCurrentCycle(starts: Date[], today = new Date(), defaultLength = 28): CycleInfo {
+export function getCurrentCycle(
+  starts: Date[],
+  today = new Date(),
+  defaultLength = 28,
+  menstrualDays = DEFAULT_MENSTRUAL_DAYS,
+): CycleInfo {
   const sorted = [...starts].sort((a, b) => a.getTime() - b.getTime());
   const stats = cycleStats(sorted);
   const len = Math.round(stats.avgLength) || defaultLength;
@@ -97,7 +102,7 @@ export function getCurrentCycle(starts: Date[], today = new Date(), defaultLengt
 
   const cycleStart = sorted[sorted.length - 1];
   const day = daysBetween(cycleStart, today) + 1; // день 1 = старт менструации
-  const phase = phaseForDay(day, len);
+  const phase = phaseForDay(day, len, menstrualDays);
 
   const likely = addDays(cycleStart, len);
   const spread = Math.max(1, Math.round(stats.stdDev));

@@ -27,6 +27,7 @@ export default async function ProfilePage() {
       <ProfileForm
         displayName={user?.displayName ?? ""}
         avgCycleLength={user?.avgCycleLength ?? null}
+        menstrualDays={user?.menstrualDays ?? null}
         weightGoalKg={user?.weightGoalKg ?? null}
         weightStartKg={user?.weightStartKg ?? null}
       />

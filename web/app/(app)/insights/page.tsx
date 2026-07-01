@@ -8,6 +8,7 @@ import {
   getSportActivityDays,
   getSportTypes,
 } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
@@ -204,7 +205,7 @@ export default async function Insights() {
   const today = new Date(todayISOMoscow() + "T12:00:00");
   const since = isoDaysFromTodayMoscow(-365);
   const sinceTraining = isoDaysFromTodayMoscow(-26 * 7);
-  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes] = await Promise.all([
+  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getAllMigraineEvents(),
@@ -212,11 +213,12 @@ export default async function Insights() {
     getWorkoutHistory(sinceTraining),
     getSportActivityDays(sinceTraining),
     getSportTypes(),
+    getCurrentUser(),
   ]);
 
   const corr = cycleCorrelation(recentEvents, starts);
   const chartBars = allMonthlyBars(allEvents);
-  const cycles = buildCycleCalendar(starts, recentEvents, today, 6);
+  const cycles = buildCycleCalendar(starts, recentEvents, today, 6, user?.menstrualDays ?? 5);
   const trainingMigraines = recentEvents.filter((e) => e.date >= sinceTraining);
 
   return (

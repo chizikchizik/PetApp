@@ -123,6 +123,7 @@ export function buildCycleCalendar(
   events: MEvent[],
   today: Date,
   n: number,
+  menstrualDays = 5,
 ): CalCycle[] {
   const sorted = [...starts].sort((a, b) => a.getTime() - b.getTime());
   const migSet = new Set(events.filter((e) => e.triptan || true).map((e) => e.date));
@@ -139,7 +140,7 @@ export function buildCycleCalendar(
       const iso = isoLocal(addDays(start, d - 1));
       days.push({
         day: d,
-        menstrual: d <= 5,
+        menstrual: d <= menstrualDays,
         migraine: migSet.has(iso),
         isToday: d === todayDay,
       });

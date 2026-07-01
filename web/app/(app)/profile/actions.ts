@@ -12,6 +12,7 @@ async function getUid(): Promise<string> {
 export async function saveProfile(input: {
   displayName: string;
   avgCycleLength: number | null;
+  menstrualDays: number | null;
   weightGoalKg: number | null;
   weightStartKg: number | null;
 }) {
@@ -24,6 +25,7 @@ export async function saveProfile(input: {
     .update({
       display_name: input.displayName.trim() || null,
       avg_cycle_length: input.avgCycleLength,
+      menstrual_days: input.menstrualDays,
       weight_goal_kg: input.weightGoalKg,
       weight_start_kg: input.weightStartKg,
     })

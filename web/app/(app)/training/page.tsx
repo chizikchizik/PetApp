@@ -167,7 +167,7 @@ export default async function TrainingPage() {
     getWorkoutCountForYear(year),
     getCurrentUser(),
   ]);
-  const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
+  const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
 

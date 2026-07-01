@@ -7,17 +7,20 @@ import { saveProfile } from "./actions";
 export function ProfileForm({
   displayName,
   avgCycleLength,
+  menstrualDays,
   weightGoalKg,
   weightStartKg,
 }: {
   displayName: string;
   avgCycleLength: number | null;
+  menstrualDays: number | null;
   weightGoalKg: number | null;
   weightStartKg: number | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(displayName);
   const [cycle, setCycle] = useState(avgCycleLength != null ? String(avgCycleLength) : "");
+  const [critical, setCritical] = useState(menstrualDays != null ? String(menstrualDays) : "");
   const [goal, setGoal] = useState(weightGoalKg != null ? String(weightGoalKg) : "");
   const [start, setStart] = useState(weightStartKg != null ? String(weightStartKg) : "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -25,6 +28,7 @@ export function ProfileForm({
   async function save() {
     setStatus("saving");
     const cycleNum = cycle ? Number(cycle.replace(",", ".")) : null;
+    const criticalNum = critical ? Number(critical.replace(",", ".")) : null;
     const goalNum = goal ? Number(goal.replace(",", ".")) : null;
     const startNum = start ? Number(start.replace(",", ".")) : null;
 
@@ -32,10 +36,15 @@ export function ProfileForm({
       setStatus("error");
       return;
     }
+    if (criticalNum != null && (criticalNum < 1 || criticalNum > 15)) {
+      setStatus("error");
+      return;
+    }
 
     const r = await saveProfile({
       displayName: name,
       avgCycleLength: cycleNum,
+      menstrualDays: criticalNum,
       weightGoalKg: goalNum,
       weightStartKg: startNum,
     });
@@ -71,6 +80,20 @@ export function ProfileForm({
           value={cycle}
           onChange={(e) => setCycle(e.target.value)}
           placeholder="28"
+          className="rounded-[3px] border border-line bg-surface px-4 py-3 text-[15px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          Критические дни (дней)
+        </span>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={critical}
+          onChange={(e) => setCritical(e.target.value)}
+          placeholder="5"
           className="rounded-[3px] border border-line bg-surface px-4 py-3 text-[15px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
         />
       </label>
@@ -115,7 +138,7 @@ export function ProfileForm({
           : status === "saved"
           ? "✓ Сохранено"
           : status === "error"
-          ? "Ошибка — проверь длину цикла (15–60)"
+          ? "Ошибка — проверь длину цикла (15–60) и критические дни (1–15)"
           : "Сохранить"}
       </button>
     </div>

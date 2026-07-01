@@ -76,7 +76,7 @@ export default async function Dashboard() {
     getMonthHabitStats(ym),
     getRecentWearableData(7),
   ]);
-  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
+  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;

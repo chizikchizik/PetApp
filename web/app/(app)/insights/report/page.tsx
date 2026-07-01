@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPeriodStarts, getMigraineEventsSince, getMeds, getWorkoutHistory } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
 import { monthlyTriptan, cycleCorrelation, buildCycleCalendar, type CorrelationState } from "@/lib/insights";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
@@ -146,16 +147,17 @@ export default async function MigraineReport() {
   const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
   const since = isoDaysFromTodayMoscow(-365);
-  const [starts, events, meds, workouts] = await Promise.all([
+  const [starts, events, meds, workouts, user] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getMeds(),
     getWorkoutHistory(since),
+    getCurrentUser(),
   ]);
 
   const corr = cycleCorrelation(events, starts);
   const bars = monthlyTriptan(events, today, 12);
-  const cycles = buildCycleCalendar(starts, events, today, 6);
+  const cycles = buildCycleCalendar(starts, events, today, 6, user?.menstrualDays ?? 5);
   const trainingPattern = computeTrainingPatterns(workouts, events);
 
   const auraTotal = events.length;

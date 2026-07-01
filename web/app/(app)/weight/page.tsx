@@ -26,7 +26,7 @@ export default async function Weight() {
     getCalorieEntries(),
     getCurrentUser(),
   ]);
-  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
+  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const goalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
   const startKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
   const fromStart = current != null ? +(current - startKg).toFixed(1) : null;
