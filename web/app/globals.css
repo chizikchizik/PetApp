@@ -134,6 +134,14 @@
   ::selection {
     background: var(--phase-soft);
   }
+  /* iOS Safari's native type="date" chrome ignores width/box-model and can
+     overflow its container — force it to behave like a normal text input. */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
