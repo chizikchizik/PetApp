@@ -66,7 +66,7 @@ export function CheckinForm({
   initial: DailyLog | null;
   habits: string[];
   meds: Med[];
-  weightPlaceholder: number;
+  weightPlaceholder: number | null;
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -252,7 +252,7 @@ export function CheckinForm({
             inputMode="decimal"
             step="0.1"
             value={s.weight}
-            placeholder={String(weightPlaceholder)}
+            placeholder={weightPlaceholder != null ? String(weightPlaceholder) : "кг"}
             onChange={(e) => setS({ ...s, weight: e.target.value })}
             className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
           />

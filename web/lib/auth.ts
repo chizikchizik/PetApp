@@ -80,9 +80,10 @@ export type AppUser = {
   weightGoalKg: number | null
   weightStartKg: number | null
   onboardingDone: boolean
+  avgCycleLength: number | null
 }
 
-const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done"
+const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length"
 
 function rowToUser(data: Record<string, unknown>): AppUser {
   return {
@@ -92,6 +93,7 @@ function rowToUser(data: Record<string, unknown>): AppUser {
     weightGoalKg: (data.weight_goal_kg as number | null) ?? null,
     weightStartKg: (data.weight_start_kg as number | null) ?? null,
     onboardingDone: (data.onboarding_done as boolean) ?? false,
+    avgCycleLength: (data.avg_cycle_length as number | null) ?? null,
   }
 }
 
@@ -113,7 +115,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
           .single()
         if (data) return rowToUser(data as Record<string, unknown>)
       }
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true }
+      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null }
     }
     return null
   }

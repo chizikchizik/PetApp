@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveWeight } from "./actions";
 
-export function WeightInput({ dayKey, placeholder }: { dayKey: string; placeholder: number }) {
+export function WeightInput({ dayKey, placeholder }: { dayKey: string; placeholder: number | null }) {
   const router = useRouter();
   const [v, setV] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -31,7 +31,7 @@ export function WeightInput({ dayKey, placeholder }: { dayKey: string; placehold
         inputMode="decimal"
         step="0.1"
         value={v}
-        placeholder={`сегодня · ${placeholder}`}
+        placeholder={placeholder != null ? `сегодня · ${placeholder}` : "введи вес"}
         onChange={(e) => setV(e.target.value)}
         className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:text-[15px] placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
       />

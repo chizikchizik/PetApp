@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPeriodStarts, getWeightEntries, getCurrentWeight, getCalorieEntries, WEIGHT_GOAL } from "@/lib/data";
 import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
+import { getCurrentUser } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightInput } from "./weight-input";
@@ -18,15 +19,16 @@ const PHASE_NOTE: Record<Phase, string> = {
 export default async function Weight() {
   const dayKey = todayISOMoscow();
   const today = new Date(dayKey + "T12:00:00");
-  const [starts, rows, current, calories] = await Promise.all([
+  const [starts, rows, current, calories, user] = await Promise.all([
     getPeriodStarts(),
     getWeightEntries(),
     getCurrentWeight(),
     getCalorieEntries(),
+    getCurrentUser(),
   ]);
-  const c = getCurrentCycle(starts, today);
-  const fromStart = +(current - WEIGHT_GOAL.startKg).toFixed(1);
-  const toGoal = +(current - WEIGHT_GOAL.kg).toFixed(1);
+  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
+  const fromStart = current != null ? +(current - WEIGHT_GOAL.startKg).toFixed(1) : null;
+  const toGoal = current != null ? +(current - WEIGHT_GOAL.kg).toFixed(1) : null;
 
   return (
     <>
@@ -46,20 +48,26 @@ export default async function Weight() {
       <section className="mt-4 flex items-end justify-between rounded-card border border-line bg-surface p-5">
         <div>
           <div className="font-mono text-[46px] font-semibold leading-[0.9] text-ink">
-            {current}
+            {current ?? "—"}
           </div>
           <div className="mt-1.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">
             кг сегодня
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono font-semibold text-[15px] text-phase">
-            {fromStart} кг
-          </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-2">от старта {WEIGHT_GOAL.startKg}</div>
-          <div className="mt-0.5 font-mono text-[10px] text-ink-2">
-            до цели {toGoal > 0 ? `−${toGoal}` : toGoal} кг
-          </div>
+          {fromStart != null && toGoal != null ? (
+            <>
+              <div className="font-mono font-semibold text-[15px] text-phase">
+                {fromStart} кг
+              </div>
+              <div className="mt-1 font-mono text-[10px] text-ink-2">от старта {WEIGHT_GOAL.startKg}</div>
+              <div className="mt-0.5 font-mono text-[10px] text-ink-2">
+                до цели {toGoal > 0 ? `−${toGoal}` : toGoal} кг
+              </div>
+            </>
+          ) : (
+            <div className="font-mono text-[11px] text-ink-3">запиши первый вес ↓</div>
+          )}
         </div>
       </section>
 

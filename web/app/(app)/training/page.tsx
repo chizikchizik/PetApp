@@ -15,6 +15,7 @@ import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
 import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +156,7 @@ export default async function TrainingPage() {
   const sinceISO = isoDaysFromTodayMoscow(-26 * 7);
   const year = nowMoscow().getUTCFullYear();
   const today = new Date(todayISOMoscow() + "T12:00:00");
-  const [starts, workouts, templates, sportTypes, workoutHistory, sportDays, migraines, yearCount] = await Promise.all([
+  const [starts, workouts, templates, sportTypes, workoutHistory, sportDays, migraines, yearCount, user] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
     getWorkoutTemplates(),
@@ -164,8 +165,9 @@ export default async function TrainingPage() {
     getSportActivityDays(sinceISO),
     getMigraineEventsSince(sinceISO),
     getWorkoutCountForYear(year),
+    getCurrentUser(),
   ]);
-  const { phase } = getCurrentCycle(starts, today);
+  const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
 

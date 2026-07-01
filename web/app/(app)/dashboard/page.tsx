@@ -63,10 +63,6 @@ export default async function Dashboard() {
   const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
   const starts = await getPeriodStarts();
-  const c = getCurrentCycle(starts, today);
-  const length = Math.round(c.stats.avgLength);
-  const tip = PHASE_TIP[c.phase];
-
   const ym = todayISO.slice(0, 7);
   const todayStr = todayISO;
 
@@ -80,6 +76,9 @@ export default async function Dashboard() {
     getMonthHabitStats(ym),
     getRecentWearableData(7),
   ]);
+  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
+  const length = Math.round(c.stats.avgLength);
+  const tip = PHASE_TIP[c.phase];
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
   const displayName = user?.displayName || "VERTA";
@@ -87,17 +86,19 @@ export default async function Dashboard() {
   const weightStartKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
 
   const triptanHigh = triptan >= 8;
-  const weightDelta = +(currentWeight - weightStartKg).toFixed(1);
+  const weightDelta = currentWeight != null ? +(currentWeight - weightStartKg).toFixed(1) : null;
   const ws = weights.map((w) => w.actual);
-  const wMin = Math.min(...ws);
-  const wMax = Math.max(...ws);
-  const spark = weights
-    .map((w, i) => {
-      const x = (i / (weights.length - 1 || 1)) * 100;
-      const y = 26 - ((w.actual - wMin) / (wMax - wMin || 1)) * 22 - 2;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  const wMin = ws.length ? Math.min(...ws) : 0;
+  const wMax = ws.length ? Math.max(...ws) : 0;
+  const spark = weights.length
+    ? weights
+        .map((w, i) => {
+          const x = (i / (weights.length - 1 || 1)) * 100;
+          const y = 26 - ((w.actual - wMin) / (wMax - wMin || 1)) * 22 - 2;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(" ")
+    : "";
 
   const habitsSet = new Set(habits);
   const habitsDoneToday = (todayLog?.habits_done ?? []).filter((h) => habitsSet.has(h)).length;
@@ -186,10 +187,10 @@ export default async function Dashboard() {
         <Link href="/weight" className="flex-1 border-r border-line px-3 py-3.5 active:bg-surface-2">
           <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">вес</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {currentWeight}
+            {currentWeight ?? "—"}
           </div>
           <div className="mt-1 font-mono text-[10px] text-phase">
-            {weightDelta < 0 ? "" : "+"}{weightDelta} кг
+            {weightDelta == null ? "нет данных" : `${weightDelta < 0 ? "" : "+"}${weightDelta} кг`}
           </div>
         </Link>
         <Link href="/insights" className="flex-1 border-r border-line px-3 py-3.5 active:bg-surface-2">
@@ -255,7 +256,7 @@ export default async function Dashboard() {
         >
           <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">вес</div>
           <div className="mt-1.5 font-mono font-semibold leading-none text-[26px] text-ink">
-            {currentWeight}
+            {currentWeight ?? "—"}
             <span className="text-[12px] font-normal text-ink-2"> кг</span>
           </div>
           <svg
@@ -273,7 +274,7 @@ export default async function Dashboard() {
             />
           </svg>
           <div className="mt-1.5 font-mono text-[10px] text-phase-deep">
-            {weightDelta < 0 ? "" : "+"}{weightDelta} · цель {weightGoalKg}
+            {weightDelta == null ? "введи вес →" : `${weightDelta < 0 ? "" : "+"}${weightDelta} · цель ${weightGoalKg}`}
           </div>
         </Link>
 

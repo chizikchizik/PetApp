@@ -72,9 +72,15 @@ export async function getRecentActualWeights(limit = 8): Promise<WeightPoint[]> 
   return seed.WEIGHT.recent.map(([date, actual]) => ({ date, actual }));
 }
 
-export async function getCurrentWeight(): Promise<number> {
+// Returns null for a real registered user with no weight entries yet — must NOT
+// fall back to Marina's seed weight, which getRecentActualWeights already guards
+// against but this wrapper previously didn't.
+export async function getCurrentWeight(): Promise<number | null> {
+  const uid = await getAppUserId();
   const w = await getRecentActualWeights(8);
-  return w.length ? w[w.length - 1].actual : seed.WEIGHT.currentKg;
+  if (w.length) return w[w.length - 1].actual;
+  if (uid && uid !== "__legacy__") return null;
+  return seed.WEIGHT.currentKg;
 }
 
 export const WEIGHT_GOAL = {
@@ -174,23 +180,12 @@ export async function getAllHabits(): Promise<HabitRow[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
+  const { data } = await byUser(
     db.from("habit")
       .select("id, name, active, started_month, ended_month")
       .order("sort", { ascending: true }),
     uid,
   );
-  if (error) {
-    const { data: d2 } = await byUser(
-      db.from("habit").select("id, name, active").order("sort", { ascending: true }),
-      uid,
-    );
-    return (d2 ?? []).map((r: { id: number; name: string; active: boolean }) => ({
-      ...r,
-      started_month: null,
-      ended_month: null,
-    }));
-  }
   return (data ?? []) as HabitRow[];
 }
 
@@ -422,14 +417,16 @@ export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
   }));
 }
 
+// Same "shared" pattern as getWorkoutTemplates: seed rows with app_user_id IS NULL
+// (if any exist) are visible to every user, plus each user's own schedule entries.
 export async function getWeeklySchedule(): Promise<ScheduleDay[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data } = await byUser(
-    db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week"),
-    uid,
-  );
+  const query = db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week");
+  const { data } = uid
+    ? await query.or(`app_user_id.is.null,app_user_id.eq.${uid}`)
+    : await query.is("app_user_id", null);
   return (data ?? []) as ScheduleDay[];
 }
 

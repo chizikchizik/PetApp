@@ -106,8 +106,9 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
-  const { error } = await byUser(db.from("medication").delete().eq("id", id), uid);
+  const { data, error } = await byUser(db.from("medication").delete().eq("id", id), uid).select("id");
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: "Препарат не найден" };
   revalidatePath("/checkin");
   revalidatePath("/dashboard");
   return { ok: true };

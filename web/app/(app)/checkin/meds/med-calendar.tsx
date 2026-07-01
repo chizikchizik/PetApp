@@ -31,7 +31,10 @@ function toWeeks(days: string[]): string[][] {
 }
 
 // ── Medication keyword patterns ──────────────────────────────────────────────
-
+// Heuristic substring match over free-text MigreBot notes — can false-positive
+// (e.g. "не помог спрей от насморка" would match nasal_spray). Acceptable for a
+// history-display heuristic; original text is shown alongside via MigreBotSection
+// so the user can always see what was actually written.
 const MED_PATTERNS: { pattern: RegExp; ids: string[] }[] = [
   { pattern: /суматриптан|имигран/i,              ids: ["sumatriptan"] },
   { pattern: /нурофен|ибупрофен/i,               ids: ["nurofen"] },

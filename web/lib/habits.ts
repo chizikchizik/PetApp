@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { isoDaysFromTodayMoscow } from "@/lib/format";
 
 export type HabitDay = {
@@ -11,6 +12,22 @@ export type HabitDay = {
 const RU_WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const RU_MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 
+async function getAppUserId(): Promise<string | null> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.id === "__legacy__") return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function byUser(q: any, uid: string | null): any {
+  if (!uid) return q.is("app_user_id", null);
+  return q.eq("app_user_id", uid);
+}
+
 function labelFor(iso: string): string {
   const d = new Date(iso + "T12:00:00");
   return `${RU_WEEKDAYS[d.getDay()]} ${d.getDate()}`;
@@ -19,10 +36,11 @@ function labelFor(iso: string): string {
 async function fetchByDates(dates: string[]): Promise<HabitDay[]> {
   const db = supabaseAdmin();
   if (!db) return dates.map((d) => ({ dateISO: d, label: labelFor(d), done: [] }));
-  const { data } = await db
-    .from("daily_log")
-    .select("log_date, habits_done")
-    .in("log_date", dates);
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("daily_log").select("log_date, habits_done").in("log_date", dates),
+    uid,
+  );
   const byDate: Record<string, string[]> = {};
   for (const r of data ?? []) {
     byDate[(r as { log_date: string; habits_done: string[] }).log_date] =

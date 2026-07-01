@@ -77,10 +77,10 @@ export interface CycleInfo {
   inMigraineWindow: boolean;
 }
 
-export function getCurrentCycle(starts: Date[], today = new Date()): CycleInfo {
+export function getCurrentCycle(starts: Date[], today = new Date(), defaultLength = 28): CycleInfo {
   const sorted = [...starts].sort((a, b) => a.getTime() - b.getTime());
   const stats = cycleStats(sorted);
-  const len = Math.round(stats.avgLength) || 28;
+  const len = Math.round(stats.avgLength) || defaultLength;
 
   if (sorted.length === 0) {
     return {

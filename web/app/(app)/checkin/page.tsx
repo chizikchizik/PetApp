@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckinForm } from "./checkin-form";
 import { getCurrentCycle, PHASE_LABELS } from "@/lib/cycle";
 import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 
 const MONTH_SHORT = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
@@ -24,14 +25,15 @@ export default async function CheckIn({
   const isToday = dayKey === todayISO;
   const targetDate = new Date(dayKey + "T12:00:00");
 
-  const [starts, initial, habits, meds, weight] = await Promise.all([
+  const [starts, initial, habits, meds, weight, user] = await Promise.all([
     getPeriodStarts(),
     getDailyLog(dayKey),
     getHabits(todayISO.slice(0, 7)),
     getMeds(),
     getCurrentWeight(),
+    getCurrentUser(),
   ]);
-  const c = getCurrentCycle(starts, targetDate);
+  const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28);
 
   return (
     <>
