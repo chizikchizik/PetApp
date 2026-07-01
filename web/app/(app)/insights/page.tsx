@@ -1,10 +1,173 @@
 import Link from "next/link";
 import { getPeriodStarts, getMigraineEventsSince, getAllMigraineEvents, getCycleHistory } from "@/lib/data";
-import { allMonthlyBars, perimenstrualStats, buildCycleCalendar } from "@/lib/insights";
+import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { MigraineChart } from "./migraine-chart";
 import { CycleHistoryChart } from "./cycle-history";
 
 export const dynamic = "force-dynamic";
+
+// ── Adaptive cycle-correlation block ────────────────────────────────────────
+
+type CorrConfig = {
+  pctColor: string;
+  verdict: React.ReactNode;
+  body: React.ReactNode;
+};
+
+function corrConfig(c: CycleCorrelation): CorrConfig {
+  const pct = c.pct;
+  const peri = c.peri;
+  const total = c.total;
+
+  switch (c.state) {
+    case "no_cycle":
+      return {
+        pctColor: "text-ink-3",
+        verdict: <span className="font-sans text-[15px] font-semibold text-ink">Нет данных о цикле</span>,
+        body: (
+          <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            Добавь даты месячных в разделе{" "}
+            <Link href="/cycle" className="text-phase underline underline-offset-2">Цикл →</Link>{" "}
+            — тогда можно будет рассчитать связь мигрени с циклом.
+          </p>
+        ),
+      };
+
+    case "no_migraine":
+      return {
+        pctColor: "text-ink-3",
+        verdict: <span className="font-sans text-[15px] font-semibold text-ink">Нет записей о мигрени</span>,
+        body: (
+          <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            Когда добавишь приступы через{" "}
+            <Link href="/checkin" className="text-phase underline underline-offset-2">Чек-ин →</Link>{" "}
+            или импорт, здесь появится анализ связи с циклом.
+          </p>
+        ),
+      };
+
+    case "insufficient":
+      return {
+        pctColor: "text-ink-2",
+        verdict: (
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[46px] font-semibold leading-[0.9] text-ink-2">{pct}%</span>
+            <span className="font-sans text-[12.5px] text-ink-3">
+              атак в окне<br />−2…+3 от месячных
+            </span>
+          </div>
+        ),
+        body: (
+          <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            Пока{" "}
+            {c.cycleCount < 3 && total < 5
+              ? "мало данных о цикле и приступах"
+              : c.cycleCount < 3
+              ? `мало данных о цикле (${c.cycleCount} цикл${c.cycleCount === 1 ? "" : "а"})`
+              : `мало приступов (${total})`}
+            {" "}— вывод ненадёжен. Продолжай логировать:{" "}
+            нужно минимум 5 приступов и 3 полных цикла.
+          </p>
+        ),
+      };
+
+    case "low":
+      return {
+        pctColor: "text-ink-2",
+        verdict: (
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[46px] font-semibold leading-[0.9] text-ink-2">{pct}%</span>
+            <span className="font-sans text-[12.5px] text-ink-3">
+              атак в окне<br />−2…+3 от месячных
+            </span>
+          </div>
+        ),
+        body: (
+          <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            <b className="font-semibold text-ink">Слабая связь с циклом.</b>{" "}
+            За 12 мес: {peri} из {total} приступов попали в перименструальное окно —
+            уровень случайного совпадения. Тригеры стоит искать в другом.
+          </p>
+        ),
+      };
+
+    case "moderate":
+      return {
+        pctColor: "text-warn",
+        verdict: (
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[46px] font-semibold leading-[0.9] text-warn">{pct}%</span>
+            <span className="font-sans text-[12.5px] text-ink-2">
+              атак в окне<br />−2…+3 от месячных
+            </span>
+          </div>
+        ),
+        body: (
+          <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            <b className="font-semibold text-ink">Умеренная связь с циклом.</b>{" "}
+            За 12 мес: {peri} из {total} приступов пришлись на перименструальное окно.
+            Это выше случайного, но ещё не дотягивает до менструально-ассоциированной мигрени.
+            Продолжай вести дневник.
+          </p>
+        ),
+      };
+
+    case "high":
+      return {
+        pctColor: "text-phase",
+        verdict: (
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[46px] font-semibold leading-[0.9] text-phase">{pct}%</span>
+            <span className="font-sans text-[12.5px] text-ink-2">
+              атак в окне<br />−2…+3 от месячных
+            </span>
+          </div>
+        ),
+        body: (
+          <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            Похоже на{" "}
+            <b className="font-semibold text-ink">менструально-ассоциированную</b> мигрень.
+            За 12 мес: {peri} из {total} приступов жмутся к месячным.
+          </p>
+        ),
+      };
+
+    case "very_high":
+      return {
+        pctColor: "text-phase",
+        verdict: (
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[46px] font-semibold leading-[0.9] text-phase">{pct}%</span>
+            <span className="font-sans text-[12.5px] text-ink-2">
+              атак в окне<br />−2…+3 от месячных
+            </span>
+          </div>
+        ),
+        body: (
+          <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            <b className="font-semibold text-ink">Очень высокая связь с циклом.</b>{" "}
+            За 12 мес: {peri} из {total} приступов приходятся на перименструальное окно.
+            Возможна{" "}
+            <b className="font-semibold text-ink">чистая менструальная мигрень</b> —
+            обсуди с неврологом: есть специфические схемы профилактики.
+          </p>
+        ),
+      };
+  }
+}
+
+function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
+  const cfg = corrConfig(corr);
+  return (
+    <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
+      <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        связь с циклом
+      </p>
+      <div className="mt-2">{cfg.verdict}</div>
+      {cfg.body}
+    </section>
+  );
+}
 
 const MIG = "#d85a30";
 const MENS = "rgba(177,74,99,0.22)";
@@ -19,7 +182,7 @@ export default async function Insights() {
     getCycleHistory(),
   ]);
 
-  const peri = perimenstrualStats(recentEvents, starts);
+  const corr = cycleCorrelation(recentEvents, starts);
   const chartBars = allMonthlyBars(allEvents);
   const cycles = buildCycleCalendar(starts, recentEvents, today, 6);
 
@@ -50,24 +213,7 @@ export default async function Insights() {
       </Link>
 
       {/* ── Связь с циклом ── */}
-      <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          связь с циклом
-        </p>
-        <div className="mt-2 flex items-baseline gap-2.5">
-          <span className="font-mono text-[46px] font-semibold leading-[0.9] text-phase">
-            {peri.pct}%
-          </span>
-          <span className="font-sans text-[12.5px] text-ink-2">
-            атак в окне<br />−2…+3 от месячных
-          </span>
-        </div>
-        <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
-          Похоже на{" "}
-          <b className="font-semibold text-ink">менструально-ассоциированную</b> мигрень.
-          За 12 мес: {peri.peri} из {peri.total} приступов жмутся к месячным.
-        </p>
-      </section>
+      <CycleCorrelationBlock corr={corr} />
 
       {/* ── Приступы по месяцам ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
