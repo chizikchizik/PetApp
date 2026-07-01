@@ -1,12 +1,13 @@
 import { register } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function Register({
   searchParams,
 }: {
   searchParams: Promise<{ e?: string }>;
 }) {
   const { e } = await searchParams;
-  const inviteCodeRequired = Boolean(process.env.PETAPP_INVITE_CODE);
   return (
     <main className="phase-follicular mx-auto flex min-h-dvh max-w-[430px] flex-col justify-center px-6">
       <p className="font-serif font-bold text-[22px] tracking-[0.04em] text-ink">VERTA</p>
@@ -35,17 +36,12 @@ export default async function Register({
           required
           className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
         />
-        {inviteCodeRequired ? (
-          <input
-            name="inviteCode"
-            type="text"
-            placeholder="Код приглашения"
-            required
-            className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
-          />
+        {e === "2" ? (
+          <p className="text-[13px] font-medium text-warn">
+            Email уже зарегистрирован.{" "}
+            <a href="/login" className="underline underline-offset-2">Войти →</a>
+          </p>
         ) : null}
-        {e === "1" ? <p className="text-[13px] font-medium text-warn">Неверный код приглашения</p> : null}
-        {e === "2" ? <p className="text-[13px] font-medium text-warn">Email уже зарегистрирован</p> : null}
         {e === "3" ? <p className="text-[13px] font-medium text-warn">Пароль слишком короткий</p> : null}
         <button
           type="submit"

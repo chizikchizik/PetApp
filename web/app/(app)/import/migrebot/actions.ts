@@ -95,6 +95,7 @@ export async function previewCSV(
 
 export async function importCSV(
   csvText: string,
+  fileName?: string,
 ): Promise<{ ok: boolean; result?: { imported: number; skipped: number }; error?: string }> {
   const rows = parseCSV(csvText);
   if (rows.length < 2) return { ok: false, error: "Файл пустой" };
@@ -139,11 +140,25 @@ export async function importCSV(
     if (error) return { ok: false, error: error.message };
   }
 
+  const migraineCount = toImport.filter((r) => r.migraine).length;
+  const dates = dataRows.map((r) => r[0]).sort();
+
+  // Persist import history
+  await db.from("import_log").insert({
+    app_user_id: uid,
+    source: "migrebot",
+    file_name: fileName ?? null,
+    total_rows: toImport.length,
+    migraine_rows: migraineCount,
+    date_from: dates[0],
+    date_to: dates[dates.length - 1],
+  });
+
+  revalidatePath("/import/migrebot");
   revalidatePath("/insights");
   revalidatePath("/dashboard");
   revalidatePath("/checkin");
 
-  const migraineCount = toImport.filter((r) => r.migraine).length;
   return {
     ok: true,
     result: {
@@ -151,4 +166,28 @@ export async function importCSV(
       skipped: migraineCount,
     },
   };
+}
+
+export type ImportLogEntry = {
+  id: string;
+  source: string;
+  file_name: string | null;
+  imported_at: string;
+  total_rows: number | null;
+  migraine_rows: number | null;
+  date_from: string | null;
+  date_to: string | null;
+};
+
+export async function getImportLog(): Promise<ImportLogEntry[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const uid = await getAppUserId();
+  const q = db
+    .from("import_log")
+    .select("id, source, file_name, imported_at, total_rows, migraine_rows, date_from, date_to")
+    .order("imported_at", { ascending: false })
+    .limit(20);
+  const { data } = uid ? await q.eq("app_user_id", uid) : await q.is("app_user_id", null);
+  return (data ?? []) as ImportLogEntry[];
 }

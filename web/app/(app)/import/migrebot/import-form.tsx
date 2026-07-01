@@ -19,6 +19,8 @@ export function MigreBotImportForm() {
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [fileName, setFileName] = useState<string | null>(null);
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -26,6 +28,7 @@ export function MigreBotImportForm() {
     setPreview(null);
     setResult(null);
     setErrorMsg("");
+    setFileName(file.name);
 
     try {
       const text = await file.text();
@@ -47,7 +50,7 @@ export function MigreBotImportForm() {
   async function handleImport() {
     if (!csvText) return;
     setStatus("importing");
-    const res = await importCSV(csvText);
+    const res = await importCSV(csvText, fileName ?? undefined);
     if (!res.ok) {
       setStatus("error");
       setErrorMsg(res.error ?? "Ошибка импорта");

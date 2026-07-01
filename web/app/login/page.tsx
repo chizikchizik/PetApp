@@ -159,15 +159,28 @@ export default async function Login({
       {/* ── Форма ── */}
       <form action={login} className="mt-6 w-full space-y-3">
         <input
+          name="email"
+          type="email"
+          autoFocus
+          autoComplete="email"
+          placeholder="Email"
+          className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
+        />
+        <input
           name="password"
           type="password"
-          autoFocus
           autoComplete="current-password"
           placeholder="Пароль"
           className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
         />
         {e === "1" && (
           <p className="text-[13px] font-medium text-warn">Неверный пароль</p>
+        )}
+        {e === "2" && (
+          <p className="text-[13px] font-medium text-warn">
+            Аккаунт не найден.{" "}
+            <a href="/register" className="underline underline-offset-2">Зарегистрироваться →</a>
+          </p>
         )}
         <button
           type="submit"
@@ -176,6 +189,13 @@ export default async function Login({
           Войти
         </button>
       </form>
+
+      <p className="mt-6 text-center font-mono text-[12px] text-ink-3">
+        Нет аккаунта?{" "}
+        <a href="/register" className="text-phase underline-offset-2 hover:underline">
+          Зарегистрироваться
+        </a>
+      </p>
     </main>
   );
 }

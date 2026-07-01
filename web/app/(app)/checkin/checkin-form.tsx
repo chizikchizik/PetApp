@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveCheckin, savePeriodStart, createMed, deleteMed, type CheckinPayload } from "./actions";
@@ -77,6 +78,8 @@ export function CheckinForm({
   const [savedWithPeriod, setSavedWithPeriod] = useState(false);
   const [addingMed, setAddingMed] = useState(false);
   const [newMedName, setNewMedName] = useState("");
+  const [newMedWhen, setNewMedWhen] = useState("");
+  const [newMedAsNeeded, setNewMedAsNeeded] = useState(false);
   const [addMedStatus, setAddMedStatus] = useState<"idle" | "saving" | "error">("idle");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
@@ -92,9 +95,11 @@ export function CheckinForm({
   async function handleAddMed() {
     if (!newMedName.trim()) return;
     setAddMedStatus("saving");
-    const res = await createMed(newMedName, "утро");
+    const res = await createMed(newMedName, newMedAsNeeded ? null : (newMedWhen || null), newMedAsNeeded);
     if (res.ok) {
       setNewMedName("");
+      setNewMedWhen("");
+      setNewMedAsNeeded(false);
       setAddingMed(false);
       setAddMedStatus("idle");
       router.refresh();
@@ -269,13 +274,18 @@ export function CheckinForm({
       <div>
         <div className="flex items-center justify-between">
           <span className={labelCls}>Приём препаратов</span>
-          <button
-            type="button"
-            onClick={() => { setAddingMed((v) => !v); setNewMedName(""); }}
-            className="text-[11px] font-semibold text-phase-deep"
-          >
-            {addingMed ? "Отмена" : "+ Добавить"}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link href="/checkin/meds" className="font-mono text-[10px] text-ink-3 underline underline-offset-2">
+              график →
+            </Link>
+            <button
+              type="button"
+              onClick={() => { setAddingMed((v) => !v); setNewMedName(""); setNewMedWhen(""); setNewMedAsNeeded(false); }}
+              className="text-[11px] font-semibold text-phase-deep"
+            >
+              {addingMed ? "Отмена" : "+ Добавить"}
+            </button>
+          </div>
         </div>
 
         <div className="mt-2 rounded-card border border-line bg-surface px-4">
@@ -300,7 +310,9 @@ export function CheckinForm({
                   <span className={`text-[15px] leading-snug ${on ? "text-ink-3 line-through" : "text-ink"}`}>
                     {med.name}
                     {med.note && <span className="text-[12px] text-ink-3"> · {med.note}</span>}
-                    {med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
+                    {med.isAsNeeded
+                      ? <span className="text-[11px] text-warn"> · по мигрени</span>
+                      : med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
                   </span>
                 </button>
                 {isConfirming ? (
@@ -339,23 +351,46 @@ export function CheckinForm({
         </div>
 
         {addingMed && (
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 space-y-2">
             <input
               type="text"
               value={newMedName}
               onChange={(e) => setNewMedName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddMed()}
               placeholder="Название препарата"
-              className="flex-1 rounded-[3px] border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
+              autoFocus
+              className="w-full rounded-[3px] border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
             />
-            <button
-              type="button"
-              onClick={handleAddMed}
-              disabled={!newMedName.trim() || addMedStatus === "saving"}
-              className="rounded-[3px] bg-phase px-4 py-2.5 text-[14px] font-semibold text-on-phase disabled:opacity-50"
-            >
-              {addMedStatus === "saving" ? "…" : addMedStatus === "error" ? "!" : "OK"}
-            </button>
+            <div className="flex items-center gap-2">
+              {!newMedAsNeeded && (
+                <input
+                  type="time"
+                  value={newMedWhen}
+                  onChange={(e) => setNewMedWhen(e.target.value)}
+                  placeholder="Время"
+                  className="flex-1 rounded-[3px] border border-line bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-phase"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setNewMedAsNeeded((v) => !v)}
+                className={`shrink-0 rounded-[3px] border px-3 py-2 font-mono text-[11px] tracking-[0.06em] transition ${
+                  newMedAsNeeded
+                    ? "border-warn bg-warn/10 text-warn"
+                    : "border-line text-ink-3"
+                }`}
+              >
+                {newMedAsNeeded ? "по мигрени ✓" : "по мигрени"}
+              </button>
+              <button
+                type="button"
+                onClick={handleAddMed}
+                disabled={!newMedName.trim() || addMedStatus === "saving"}
+                className="shrink-0 rounded-[3px] bg-phase px-4 py-2 text-[14px] font-semibold text-on-phase disabled:opacity-50"
+              >
+                {addMedStatus === "saving" ? "…" : addMedStatus === "error" ? "!" : "OK"}
+              </button>
+            </div>
           </div>
         )}
       </div>

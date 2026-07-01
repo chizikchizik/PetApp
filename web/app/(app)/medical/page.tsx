@@ -1,127 +1,278 @@
 import Link from "next/link";
-import { supabaseAdmin } from "@/lib/supabase/server";
-import { getRecords } from "./actions";
+import { getRecords, getSignedUrl } from "./actions";
 import { UploadForm } from "./upload-form";
 import { DeleteButton } from "./delete-button";
 
 export const dynamic = "force-dynamic";
 
-const CATEGORY_LABELS: Record<string, string> = {
-  analysis: "Анализ",
+export const CATEGORY_LABELS: Record<string, string> = {
+  analysis:     "Анализ",
+  visit:        "Приём",
   prescription: "Назначение",
-  referral: "Направление",
-  diagnosis: "Диагноз",
-  vaccination: "Прививка",
-  other: "Документ",
+  referral:     "Направление",
+  diagnosis:    "Диагноз",
+  vaccination:  "Прививка",
+  imaging:      "Снимок / УЗИ",
+  discharge:    "Выписка",
+  other:        "Документ",
+};
+
+const CATEGORY_ORDER = ["analysis","visit","prescription","referral","diagnosis","imaging","discharge","vaccination","other"];
+
+const CAT_COLOR: Record<string, string> = {
+  analysis:     "var(--phase)",
+  visit:        "#8f5ec8",
+  prescription: "#2aa09a",
+  referral:     "#e8a23a",
+  diagnosis:    "#d04830",
+  imaging:      "#5880e0",
+  discharge:    "#48a060",
+  vaccination:  "#c05890",
+  other:        "var(--ink-4)",
 };
 
 function formatDate(iso: string | null) {
   if (!iso) return null;
   const d = new Date(iso + (iso.length === 10 ? "T12:00:00" : ""));
-  const MONTHS = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  const M = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+  return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function getPublicUrl(filePath: string): string {
-  const db = supabaseAdmin();
-  if (!db) return "#";
-  return db.storage.from("medical-records").getPublicUrl(filePath).data.publicUrl;
+function formatSize(bytes: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function groupByYear(records: Awaited<ReturnType<typeof getRecords>>) {
+  const years = new Map<string, typeof records>();
+  for (const r of records) {
+    const y = (r.record_date ?? r.created_at).slice(0, 4);
+    if (!years.has(y)) years.set(y, []);
+    years.get(y)!.push(r);
+  }
+  return [...years.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 
 export default async function MedicalPage() {
   const records = await getRecords();
 
+  // Pre-resolve signed URLs for all records with files (server-side, 1h TTL)
+  const signedUrls = new Map<string, string>();
+  await Promise.all(
+    records
+      .filter((r) => r.file_path)
+      .map(async (r) => {
+        const url = await getSignedUrl(r.file_path!);
+        if (url) signedUrls.set(r.id, url);
+      })
+  );
+
+  const byYear = groupByYear(records);
+
+  // Stats
+  const countByCategory = new Map<string, number>();
+  for (const r of records) {
+    countByCategory.set(r.category, (countByCategory.get(r.category) ?? 0) + 1);
+  }
+
   return (
     <>
-      {/* Header */}
-      <Link
-        href="/dashboard"
-        className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
-      >
+      <Link href="/dashboard" className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
         ← дашборд
       </Link>
-      <h1 className="mt-3 font-serif font-bold text-[24px] uppercase">МЕДКНИЖКА</h1>
-      <p className="mt-2 font-mono text-[11px] text-ink-2">анализы, назначения, направления</p>
 
-      {/* Import links */}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">МЕДКНИЖКА</h1>
+          <p className="mt-1 font-mono text-[11px] text-ink-3">
+            анализы · приёмы · назначения · снимки
+          </p>
+        </div>
+        {records.length > 0 && (
+          <span className="mt-1 font-mono text-[22px] font-bold text-ink leading-none">
+            {records.length}
+            <span className="ml-1 font-mono text-[10px] text-ink-4">докум.</span>
+          </span>
+        )}
+      </div>
+
+      {/* Category summary chips */}
+      {records.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {CATEGORY_ORDER.filter((c) => countByCategory.has(c)).map((c) => (
+            <span
+              key={c}
+              className="flex items-center gap-1 rounded-[3px] px-2 py-1 font-mono text-[9px] uppercase"
+              style={{ background: `${CAT_COLOR[c]}18`, color: CAT_COLOR[c] }}
+            >
+              {CATEGORY_LABELS[c]}
+              <span className="opacity-70">{countByCategory.get(c)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Quick links: MigreBot + История */}
+      <div className="mt-4 flex gap-2">
+        <Link
+          href="/checkin/meds"
+          className="flex flex-1 items-center justify-between rounded-[3px] border border-line bg-surface px-3.5 py-3 active:scale-[0.99]"
+        >
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">препараты</p>
+            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">История мигреней</p>
+          </div>
+          <span className="font-mono text-[12px] text-phase">→</span>
+        </Link>
         <Link
           href="/import/migrebot"
-          className="inline-flex items-center gap-1.5 rounded-[3px] border border-line bg-surface px-3.5 py-2 font-mono text-[11px] text-ink-2 transition active:bg-surface-2"
+          className="flex flex-1 items-center justify-between rounded-[3px] border border-line bg-surface px-3.5 py-3 active:scale-[0.99]"
         >
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Импорт из Migrebot
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">импорт</p>
+            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">MigreBot CSV</p>
+          </div>
+          <span className="font-mono text-[12px] text-phase">→</span>
         </Link>
       </div>
 
       {/* Upload form */}
-      <UploadForm />
+      <div className="mt-3">
+        <UploadForm />
+      </div>
 
-      {/* Records list */}
-      {records.length > 0 && (
-        <div className="mt-5 space-y-2">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            документы · {records.length}
-          </p>
-          {records.map((r) => {
-            const publicUrl = r.file_path ? getPublicUrl(r.file_path) : null;
-            const displayDate = formatDate(r.record_date) ?? formatDate(r.created_at.slice(0, 10));
-            return (
-              <div
-                key={r.id}
-                className="rounded-card border border-line bg-surface p-4 flex gap-3"
-              >
-                {/* Category badge */}
-                <div className="shrink-0 pt-0.5">
-                  <span className="rounded-[2px] px-2 py-1 font-mono text-[9px] uppercase bg-surface-3 text-ink-3">
-                    {CATEGORY_LABELS[r.category] ?? r.category}
-                  </span>
-                </div>
+      {/* Records by year */}
+      {byYear.length > 0 ? (
+        <div className="mt-6 space-y-6">
+          {byYear.map(([year, recs]) => (
+            <div key={year}>
+              <p className="mb-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+                {year} · {recs.length}
+              </p>
+              <div className="space-y-2">
+                {recs.map((r) => {
+                  const signedUrl = signedUrls.get(r.id) ?? null;
+                  const displayDate = formatDate(r.record_date) ?? formatDate(r.created_at.slice(0, 10));
+                  const color = CAT_COLOR[r.category] ?? "var(--ink-4)";
+                  const isImage = r.file_type?.startsWith("image/");
+                  const isPdf  = r.file_type === "application/pdf";
 
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <div className="font-sans font-semibold text-[14px] text-ink leading-snug">
-                    {r.title}
-                  </div>
-                  {displayDate && (
-                    <div className="mt-1 font-mono text-[10px] text-ink-3">{displayDate}</div>
-                  )}
-                  {r.note && (
-                    <p className="mt-1.5 font-sans text-[12.5px] leading-[1.5] text-ink-2">
-                      {r.note}
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center gap-3">
-                    {publicUrl && (
-                      <a
-                        href={publicUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-[10px] tracking-[0.06em] uppercase"
-                        style={{ color: "var(--phase)" }}
-                      >
-                        скачать ↓
-                      </a>
-                    )}
-                    <DeleteButton id={r.id} />
-                  </div>
-                </div>
+                  return (
+                    <div key={r.id} className="rounded-card border border-line bg-surface">
+                      <div className="flex gap-3 p-3.5">
+                        {/* Color stripe */}
+                        <div
+                          className="mt-0.5 w-[3px] shrink-0 self-stretch rounded-full"
+                          style={{ background: color }}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          {/* Title + badge */}
+                          <div className="flex items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-sans text-[14px] font-semibold leading-snug text-ink">
+                                {r.title}
+                              </span>
+                              {r.subcategory && (
+                                <span className="ml-1.5 font-sans text-[12px] text-ink-3">
+                                  · {r.subcategory}
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className="shrink-0 rounded-[2px] px-1.5 py-0.5 font-mono text-[8px] uppercase"
+                              style={{ background: `${color}18`, color }}
+                            >
+                              {CATEGORY_LABELS[r.category] ?? r.category}
+                            </span>
+                          </div>
+
+                          {/* Meta row */}
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                            {displayDate && (
+                              <span className="font-mono text-[10px] text-ink-3">{displayDate}</span>
+                            )}
+                            {r.doctor && (
+                              <span className="font-mono text-[10px] text-ink-3">
+                                {r.doctor}
+                              </span>
+                            )}
+                            {r.clinic && (
+                              <span className="font-mono text-[10px] text-ink-4">
+                                {r.clinic}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Note */}
+                          {r.note && (
+                            <p className="mt-1.5 font-sans text-[12px] leading-snug text-ink-2">
+                              {r.note}
+                            </p>
+                          )}
+
+                          {/* File actions */}
+                          <div className="mt-2 flex flex-wrap items-center gap-3">
+                            {signedUrl && isPdf && (
+                              <a
+                                href={signedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-[10px] tracking-[0.06em] uppercase"
+                                style={{ color: "var(--phase)" }}
+                              >
+                                PDF ↗
+                              </a>
+                            )}
+                            {signedUrl && isImage && (
+                              <a
+                                href={signedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-[10px] tracking-[0.06em] uppercase"
+                                style={{ color: "var(--phase)" }}
+                              >
+                                Фото ↗
+                              </a>
+                            )}
+                            {signedUrl && !isPdf && !isImage && (
+                              <a
+                                href={signedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-[10px] tracking-[0.06em] uppercase"
+                                style={{ color: "var(--phase)" }}
+                              >
+                                Скачать ↓
+                              </a>
+                            )}
+                            {r.file_name && (
+                              <span className="font-mono text-[9px] text-ink-4 truncate max-w-[140px]">
+                                {r.file_name}
+                                {r.file_size ? ` · ${formatSize(r.file_size)}` : ""}
+                              </span>
+                            )}
+                            <DeleteButton id={r.id} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-6 rounded-card border border-dashed border-line p-6 text-center">
+          <p className="font-mono text-[12px] text-ink-3">Документов пока нет</p>
+          <p className="mt-1 font-mono text-[11px] text-ink-4">
+            Загрузи первый — анализы, выписки, назначения из ЕМИАС
+          </p>
         </div>
       )}
-
-      {records.length === 0 && (
-        <p className="mt-6 font-mono text-[13px] text-ink-3">
-          Документов пока нет. Добавь первый.
-        </p>
-      )}
-
-      {/* Storage setup notice */}
-      <p className="mt-6 font-mono text-[10px] text-ink-4">
-        Для хранения файлов: Supabase → Storage → New bucket → &ldquo;medical-records&rdquo; → private
-      </p>
     </>
   );
 }

@@ -79,10 +79,23 @@ export interface CycleInfo {
 
 export function getCurrentCycle(starts: Date[], today = new Date()): CycleInfo {
   const sorted = [...starts].sort((a, b) => a.getTime() - b.getTime());
-  const cycleStart = sorted[sorted.length - 1];
   const stats = cycleStats(sorted);
   const len = Math.round(stats.avgLength) || 28;
 
+  if (sorted.length === 0) {
+    return {
+      cycleStart: today,
+      day: 1,
+      phase: "follicular",
+      stats,
+      nextPeriod: { earliest: addDays(today, len - 1), likely: addDays(today, len), latest: addDays(today, len + 1) },
+      daysUntilNextPeriod: { min: len - 1, likely: len, max: len + 1 },
+      migraineWindow: { start: addDays(today, len - 2), end: addDays(today, len + 3) },
+      inMigraineWindow: false,
+    };
+  }
+
+  const cycleStart = sorted[sorted.length - 1];
   const day = daysBetween(cycleStart, today) + 1; // день 1 = старт менструации
   const phase = phaseForDay(day, len);
 

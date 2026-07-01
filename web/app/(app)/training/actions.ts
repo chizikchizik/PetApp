@@ -171,6 +171,30 @@ export async function updateWorkout(
   return { ok: true };
 }
 
+export async function addSportType(name: string): Promise<{ ok: boolean }> {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false };
+  const db = supabaseAdmin();
+  if (!db) return { ok: false };
+  const uid = await getAppUserId();
+  const { data: existing } = await byUser(
+    db.from("sport_type").select("id").ilike("name", trimmed).limit(1),
+    uid,
+  );
+  if (existing && existing.length > 0) return { ok: true };
+  const { data: maxSort } = await byUser(
+    db.from("sport_type").select("sort").order("sort", { ascending: false }).limit(1),
+    uid,
+  );
+  const nextSort = (maxSort?.[0]?.sort ?? 0) + 1;
+  await byUser(
+    db.from("sport_type").insert({ name: trimmed, sort: nextSort, app_user_id: uid }),
+    uid,
+  );
+  revalidatePath("/training");
+  return { ok: true };
+}
+
 export async function bulkDeleteWorkouts(ids: string[]): Promise<{ ok: boolean }> {
   if (!ids.length) return { ok: true };
   const db = supabaseAdmin();

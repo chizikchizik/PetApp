@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { saveBulkHabits } from "./actions";
 
 export type DayEntry = {
@@ -58,6 +59,7 @@ export function BulkForm({
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const handleSave = () => {
     const dirty = Array.from(dirtyDates.current);
@@ -77,6 +79,7 @@ export function BulkForm({
       if (res.ok) {
         dirtyDates.current.clear();
         setStatus("saved");
+        router.refresh(); // invalidate Next.js Router Cache so re-navigation shows fresh data
       } else {
         setErrMsg(res.error ?? "Неизвестная ошибка");
         setStatus("error");

@@ -73,6 +73,48 @@ export function perimenstrualStats(events: MEvent[], starts: Date[]) {
   return { total, peri, pct: total ? Math.round((peri / total) * 100) : 0 };
 }
 
+// ── Cycle correlation analysis ──────────────────────────────────────────────
+
+export type CorrelationState =
+  | "no_cycle"       // нет данных о цикле
+  | "no_migraine"    // нет записей о мигрени
+  | "insufficient"   // < 5 приступов или < 3 циклов — слишком мало для вывода
+  | "low"            // pct < 15 — совпадение случайного уровня
+  | "moderate"       // 15 ≤ pct < 35 — умеренная связь
+  | "high"           // 35 ≤ pct < 60 — менструально-ассоциированная
+  | "very_high";     // pct ≥ 60 — очень высокая связь
+
+export type CycleCorrelation = {
+  state: CorrelationState;
+  pct: number;
+  peri: number;
+  total: number;
+  cycleCount: number;
+};
+
+export function cycleCorrelation(events: MEvent[], starts: Date[]): CycleCorrelation {
+  const cycleCount = starts.length;
+  const total = events.length;
+
+  if (cycleCount === 0) return { state: "no_cycle",     pct: 0, peri: 0, total, cycleCount };
+  if (total === 0)      return { state: "no_migraine",  pct: 0, peri: 0, total: 0, cycleCount };
+
+  let peri = 0;
+  for (const e of events) {
+    const ed = new Date(e.date + "T00:00:00");
+    if (starts.some((s) => { const d = daysBetween(s, ed); return d >= -2 && d <= 3; })) {
+      peri++;
+    }
+  }
+  const pct = total > 0 ? Math.round((peri / total) * 100) : 0;
+
+  if (total < 5 || cycleCount < 3) return { state: "insufficient", pct, peri, total, cycleCount };
+  if (pct >= 60) return { state: "very_high", pct, peri, total, cycleCount };
+  if (pct >= 35) return { state: "high",      pct, peri, total, cycleCount };
+  if (pct >= 15) return { state: "moderate",  pct, peri, total, cycleCount };
+  return              { state: "low",         pct, peri, total, cycleCount };
+}
+
 export type CalDay = { day: number; menstrual: boolean; migraine: boolean; isToday: boolean };
 export type CalCycle = { label: string; length: number; days: CalDay[] };
 

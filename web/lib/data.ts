@@ -39,6 +39,7 @@ export async function getPeriodStarts(): Promise<Date[]> {
     if (!error && data && data.length) {
       return data.map((r: { start_date: string }) => parseDate(r.start_date));
     }
+    if (uid && uid !== "__legacy__") return [];
   }
   return seed.periodStarts();
 }
@@ -65,6 +66,7 @@ export async function getRecentActualWeights(limit = 8): Promise<WeightPoint[]> 
         }))
         .reverse();
     }
+    if (uid && uid !== "__legacy__") return [];
   }
   return seed.WEIGHT.recent.map(([date, actual]) => ({ date, actual }));
 }
@@ -98,11 +100,12 @@ export async function getTriptanCount(ym: string): Promise<number> {
       uid,
     );
     if (!error && typeof count === "number") return count;
+    if (uid && uid !== "__legacy__") return 0;
   }
   return seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
 }
 
-export type Med = { id: string; name: string; note: string; when: string; habit_key: string };
+export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean };
 
 export async function getMeds(): Promise<Med[]> {
   const db = supabaseAdmin();
@@ -110,7 +113,7 @@ export async function getMeds(): Promise<Med[]> {
     const uid = await getAppUserId();
     const { data, error } = await byUser(
       db.from("medication")
-        .select("id, name, note, when_label, habit_key")
+        .select("id, name, note, when_label, habit_key, is_as_needed")
         .order("sort", { ascending: true }),
       uid,
     );
@@ -122,17 +125,20 @@ export async function getMeds(): Promise<Med[]> {
           note: string | null;
           when_label: string | null;
           habit_key: string | null;
+          is_as_needed: boolean | null;
         }) => ({
           id: r.id,
           name: r.name,
           note: r.note ?? "",
           when: r.when_label ?? "",
           habit_key: r.habit_key ?? r.name,
+          isAsNeeded: r.is_as_needed ?? false,
         }),
       );
     }
+    if (uid && uid !== "__legacy__") return [];
   }
-  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name }));
+  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false }));
 }
 
 export type HabitRow = {
@@ -157,6 +163,8 @@ export async function getHabits(month?: string): Promise<string[]> {
     if (!error && data && data.length) {
       return data.map((r: { name: string }) => r.name);
     }
+    // Real users with no habits yet get an empty list, not Marina's seed data
+    if (uid && uid !== "__legacy__") return [];
   }
   return [...seed.HABITS];
 }
@@ -244,37 +252,68 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
-    db.from("migraine_event")
-      .select("event_date, aura, triptan")
-      .gte("event_date", sinceISO)
-      .order("event_date", { ascending: true }),
-    uid,
-  );
-  if (error || !data) return [];
-  return data.map((r: { event_date: string; aura: boolean; triptan: boolean }) => ({
-    date: r.event_date,
-    aura: r.aura,
-    triptan: r.triptan,
-  }));
+  const [{ data: evData }, { data: logData }] = await Promise.all([
+    byUser(
+      db.from("migraine_event")
+        .select("event_date, aura, triptan")
+        .gte("event_date", sinceISO)
+        .order("event_date", { ascending: true }),
+      uid,
+    ),
+    byUser(
+      db.from("daily_log")
+        .select("log_date, migraine_aura")
+        .eq("migraine", true)
+        .gte("log_date", sinceISO)
+        .order("log_date", { ascending: true }),
+      uid,
+    ),
+  ]);
+  const seen = new Set<string>();
+  const result: MigraineEvent[] = [];
+  for (const r of (evData ?? [])) {
+    seen.add(r.event_date);
+    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
+  }
+  for (const r of (logData ?? [])) {
+    if (!seen.has(r.log_date)) {
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+    }
+  }
+  return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data, error } = await byUser(
-    db.from("migraine_event")
-      .select("event_date, aura, triptan")
-      .order("event_date", { ascending: true }),
-    uid,
-  );
-  if (error || !data) return [];
-  return data.map((r: { event_date: string; aura: boolean; triptan: boolean }) => ({
-    date: r.event_date,
-    aura: r.aura,
-    triptan: r.triptan,
-  }));
+  const [{ data: evData }, { data: logData }] = await Promise.all([
+    byUser(
+      db.from("migraine_event")
+        .select("event_date, aura, triptan")
+        .order("event_date", { ascending: true }),
+      uid,
+    ),
+    byUser(
+      db.from("daily_log")
+        .select("log_date, migraine_aura")
+        .eq("migraine", true)
+        .order("log_date", { ascending: true }),
+      uid,
+    ),
+  ]);
+  const seen = new Set<string>();
+  const result: MigraineEvent[] = [];
+  for (const r of (evData ?? [])) {
+    seen.add(r.event_date);
+    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
+  }
+  for (const r of (logData ?? [])) {
+    if (!seen.has(r.log_date)) {
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+    }
+  }
+  return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getMonthHabitStats(ym: string): Promise<{ done: number; daysLogged: number }> {
@@ -360,7 +399,11 @@ export type ActualExercise = {
 export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
   const db = supabaseAdmin();
   if (!db) return [];
-  const { data } = await db.from("workout_template").select("*").eq("is_active", true).order("name");
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("workout_template").select("*").eq("is_active", true).order("name"),
+    uid,
+  );
   if (!data) return [];
   return data.map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -375,7 +418,11 @@ export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
 export async function getWeeklySchedule(): Promise<ScheduleDay[]> {
   const db = supabaseAdmin();
   if (!db) return [];
-  const { data } = await db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week");
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("weekly_schedule").select("*").eq("is_active", true).order("day_of_week"),
+    uid,
+  );
   return (data ?? []) as ScheduleDay[];
 }
 
@@ -531,7 +578,7 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
   if (!db) return [];
   const uid = await getAppUserId();
 
-  const [{ data: starts }, { data: events }] = await Promise.all([
+  const [{ data: starts }, { data: events }, { data: logEvents }] = await Promise.all([
     byUser(
       db.from("cycle_start").select("start_date").order("start_date", { ascending: true }),
       uid,
@@ -540,9 +587,20 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
       db.from("migraine_event").select("event_date").order("event_date", { ascending: true }),
       uid,
     ),
+    byUser(
+      db.from("daily_log").select("log_date").eq("migraine", true).order("log_date", { ascending: true }),
+      uid,
+    ),
   ]);
 
   if (!starts?.length) return [];
+
+  // Merge migraine dates from both sources
+  const seen = new Set<string>();
+  const allMigDates: string[] = [];
+  for (const e of (events ?? [])) { seen.add(e.event_date); allMigDates.push(e.event_date); }
+  for (const e of (logEvents ?? [])) { if (!seen.has(e.log_date)) allMigDates.push(e.log_date); }
+  allMigDates.sort();
 
   const toMs = (s: string) => new Date(s).getTime();
   const rows: CycleHistoryRow[] = [];
@@ -554,15 +612,129 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
     const nextMs = nextStr ? toMs(nextStr) : null;
     const length = nextMs ? Math.round((nextMs - startMs) / 86400000) : 30;
 
-    const migraineDays = (events ?? [])
-      .filter((e: { event_date: string }) => {
-        const eMs = toMs(e.event_date);
+    const migraineDays = allMigDates
+      .filter((d) => {
+        const eMs = toMs(d);
         return eMs >= startMs && (!nextMs || eMs < nextMs);
       })
-      .map((e: { event_date: string }) => Math.round((toMs(e.event_date) - startMs) / 86400000) + 1);
+      .map((d) => Math.round((toMs(d) - startMs) / 86400000) + 1);
 
     rows.push({ start: startStr, length, migraineDays });
   }
 
   return rows.reverse();
+}
+
+// ── Sport types with palette colors ──────────────────────────────────────────
+
+export type SportType = { name: string; color: string };
+
+// 8 distinct colors that look good on dark backgrounds (VERTA palette)
+export const SPORT_PALETTE = [
+  "#e8a23a",  // янтарный   — сила, зал
+  "#4a8fe8",  // синий      — команда, волейбол
+  "#8f5ec8",  // фиолетовый — групповые, скалодром
+  "#d05a30",  // оранж-кр   — бег, HIIT
+  "#4fa85a",  // зелёный    — ходьба, природа
+  "#2aa09a",  // бирюзовый  — бассейн, функциональная
+  "#d4a030",  // золотой    — сноуборд, скайдайв
+  "#c85e88",  // розовый    — пилатес, танцы
+];
+
+const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
+const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
+
+function toSportTypes(names: string[]): SportType[] {
+  return names.map((name, i) => ({ name, color: SPORT_PALETTE[i % SPORT_PALETTE.length] }));
+}
+
+export async function getSportTypes(): Promise<SportType[]> {
+  const db = supabaseAdmin();
+  if (db) {
+    const uid = await getAppUserId();
+    const { data, error } = await byUser(
+      db.from("sport_type").select("name").order("sort", { ascending: true }),
+      uid,
+    );
+    if (!error && data && data.length) {
+      return toSportTypes(data.map((r: { name: string }) => r.name));
+    }
+    if (uid && uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
+  }
+  return toSportTypes(LEGACY_SPORT_TYPES);
+}
+
+export type MedIntakeDay = {
+  date: string;
+  medIds: string[];
+  habitsDone: string[];
+  migraine: boolean;
+  migraineMeds: string | null; // meds text from migraine_event (MigreBot history)
+};
+
+export async function getMedIntakeDays(from: string, to: string): Promise<MedIntakeDay[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const uid = await getAppUserId();
+
+  // 1. daily_log: new-style med logging + habit tracking
+  const { data: logData } = await byUser(
+    db.from("daily_log")
+      .select("log_date, meds_taken, habits_done, migraine")
+      .gte("log_date", from)
+      .lte("log_date", to),
+    uid,
+  );
+
+  // 2. migraine_event: historical MigreBot data (meds column has medication text)
+  const { data: migData } = await byUser(
+    db.from("migraine_event")
+      .select("event_date, meds")
+      .gte("event_date", from)
+      .lte("event_date", to)
+      .not("meds", "is", null),
+    uid,
+  );
+
+  // Merge into a map keyed by date
+  const byDate = new Map<string, MedIntakeDay>();
+
+  for (const r of (logData ?? []) as {
+    log_date: string;
+    meds_taken: string[] | null;
+    habits_done: string[] | null;
+    migraine: boolean;
+  }[]) {
+    if (
+      (r.meds_taken && r.meds_taken.length > 0) ||
+      (r.habits_done && r.habits_done.length > 0) ||
+      r.migraine
+    ) {
+      byDate.set(r.log_date, {
+        date: r.log_date,
+        medIds: r.meds_taken ?? [],
+        habitsDone: r.habits_done ?? [],
+        migraine: r.migraine,
+        migraineMeds: null,
+      });
+    }
+  }
+
+  for (const m of (migData ?? []) as { event_date: string; meds: string | null }[]) {
+    const existing = byDate.get(m.event_date);
+    if (existing) {
+      existing.migraine = true;
+      existing.migraineMeds = m.meds;
+    } else {
+      byDate.set(m.event_date, {
+        date: m.event_date,
+        medIds: [],
+        habitsDone: [],
+        migraine: true,
+        migraineMeds: m.meds,
+      });
+    }
+  }
+
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
