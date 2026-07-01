@@ -37,8 +37,14 @@ export default async function CheckIn({
   ]);
   const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28);
 
+  // layout.tsx sets the phase-${phase} CSS class root-wide based on TODAY —
+  // it can't see this page's own ?date= param. When viewing a different day,
+  // re-scope the phase CSS variables locally so the color accent actually
+  // matches the phase label shown in the text below (was a real mismatch:
+  // text said e.g. "Фолликулярная", but buttons/highlights stayed in today's
+  // phase color, since only the root layout class controlled --phase).
   return (
-    <>
+    <div className={!isToday ? `phase-${c.phase}` : undefined}>
       <header>
         <Link
           href="/dashboard"
@@ -71,6 +77,6 @@ export default async function CheckIn({
         medCounts={medCounts}
         triggers={triggers}
       />
-    </>
+    </div>
   );
 }
