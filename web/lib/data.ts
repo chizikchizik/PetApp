@@ -28,6 +28,11 @@ function toUid(uid: string | null): string | null {
   return uid;
 }
 
+// Local (not UTC) YYYY-MM-DD — avoids the UTC+3 off-by-one-day shift from toISOString().
+function isoLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export async function getPeriodStarts(): Promise<Date[]> {
   const db = supabaseAdmin();
   if (db) {
@@ -320,13 +325,19 @@ export async function getMonthHabitStats(ym: string): Promise<{ done: number; da
   const db = supabaseAdmin();
   if (!db) return { done: 0, daysLogged: 0 };
   const uid = await getAppUserId();
-  const { data } = await byUser(
+  const [y, m] = ym.split("-").map(Number);
+  const start = `${ym}-01`;
+  const nextY = m === 12 ? y + 1 : y;
+  const nextM = m === 12 ? 1 : m + 1;
+  const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+  const { data, error } = await byUser(
     db.from("daily_log")
       .select("habits_done")
-      .gte("log_date", `${ym}-01`)
-      .lte("log_date", `${ym}-31`),
+      .gte("log_date", start)
+      .lt("log_date", end),
     uid,
   );
+  if (error) return { done: 0, daysLogged: 0 };
   const rows = (data ?? []) as { habits_done: string[] | null }[];
   const done = rows.reduce((s, r) => s + (r.habits_done?.length ?? 0), 0);
   return { done, daysLogged: rows.length };
@@ -395,15 +406,15 @@ export type ActualExercise = {
   rpe: number | null;
 };
 
-// Global shared templates — no per-user filtering
+// Templates are shared: seed rows have app_user_id IS NULL, plus any user's own custom templates.
 export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const { data } = await byUser(
-    db.from("workout_template").select("*").eq("is_active", true).order("name"),
-    uid,
-  );
+  const query = db.from("workout_template").select("*").eq("is_active", true).order("name");
+  const { data } = uid
+    ? await query.or(`app_user_id.is.null,app_user_id.eq.${uid}`)
+    : await query.is("app_user_id", null);
   if (!data) return [];
   return data.map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -429,6 +440,15 @@ export async function getWeeklySchedule(): Promise<ScheduleDay[]> {
 export async function getWorkoutExercises(workoutId: string): Promise<ActualExercise[]> {
   const db = supabaseAdmin();
   if (!db) return [];
+  const uid = await getAppUserId();
+
+  // workout_exercise has no app_user_id column — verify ownership via workout_log first.
+  const { data: owned } = await byUser(
+    db.from("workout_log").select("id").eq("id", workoutId),
+    uid,
+  ).maybeSingle();
+  if (!owned) return [];
+
   const { data } = await db
     .from("workout_exercise")
     .select("*")
@@ -455,7 +475,7 @@ export async function getRecentWearableData(days = 28): Promise<WearableDay[]> {
   const { data, error } = await byUser(
     db.from("daily_log")
       .select("log_date, steps, tdee_kcal, hr_resting, spo2_avg, hrv_avg")
-      .gte("log_date", since.toISOString().slice(0, 10))
+      .gte("log_date", isoLocal(since))
       .not("steps", "is", null)
       .order("log_date", { ascending: true }),
     uid,
@@ -491,13 +511,16 @@ export type SleepSession = {
 export async function getRecentSleepData(days = 28): Promise<SleepSession[]> {
   const db = supabaseAdmin();
   if (!db) return [];
+  const uid = await getAppUserId();
   const since = new Date();
   since.setDate(since.getDate() - days);
-  const { data, error } = await db
-    .from("sleep_log")
-    .select("log_date, total_min, quality_pct, awake_min, rem_min, light_min, deep_min")
-    .gte("log_date", since.toISOString().slice(0, 10))
-    .order("log_date", { ascending: true });
+  const { data, error } = await byUser(
+    db.from("sleep_log")
+      .select("log_date, total_min, quality_pct, awake_min, rem_min, light_min, deep_min")
+      .gte("log_date", isoLocal(since))
+      .order("log_date", { ascending: true }),
+    uid,
+  );
   if (error || !data) return [];
   return data as SleepSession[];
 }

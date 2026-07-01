@@ -1,7 +1,24 @@
 "use server";
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+
+async function getAppUserId(): Promise<string | null> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.id === "__legacy__") return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function byUser(q: any, uid: string | null): any {
+  if (!uid) return q.is("app_user_id", null);
+  return q.eq("app_user_id", uid);
+}
 
 /**
  * Upserts habits_done for each date in `data`, preserving all other daily_log fields.
@@ -14,14 +31,15 @@ export async function saveBulkHabits(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
 
+  const uid = await getAppUserId();
   const dates = Object.keys(data);
   if (dates.length === 0) return { ok: true };
 
   // Fetch existing rows to preserve non-habit fields
-  const { data: existing, error: fetchErr } = await db
-    .from("daily_log")
-    .select("*")
-    .in("log_date", dates);
+  const { data: existing, error: fetchErr } = await byUser(
+    db.from("daily_log").select("*").in("log_date", dates),
+    uid,
+  );
 
   if (fetchErr) return { ok: false, error: fetchErr.message };
 
@@ -32,10 +50,11 @@ export async function saveBulkHabits(
 
   const upsertRows = dates.map((date) => {
     // Strip `id` so Supabase doesn't null-fill it for rows where the column is absent.
-    // onConflict:"log_date" matches existing rows without needing id in the payload.
+    // onConflict:"app_user_id,log_date" matches existing rows without needing id in the payload.
     const { id: _id, ...base } = (existingByDate[date] ?? {}) as Record<string, unknown>;
     return {
       ...base,
+      app_user_id: uid,
       log_date: date,
       habits_done: data[date],
       updated_at: new Date().toISOString(),
@@ -44,7 +63,7 @@ export async function saveBulkHabits(
 
   const { error: upsertErr } = await db
     .from("daily_log")
-    .upsert(upsertRows, { onConflict: "log_date" });
+    .upsert(upsertRows, { onConflict: "app_user_id,log_date" });
 
   if (upsertErr) return { ok: false, error: upsertErr.message };
 

@@ -10,24 +10,30 @@ export async function register(formData: FormData) {
 
   if (password.length < 8) redirect("/register?e=3");
 
+  // All business logic runs here, contained in try/catch. redirect() itself is
+  // called exactly once, at the end, outside any catch — so it can never be
+  // swallowed by a catch block (redirect() throws NEXT_REDIRECT internally).
+  let target = "/onboarding";
+
   try {
     const user = await createUser(email, password, displayName || "Пользователь");
     await setAuthCookie(user.id);
-    redirect("/onboarding");
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("уже зарегистрирован")) {
       // Если онбординг не был завершён — удаляем незавершённый аккаунт и регистрируем заново
-      await deleteUnfinishedUser(email);
       try {
+        await deleteUnfinishedUser(email);
         const fresh = await createUser(email, password, displayName || "Пользователь");
         await setAuthCookie(fresh.id);
-        redirect("/onboarding");
       } catch {
         // Аккаунт существует и онбординг завершён — предлагаем войти
-        redirect("/register?e=2");
+        target = "/register?e=2";
       }
+    } else {
+      target = "/register?e=2";
     }
-    redirect("/register?e=2");
   }
+
+  redirect(target);
 }

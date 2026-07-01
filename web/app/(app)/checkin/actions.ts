@@ -14,6 +14,12 @@ async function getAppUserId(): Promise<string | null> {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function byUser(q: any, uid: string | null): any {
+  if (!uid) return q.is("app_user_id", null);
+  return q.eq("app_user_id", uid);
+}
+
 export type CheckinPayload = {
   mood: number | null;
   energy: number | null;
@@ -99,7 +105,8 @@ export async function createMed(
 export async function deleteMed(id: string): Promise<{ ok: boolean; error?: string }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
-  const { error } = await db.from("medication").delete().eq("id", id);
+  const uid = await getAppUserId();
+  const { error } = await byUser(db.from("medication").delete().eq("id", id), uid);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/checkin");
   revalidatePath("/dashboard");

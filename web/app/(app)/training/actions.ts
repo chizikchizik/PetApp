@@ -95,6 +95,14 @@ export async function saveExercises(
 ): Promise<{ ok: boolean; error?: string }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+
+  // workout_exercise has no app_user_id column — verify ownership via workout_log first.
+  const { data: owned } = await byUser(
+    db.from("workout_log").select("id").eq("id", workoutId),
+    uid,
+  ).maybeSingle();
+  if (!owned) return { ok: false, error: "Тренировка не найдена" };
 
   await db.from("workout_exercise").delete().eq("workout_id", workoutId);
 
@@ -124,6 +132,14 @@ export async function deleteWorkout(id: string): Promise<{ ok: boolean }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+
+  // Verify ownership before touching workout_exercise (no app_user_id column there).
+  const { data: owned } = await byUser(
+    db.from("workout_log").select("id").eq("id", id),
+    uid,
+  ).maybeSingle();
+  if (!owned) return { ok: false };
+
   await db.from("workout_exercise").delete().eq("workout_id", id);
   const { error } = await byUser(
     db.from("workout_log").delete().eq("id", id),
@@ -200,9 +216,18 @@ export async function bulkDeleteWorkouts(ids: string[]): Promise<{ ok: boolean }
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
-  await db.from("workout_exercise").delete().in("workout_id", ids);
+
+  // Only delete workout_exercise rows for workouts the user actually owns.
+  const { data: owned } = await byUser(
+    db.from("workout_log").select("id").in("id", ids),
+    uid,
+  );
+  const ownedIds = (owned ?? []).map((r: { id: string }) => r.id);
+  if (ownedIds.length === 0) return { ok: true };
+
+  await db.from("workout_exercise").delete().in("workout_id", ownedIds);
   const { error } = await byUser(
-    db.from("workout_log").delete().in("id", ids),
+    db.from("workout_log").delete().in("id", ownedIds),
     uid,
   );
   if (error) return { ok: false };

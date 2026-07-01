@@ -127,6 +127,16 @@ export async function getRecords(): Promise<MedicalRecord[]> {
 export async function getSignedUrl(filePath: string): Promise<string | null> {
   const db = supabaseAdmin();
   if (!db) return null;
+  const uid = await getAppUserId();
+
+  // Verify the file actually belongs to a medical_record owned by the current user
+  // before signing — filePath is a client-supplied server action argument.
+  const { data: owned } = await byUser(
+    db.from("medical_record").select("id").eq("file_path", filePath),
+    uid,
+  ).limit(1).maybeSingle();
+  if (!owned) return null;
+
   const { data } = await db.storage.from("medical-records").createSignedUrl(filePath, 3600);
   return data?.signedUrl ?? null;
 }
