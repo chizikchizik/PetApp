@@ -1,4 +1,5 @@
 import type { WorkoutLogEntry, SportDay, MigraineEvent, SportType } from "@/lib/data";
+import { todayISOMoscow } from "@/lib/format";
 
 // Fixed colors for non-workout data
 const C_SPORT = "rgba(55,165,130,0.72)";   // спорт из привычек (не из workout_log)
@@ -73,7 +74,7 @@ export function TrainingChart({
   for (const m of migraines) migraineSet.add(m.date);
 
   // Calendar grid: 26 weeks, starting on the Monday before 26w ago
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
   const start = new Date(today);
   start.setDate(today.getDate() - 26 * 7);

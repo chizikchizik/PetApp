@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { saveBulkHabits } from "./actions";
+import { isoLocal } from "@/lib/format";
 
 export type DayEntry = {
   dateISO: string;
@@ -42,7 +43,7 @@ export function BulkForm({
   // Track which dates were modified so we only upsert changed rows
   const dirtyDates = useRef<Set<string>>(new Set());
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => isoLocal(new Date()), []);
 
   const toggle = useCallback((dateISO: string, habit: string) => {
     setGrid((prev) => {

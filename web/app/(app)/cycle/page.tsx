@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { getPeriodStarts } from "@/lib/data";
+import { isoLocal, todayISOMoscow } from "@/lib/format";
 import { CycleCalendar } from "./cycle-calendar";
 
 function prevMonth(ym: string): string {
@@ -28,7 +29,7 @@ export default async function CyclePage({
 }) {
   const { month: monthParam } = await searchParams;
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = todayISOMoscow();
   const currentMonth = todayISO.slice(0, 7); // YYYY-MM
 
   // Validate / clamp month param
@@ -37,9 +38,7 @@ export default async function CyclePage({
       ? monthParam
       : currentMonth;
 
-  const periodStartStrings = (await getPeriodStarts()).map((d) =>
-    d.toISOString().slice(0, 10),
-  );
+  const periodStartStrings = (await getPeriodStarts()).map(isoLocal);
 
   const [yearNum, monthNum] = month.split("-").map(Number);
   const monthLabel = `${MONTH_NAMES[monthNum - 1]} ${yearNum}`;

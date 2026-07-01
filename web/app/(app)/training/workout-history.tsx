@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { deleteWorkout, updateWorkout, bulkDeleteWorkouts } from "./actions";
 import type { WorkoutRow } from "./actions";
+import { isoLocal } from "@/lib/format";
 
 const MONTHS = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 
@@ -167,7 +168,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
                       type="date"
                       className={`mt-1 ${FIELD} w-[136px]`}
                       value={edit.workout_date}
-                      max={new Date().toISOString().slice(0, 10)}
+                      max={isoLocal(new Date())}
                       onChange={e => setEdit(s => ({ ...s, workout_date: e.target.value }))}
                     />
                   </div>

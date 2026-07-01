@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { isoDaysFromTodayMoscow } from "@/lib/format";
 
 export type HabitDay = {
   dateISO: string;
@@ -31,12 +32,9 @@ async function fetchByDates(dates: string[]): Promise<HabitDay[]> {
 }
 
 export async function getHabitDays(days = 14): Promise<HabitDay[]> {
-  const today = new Date();
   const dates: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push(isoDaysFromTodayMoscow(-i));
   }
   return fetchByDates(dates);
 }

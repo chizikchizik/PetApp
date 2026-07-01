@@ -14,7 +14,7 @@ import {
   type WearableDay,
 } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
-import { formatDay, pluralDays } from "@/lib/format";
+import { formatDay, pluralDays, todayISOMoscow } from "@/lib/format";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
@@ -60,14 +60,15 @@ function buildTicks(day: number, length: number) {
 }
 
 export default async function Dashboard() {
-  const today = new Date();
+  const todayISO = todayISOMoscow();
+  const today = new Date(todayISO + "T12:00:00");
   const starts = await getPeriodStarts();
   const c = getCurrentCycle(starts, today);
   const length = Math.round(c.stats.avgLength);
   const tip = PHASE_TIP[c.phase];
 
-  const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const ym = todayISO.slice(0, 7);
+  const todayStr = todayISO;
 
   const [user, triptan, weights, currentWeight, habits, todayLog, habitStats, wearable] = await Promise.all([
     getCurrentUser(),

@@ -472,7 +472,7 @@ export function ScheduleCalendar({
   initialMonth: number;
 }) {
   const router = useRouter();
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = fmtLocal(new Date());
 
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth); // 0-based

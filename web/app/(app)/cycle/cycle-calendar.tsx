@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { addCycleStart, removeCycleStart } from "./actions";
+import { isoLocal } from "@/lib/format";
 
 const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -44,7 +45,7 @@ export function CycleCalendar({
   const [year, monthIndex] = month.split("-").map(Number);
   const monthIdx = monthIndex - 1; // 0-based
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = isoLocal(new Date());
   const today = new Date(todayISO + "T12:00:00");
 
   const firstOfMonth = new Date(year, monthIdx, 1);

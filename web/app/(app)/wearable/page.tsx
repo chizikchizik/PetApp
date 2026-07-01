@@ -5,6 +5,7 @@ import {
   getMigraineEventsSince,
   type SleepSession,
 } from "@/lib/data";
+import { isoDaysFromTodayMoscow } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,7 @@ function cx(i: number) { return i * DAY_W + DAY_W / 2; }
 
 // ── Page ──────────────────────────────────────────────────────
 export default async function WearablePage() {
-  const since = new Date();
-  since.setDate(since.getDate() - 40);
-  const sinceStr = since.toISOString().slice(0, 10);
+  const sinceStr = isoDaysFromTodayMoscow(-40);
 
   const [wearable, allSleep, migraineEvents] = await Promise.all([
     getRecentWearableData(40),

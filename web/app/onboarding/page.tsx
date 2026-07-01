@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveName, saveCycle, saveHabits, saveWeight, completeOnboarding } from "./actions";
+import { isoLocal } from "@/lib/format";
 
 const SUGGESTED_HABITS = [
   "Сон до 00:00",
@@ -19,7 +20,7 @@ const SUGGESTED_HABITS = [
 ];
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return isoLocal(new Date());
 }
 
 type Step = "name" | "cycle" | "habits" | "weight";

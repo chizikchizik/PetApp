@@ -14,6 +14,7 @@ import { TrainingForm } from "./training-form";
 import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
+import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -151,11 +152,9 @@ const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
 
 
 export default async function TrainingPage() {
-  const since26w = new Date();
-  since26w.setDate(since26w.getDate() - 26 * 7);
-  const sinceISO = since26w.toISOString().slice(0, 10);
-
-  const year = new Date().getFullYear();
+  const sinceISO = isoDaysFromTodayMoscow(-26 * 7);
+  const year = nowMoscow().getUTCFullYear();
+  const today = new Date(todayISOMoscow() + "T12:00:00");
   const [starts, workouts, templates, sportTypes, workoutHistory, sportDays, migraines, yearCount] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
@@ -166,7 +165,7 @@ export default async function TrainingPage() {
     getMigraineEventsSince(sinceISO),
     getWorkoutCountForYear(year),
   ]);
-  const { phase } = getCurrentCycle(starts);
+  const { phase } = getCurrentCycle(starts, today);
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
 

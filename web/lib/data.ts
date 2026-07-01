@@ -2,6 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { parseDate } from "@/lib/cycle";
 import { getCurrentUser } from "@/lib/auth";
+import { isoDaysFromTodayMoscow } from "@/lib/format";
 import * as seed from "@/lib/seed-data";
 
 // Returns the current user's UUID, "__legacy__", or null if not authenticated.
@@ -26,11 +27,6 @@ function byUser(q: any, uid: string | null): any {
 function toUid(uid: string | null): string | null {
   if (!uid || uid === "__legacy__") return null;
   return uid;
-}
-
-// Local (not UTC) YYYY-MM-DD — avoids the UTC+3 off-by-one-day shift from toISOString().
-function isoLocal(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export async function getPeriodStarts(): Promise<Date[]> {
@@ -470,12 +466,11 @@ export async function getRecentWearableData(days = 28): Promise<WearableDay[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const since = new Date();
-  since.setDate(since.getDate() - days);
+  const sinceISO = isoDaysFromTodayMoscow(-days);
   const { data, error } = await byUser(
     db.from("daily_log")
       .select("log_date, steps, tdee_kcal, hr_resting, spo2_avg, hrv_avg")
-      .gte("log_date", isoLocal(since))
+      .gte("log_date", sinceISO)
       .not("steps", "is", null)
       .order("log_date", { ascending: true }),
     uid,
@@ -512,12 +507,11 @@ export async function getRecentSleepData(days = 28): Promise<SleepSession[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const since = new Date();
-  since.setDate(since.getDate() - days);
+  const sinceISO = isoDaysFromTodayMoscow(-days);
   const { data, error } = await byUser(
     db.from("sleep_log")
       .select("log_date, total_min, quality_pct, awake_min, rem_min, light_min, deep_min")
-      .gte("log_date", isoLocal(since))
+      .gte("log_date", sinceISO)
       .order("log_date", { ascending: true }),
     uid,
   );

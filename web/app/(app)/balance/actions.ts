@@ -2,6 +2,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
+import { todayISOMoscow } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 async function getAppUserId(): Promise<string | null> {
@@ -52,7 +53,7 @@ export async function saveAssessment(
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
   const { error } = await db.from("balance_assessment").insert({
-    assessed_at: new Date().toISOString().slice(0, 10),
+    assessed_at: todayISOMoscow(),
     scores,
     note: note.trim() || null,
     app_user_id: uid,

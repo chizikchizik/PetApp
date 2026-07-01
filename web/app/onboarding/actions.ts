@@ -1,6 +1,7 @@
 "use server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
+import { todayISOMoscow, nowMoscow } from "@/lib/format";
 
 async function getUid(): Promise<string> {
   const user = await getCurrentUser();
@@ -31,8 +32,8 @@ export async function saveHabits(habits: string[]) {
   const db = supabaseAdmin();
   if (!db) throw new Error("DB unavailable");
   // Insert selected habits (active from current month)
-  const now = new Date();
-  const startedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const now = nowMoscow();
+  const startedMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
   const rows = habits.map((name, i) => ({
     app_user_id: uid,
     name,
@@ -51,7 +52,7 @@ export async function saveWeight(currentKg: number | null, goalKg: number | null
   if (!db) throw new Error("DB unavailable");
   await db.from("app_user").update({ weight_goal_kg: goalKg, weight_start_kg: currentKg }).eq("id", uid);
   if (currentKg) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISOMoscow();
     await db.from("weight_entry").upsert(
       { app_user_id: uid, entry_date: today, actual_kg: currentKg },
       { onConflict: "app_user_id,entry_date" }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getHabits } from "@/lib/data";
 import { getHabitMonth, calcStreak, monthLabel, prevMonth, nextMonth } from "@/lib/habits";
+import { todayISOMoscow } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,8 @@ export default async function HabitsPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const { month } = await searchParams;
-  const today = new Date().toISOString().slice(0, 7);
-  const todayDate = new Date().toISOString().slice(0, 10);
+  const todayDate = todayISOMoscow();
+  const today = todayDate.slice(0, 7);
   const targetMonth = month ?? today;
 
   const [habits, days] = await Promise.all([

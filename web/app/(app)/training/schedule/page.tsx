@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCalendarEvents } from "./actions";
 import { ScheduleCalendar } from "./schedule-calendar";
+import { isoLocal, nowMoscow } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -8,19 +9,19 @@ function isoMonday(year: number, month: number): string {
   const d = new Date(year, month, 1);
   const dow = (d.getDay() + 6) % 7; // Mon=0
   d.setDate(d.getDate() - dow);
-  return d.toISOString().slice(0, 10);
+  return isoLocal(d);
 }
 
 function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00");
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return isoLocal(d);
 }
 
 export default async function SchedulePage() {
-  const now   = new Date();
-  const year  = now.getFullYear();
-  const month = now.getMonth(); // 0-based
+  const now   = nowMoscow();
+  const year  = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-based
 
   const firstMonday = isoMonday(year, month);
   const lastDay     = addDays(firstMonday, 6 * 7 - 1);

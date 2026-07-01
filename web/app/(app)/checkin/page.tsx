@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckinForm } from "./checkin-form";
 import { getCurrentCycle, PHASE_LABELS } from "@/lib/cycle";
 import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight } from "@/lib/data";
+import { todayISOMoscow } from "@/lib/format";
 
 const MONTH_SHORT = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
 const WEEKDAY_SHORT = ["ВС","ПН","ВТ","СР","ЧТ","ПТ","СБ"];
@@ -17,8 +18,8 @@ export default async function CheckIn({
   searchParams: Promise<{ date?: string }>;
 }) {
   const { date } = await searchParams;
-  const today = new Date();
-  const todayISO = today.toISOString().slice(0, 10);
+  const todayISO = todayISOMoscow();
+  const today = new Date(todayISO + "T12:00:00");
   const dayKey = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO;
   const isToday = dayKey === todayISO;
   const targetDate = new Date(dayKey + "T12:00:00");

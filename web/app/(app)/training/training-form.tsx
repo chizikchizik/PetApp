@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveWorkout, saveExercises, addSportType } from "./actions";
 import type { WorkoutTemplate, ExerciseTemplate, SportType } from "@/lib/data";
+import { isoLocal } from "@/lib/format";
 
 const FALLBACK_TYPES: SportType[] = [
   { name: "Силовая",        color: "#e8a23a" },
@@ -30,7 +31,7 @@ type FormState = {
 const emptyForm = (): FormState => ({
   type: null,
   customType: "",
-  date: new Date().toISOString().slice(0, 10),
+  date: isoLocal(new Date()),
   duration: "",
   fatigue_pct: 50,
   note: "",
@@ -326,7 +327,7 @@ export function TrainingForm({
             <input
               type="date"
               value={s.date}
-              max={new Date().toISOString().slice(0, 10)}
+              max={isoLocal(new Date())}
               onChange={(e) => setS({ ...s, date: e.target.value })}
               className="mt-2 w-full rounded-[3px] border border-line bg-surface px-2 py-2.5 text-[13px] text-ink outline-none focus:border-phase"
             />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPeriodStarts, getWeightEntries, getCurrentWeight, getCalorieEntries, WEIGHT_GOAL } from "@/lib/data";
 import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
+import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightInput } from "./weight-input";
 import { CalorieInput } from "./calorie-input";
@@ -15,8 +16,8 @@ const PHASE_NOTE: Record<Phase, string> = {
 };
 
 export default async function Weight() {
-  const today = new Date();
-  const dayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const dayKey = todayISOMoscow();
+  const today = new Date(dayKey + "T12:00:00");
   const [starts, rows, current, calories] = await Promise.all([
     getPeriodStarts(),
     getWeightEntries(),

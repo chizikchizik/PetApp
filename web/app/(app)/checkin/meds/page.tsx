@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getMeds, getMedIntakeDays } from "@/lib/data";
+import { todayISOMoscow } from "@/lib/format";
 import { MedCalendar } from "./med-calendar";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export default async function MedsPage({
   searchParams: Promise<{ end?: string }>;
 }) {
   const sp = await searchParams;
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = todayISOMoscow();
   const endISO   = sp.end && /^\d{4}-\d{2}-\d{2}$/.test(sp.end) ? sp.end : todayISO;
   const fromISO  = addMonths(endISO, -3);
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getHabits, getAllHabits } from "@/lib/data";
 import { getHabitMonth, monthLabel, prevMonth, nextMonth } from "@/lib/habits";
+import { todayISOMoscow } from "@/lib/format";
 import { BulkForm } from "./bulk-form";
 import { HabitManager } from "../habit-manager";
 
@@ -12,7 +13,7 @@ export default async function BulkHabitsPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const { month } = await searchParams;
-  const today = new Date().toISOString().slice(0, 7);
+  const today = todayISOMoscow().slice(0, 7);
   const targetMonth = month && month <= today ? month : today;
 
   const [habits, allHabits, days] = await Promise.all([
