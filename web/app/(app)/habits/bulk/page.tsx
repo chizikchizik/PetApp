@@ -38,6 +38,7 @@ export default async function BulkHabitsPage({
       </h1>
 
       <BulkForm
+        key={targetMonth}
         habits={habits}
         days={days}
         month={targetMonth}
