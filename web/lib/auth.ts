@@ -73,6 +73,11 @@ export async function setAuthCookie(userId: string) {
   })
 }
 
+export async function clearAuthCookie() {
+  const cookieStore = await cookies()
+  cookieStore.delete(COOKIE_NAME)
+}
+
 export type AppUser = {
   id: string
   email: string

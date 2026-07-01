@@ -1,6 +1,7 @@
 "use server";
+import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, clearAuthCookie } from "@/lib/auth";
 
 async function getUid(): Promise<string> {
   const user = await getCurrentUser();
@@ -29,4 +30,9 @@ export async function saveProfile(input: {
     .eq("id", uid);
 
   return { ok: !error };
+}
+
+export async function logout() {
+  await clearAuthCookie();
+  redirect("/login");
 }

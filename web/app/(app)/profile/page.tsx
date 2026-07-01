@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { ProfileForm } from "./profile-form";
+import { logout } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,15 @@ export default async function ProfilePage() {
         weightGoalKg={user?.weightGoalKg ?? null}
         weightStartKg={user?.weightStartKg ?? null}
       />
+
+      <form action={logout} className="mt-8 border-t border-line pt-5">
+        <button
+          type="submit"
+          className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3 transition hover:text-ink-2"
+        >
+          Выйти из аккаунта
+        </button>
+      </form>
     </>
   );
 }
