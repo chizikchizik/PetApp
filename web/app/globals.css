@@ -66,9 +66,9 @@
   --on-phase: #FBFAF7;
 }
 .phase-luteal {
-  --phase: oklch(0.6 0.13 252);
-  --phase-soft: color-mix(in oklab, oklch(0.6 0.13 252) 14%, #FBFAF7);
-  --phase-deep: oklch(0.48 0.13 256);
+  --phase: oklch(0.6 0.13 300);
+  --phase-soft: color-mix(in oklab, oklch(0.6 0.13 300) 14%, #FBFAF7);
+  --phase-deep: oklch(0.48 0.13 300);
   --on-phase: #fff;
 }
 .dark .phase-menstrual {
@@ -90,9 +90,9 @@
   --on-phase: #0B0B0D;
 }
 .dark .phase-luteal {
-  --phase: oklch(0.77 0.12 250);
-  --phase-soft: color-mix(in oklab, oklch(0.77 0.12 250) 14%, #151518);
-  --phase-deep: oklch(0.78 0.12 250);
+  --phase: oklch(0.77 0.12 300);
+  --phase-soft: color-mix(in oklab, oklch(0.77 0.12 300) 14%, #151518);
+  --phase-deep: oklch(0.78 0.12 300);
   --on-phase: #0B0B0D;
 }
 
