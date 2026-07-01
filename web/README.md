@@ -1,36 +1,178 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VERTA — женский биохакинг-трекер
 
-## Getting Started
+Персональное приложение для самоотслеживания с принципом **«инфрадианный цикл — главные часы»**. Заменяет зоопарк приложений (FLO, Migrebot, FatSecret, Google-таблицы, Huawei Health, RingConn, блокноты, ЕМИАС, World Class) одной системой.
 
-First, run the development server:
+MVP — веб-приложение (PWA, ставится на телефон как приложение). Деплой на Vercel, база данных — Supabase.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Главная идея
+
+Большинство трекеров работают на 24-часовом циркадном ритме — это «мужская» модель по умолчанию. У женщин поверх него лежит **инфрадианный ~28-дневный цикл**. Здесь **менструальный цикл — это главные часы**, вокруг которых организованы вес, питание, тренировки, мигрени, сон, настроение и медицина.
+
+---
+
+## Стек
+
+| Слой | Технология |
+|---|---|
+| Фронтенд | Next.js 16 App Router, TypeScript, Tailwind CSS v4 (CSS-first) |
+| База данных | Supabase (Postgres + Auth + Storage) |
+| Деплой | Vercel (автодеплой с `main`) |
+| Дизайн-система | VERTA — oklch-цвета, фазовые акценты (`--phase`, `--phase-soft`, `--on-phase`) |
+| PWA | `manifest.ts`, `theme-color` |
+
+Зависимости нулевые — только `next`, `react`, `react-dom`, `@supabase/supabase-js`. Без UI-библиотек, без date-fns.
+
+---
+
+## Экраны
+
+| Путь | Экран | Описание |
+|---|---|---|
+| `/dashboard` | **Дашборд** | Текущая фаза цикла + день, счётчик привычек, вес, ближайшие тренировки, стрик |
+| `/checkin` | **Чек-ин** | Ежедневный ввод: настроение, энергия, симптомы, мигрень, вес, ккал, препараты, привычки, заметка |
+| `/habits` | **Привычки** | Матрица выполнения по месяцам, управление привычками (добавить / остановить / убрать из месяца), стрики |
+| `/weight` | **Вес** | График план vs факт + столбики ккал, прокручиваемый/зумируемый, цикло-инсайт, ввод веса и калорий |
+| `/cycle` | **Цикл** | Flo-образный календарь с фазами, отметка начала цикла |
+| `/training` | **Тренировки** | Лог тренировок и упражнений, недельное расписание |
+| `/medical` | **Медкнижка** | Загрузка документов, лог мигреней с картой триггеров и графиком |
+| `/insights` | **Инсайты** | Аналитика по мигреням: частота, триггеры, продолжительность |
+| `/balance` | **Колесо баланса** | Самооценка по 8 зонам, визуальное колесо |
+| `/login` | **Вход** | Анимированный маскот-рысь (VERTA), форма входа |
+| `/register` | **Регистрация** | Гейтированная по инвайт-коду |
+
+---
+
+## Дизайн-система (VERTA)
+
+**Фазовые цвета** меняются автоматически по фазе цикла:
+
+| Класс на `<body>` | Фаза | Цвет акцента |
+|---|---|---|
+| `phase-menstrual` | Менструация (1–5 д.) | Тёплый красный |
+| `phase-follicular` | Фолликулярная (6–13 д.) | Зелёный |
+| `phase-ovulatory` | Овуляция (14–16 д.) | Жёлто-оранжевый |
+| `phase-luteal` | Лютеиновая (17–28 д.) | Фиолетовый |
+
+CSS-переменные: `--phase`, `--phase-soft`, `--on-phase`, `--phase-deep`, `--ink`, `--ink-2`, `--ink-3`, `--ink-4`, `--surface`, `--line`, `--warn`.
+
+Типографика: `font-serif` (заголовки), `font-mono` (метки/цифры), `font-sans` (текст). Скруглённые карточки: `rounded-card` = `rounded-[10px]`.
+
+Маскот — геометрическая рысь (SVG, рисуется по рёбрам с анимацией `stroke-dashoffset`, пульсирующие глаза, плавание).
+
+---
+
+## База данных (Supabase)
+
+### Таблицы
+
+| Таблица | Что хранит |
+|---|---|
+| `daily_log` | Чек-ин на дату: настроение, энергия, вес, ккал, симптомы, мигрень, препараты, привычки, заметка |
+| `weight_entry` | Плановый и фактический вес по датам |
+| `cycle_start` | Даты начала цикла |
+| `habit` | Справочник привычек с `started_month` / `ended_month` (YYYY-MM) |
+| `medication` | Справочник препаратов |
+| `migraine_event` | Отдельный лог мигреней (аура, триптаны, интенсивность) |
+| `training_log` | Лог тренировок |
+| `training_exercise` | Упражнения внутри тренировки |
+| `medical_record` | Медицинские документы (ссылки на Supabase Storage) |
+| `app_user` | Пользователи (email + invite_code) |
+| `balance_wheel` | Оценки колеса баланса |
+
+RLS включён. Сервер-сайд запросы идут через `supabaseAdmin()` (service role, обходит RLS).
+
+### Миграции (запускаются вручную в Supabase SQL Editor)
+
+```
+001_workout_log.sql       — лог тренировок
+002_habits_update.sql     — обновление привычек
+003_habits_v2.sql         — v2 привычек
+004_workout_fatigue.sql   — усталость после тренировок
+005_sport_activities.sql  — виды активностей
+006_training_exercises.sql — упражнения в тренировке
+007_medical_records.sql   — медицинские записи
+008_multiuser.sql         — мультипользователь (регистрация/логин)
+009_habit_months.sql      — started_month / ended_month у привычек
+010_balance_wheel.sql     — колесо баланса
+011_calories.sql          — calorie_kcal в daily_log
+012_historical_weight.sql — исторические данные веса (3 попытки, фев–июн 2026) + ккал
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Данные
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Реальные личные данные пользователя в `startdata/`:
 
-## Learn More
+- `weight/Мой вес.xlsx` — три листа (3 попытки, фев–сен 2026), вес + ккал
+- `weight/weight.csv` — текущий сезон (3 попытка)
+- `ironby/` — материалы тренера (программы тренировок, психология)
 
-To learn more about Next.js, take a look at the following resources:
+Исторические данные веса (71 запись, с 2026-02-01) и ккал (45 записей) залиты через миграцию 012.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Команда (агенты)
 
-## Deploy on Vercel
+Специалисты-агенты в `.claude/agents/`, смоделированные с реальных людей:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Агент | Роль | Зона ответственности |
+|---|---|---|
+| **Наташа** (`natasha-designer`) | UI/UX, арт-директор (Kowkahouse) | Дизайн-система, макеты, UX-флоу, компоненты |
+| **Анна-Мария** (`anna-maria-coach`) | Мастер-тренер World Class | Программы тренировок, периодизация под фазы цикла |
+| **Настя** (`nastya-coach`) | Лайф-коуч, основательница IRNBY | Колесо баланса, цели, мотивация, mind-set |
+| **Елена** (`elena-doctor`) | Врач-невролог, к.м.н. | Доказательность, безопасность, **право вето** |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Вызов в чате: `@natasha-designer`, `@anna-maria-coach`, `@nastya-coach`, `@elena-doctor`.
+
+---
+
+## Запуск локально
+
+```bash
+cd web
+npm install
+cp .env.example .env.local   # заполнить NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+npm run dev                  # http://localhost:3000
+```
+
+Без Supabase — приложение падает на auth. Нужна живая база.
+
+---
+
+## Деплой
+
+Vercel подключён к `github.com/chizikchizik/PetApp`, ветка `main`.  
+Каждый `git push` → автоматический деплой.
+
+Переменные окружения в Vercel:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `PETAPP_INVITE_CODE` (код для регистрации новых пользователей)
+
+---
+
+## Статус
+
+🟢 **MVP в работе.** Все основные экраны реализованы и задеплоены на Vercel с реальными данными.
+
+Что работает:
+- Авторизация (логин/регистрация с инвайт-кодом)
+- Дашборд с цикло-аналитикой
+- Ежедневный чек-ин (все поля)
+- Привычки — матрица, управление по месяцам
+- Вес — график с историей с февраля 2026, ккал-бары, прокрутка/зум
+- Цикл — Flo-образный календарь
+- Тренировки — лог с упражнениями
+- Медкнижка — документы + мигрени
+- Инсайты по мигреням
+- Колесо баланса
+- PWA (ставится на телефон)
+
+Что в очереди:
+- Скоуп данных по `user_id` (таблицы готовы, фильтрация — нет)
+- Supabase Storage: приватный бакет `medical-records`
+- Нативное мобильное приложение (будущее)
