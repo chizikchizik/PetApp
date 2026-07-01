@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveCheckin, savePeriodStart, createMed, deleteMed, type CheckinPayload } from "./actions";
+import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, type CheckinPayload } from "./actions";
 import type { DailyLog, Med } from "@/lib/data";
 
 const TRIGGERS = ["Цикл", "Сон", "Пропуск еды", "Стресс", "Экран", "Погода", "Алкоголь"];
@@ -60,6 +60,7 @@ export function CheckinForm({
   habits,
   meds,
   weightPlaceholder,
+  medCounts,
 }: {
   dayKey: string;
   todayISO: string;
@@ -67,6 +68,7 @@ export function CheckinForm({
   habits: string[];
   meds: Med[];
   weightPlaceholder: number | null;
+  medCounts: Record<string, number>;
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -83,6 +85,43 @@ export function CheckinForm({
   const [addMedStatus, setAddMedStatus] = useState<"idle" | "saving" | "error">("idle");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
+  const [quickLogStatus, setQuickLogStatus] = useState<"idle" | "saving" | "done">("idle");
+  const [changingDoseId, setChangingDoseId] = useState<string | null>(null);
+  const [doseName, setDoseName] = useState("");
+  const [doseNote, setDoseNote] = useState("");
+  const [doseStatus, setDoseStatus] = useState<"idle" | "saving" | "error">("idle");
+
+  async function handleQuickLog() {
+    setQuickLogStatus("saving");
+    const res = await quickLogMigraine(dayKey);
+    if (res.ok) {
+      setS((prev) => ({ ...prev, migraine: { ...prev.migraine, had: true } }));
+      setQuickLogStatus("done");
+      router.refresh();
+    } else {
+      setQuickLogStatus("idle");
+    }
+  }
+
+  function startChangeDose(med: Med) {
+    setChangingDoseId(med.id);
+    setDoseName(med.name);
+    setDoseNote(med.note);
+  }
+
+  async function handleChangeDose() {
+    if (!changingDoseId) return;
+    setDoseStatus("saving");
+    const res = await changeMedDose(changingDoseId, doseName, doseNote);
+    if (res.ok) {
+      setChangingDoseId(null);
+      setDoseStatus("idle");
+      router.refresh();
+    } else {
+      setDoseStatus("error");
+      setTimeout(() => setDoseStatus("idle"), 2000);
+    }
+  }
 
   function toggleMed(med: Med) {
     setS((prev) => ({
@@ -167,6 +206,17 @@ export function CheckinForm({
           </span>
         </button>
       </div>
+
+      {!m.had && (
+        <button
+          type="button"
+          onClick={handleQuickLog}
+          disabled={quickLogStatus === "saving"}
+          className="flex w-full items-center justify-center gap-2 rounded-card border border-phase bg-phase-soft py-3.5 font-sans text-[14px] font-semibold text-phase-deep transition active:scale-[0.99] disabled:opacity-60"
+        >
+          {quickLogStatus === "saving" ? "Отмечаю…" : quickLogStatus === "done" ? "Отмечено ✓" : "⚡ Плохо сейчас — отметить одним тапом"}
+        </button>
+      )}
 
       <div className="rounded-card border border-line bg-surface p-4 shadow-sm">
         <div className="flex items-center justify-between">
@@ -292,55 +342,108 @@ export function CheckinForm({
           {meds.map((med, i) => {
             const on = s.habits.includes(med.habit_key);
             const isConfirming = confirmDeleteId === med.id;
+            const count = medCounts[med.id] ?? 0;
+            const isChangingDose = changingDoseId === med.id;
             return (
               <div
                 key={med.id}
-                className={`flex w-full items-center gap-3 py-3 ${i > 0 ? "border-t border-line" : ""}`}
+                className={`py-3 ${i > 0 ? "border-t border-line" : ""}`}
               >
-                <button
-                  type="button"
-                  onClick={() => toggleMed(med)}
-                  className="flex flex-1 items-center gap-3 text-left min-w-0"
-                >
-                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-[3px] border-2 transition ${on ? "border-phase bg-phase text-on-phase" : "border-ink-3 text-transparent"}`}>
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                      <path d="M5 12l5 5L20 7" />
-                    </svg>
-                  </span>
-                  <span className={`text-[15px] leading-snug ${on ? "text-ink-3 line-through" : "text-ink"}`}>
-                    {med.name}
-                    {med.note && <span className="text-[12px] text-ink-3"> · {med.note}</span>}
-                    {med.isAsNeeded
-                      ? <span className="text-[11px] text-warn"> · по мигрени</span>
-                      : med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
-                  </span>
-                </button>
-                {isConfirming ? (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMed(med.id)}
-                      className="rounded-[2px] bg-red-600 px-2.5 py-1 font-mono text-[11px] text-white"
-                    >
-                      Да
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="font-mono text-[11px] text-ink-3"
-                    >
-                      Нет
-                    </button>
-                  </div>
-                ) : (
+                <div className="flex w-full items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setConfirmDeleteId(med.id)}
-                    className="shrink-0 pl-2 font-mono text-[16px] leading-none text-ink-4 transition active:text-ink-2"
-                    aria-label="Удалить препарат"
+                    onClick={() => toggleMed(med)}
+                    className="flex flex-1 items-center gap-3 text-left min-w-0"
                   >
-                    ×
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-[3px] border-2 transition ${on ? "border-phase bg-phase text-on-phase" : "border-ink-3 text-transparent"}`}>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    </span>
+                    <span className={`text-[15px] leading-snug ${on ? "text-ink-3 line-through" : "text-ink"}`}>
+                      {med.name}
+                      {med.note && <span className="text-[12px] text-ink-3"> · {med.note}</span>}
+                      {med.isAsNeeded
+                        ? <span className="text-[11px] text-warn"> · по мигрени{count > 0 ? ` · ${count} раз/мес` : ""}</span>
+                        : med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
+                    </span>
                   </button>
+                  {isConfirming ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMed(med.id)}
+                        className="rounded-[2px] bg-red-600 px-2.5 py-1 font-mono text-[11px] text-white"
+                      >
+                        Да
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="font-mono text-[11px] text-ink-3"
+                      >
+                        Нет
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex shrink-0 items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => (isChangingDose ? setChangingDoseId(null) : startChangeDose(med))}
+                        className="font-mono text-[10px] tracking-[0.04em] text-ink-3 underline underline-offset-2 transition active:text-ink"
+                        aria-label="Изменить дозу"
+                      >
+                        доза
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(med.id)}
+                        className="pl-1 font-mono text-[16px] leading-none text-ink-4 transition active:text-ink-2"
+                        aria-label="Удалить препарат"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isChangingDose && (
+                  <div className="mt-2.5 space-y-2 rounded-[3px] border border-line bg-surface-2 p-3">
+                    <p className="font-mono text-[9px] tracking-[0.06em] uppercase text-ink-3">
+                      Новая доза/название — старая запись сохранится в истории
+                    </p>
+                    <input
+                      type="text"
+                      value={doseName}
+                      onChange={(e) => setDoseName(e.target.value)}
+                      placeholder="Название"
+                      className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-phase"
+                    />
+                    <input
+                      type="text"
+                      value={doseNote}
+                      onChange={(e) => setDoseNote(e.target.value)}
+                      placeholder="Заметка (доза, мг и т.п.)"
+                      className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-phase"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setChangingDoseId(null)}
+                        className="rounded-[2px] px-3 py-1.5 font-mono text-[11px] text-ink-3"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleChangeDose}
+                        disabled={doseStatus === "saving"}
+                        className="flex-1 rounded-[2px] bg-phase py-1.5 font-mono text-[11px] font-semibold text-on-phase disabled:opacity-60"
+                      >
+                        {doseStatus === "saving" ? "Сохраняю…" : doseStatus === "error" ? "Ошибка" : "Сохранить как новую дозу"}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );

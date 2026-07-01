@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
+import { todayISOMoscow } from "@/lib/format";
 
 async function getAppUserId(): Promise<string | null> {
   try {
@@ -102,6 +103,51 @@ export async function createMed(
   return { ok: true };
 }
 
+// Dose change = new version, not an in-place edit — old record is closed
+// (ended_at = today) and a new one opens (started_at = today), so history
+// of "what dose since when" stays intact for the /medical report.
+export async function changeMedDose(
+  oldId: string,
+  newName: string,
+  newNote: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = newName.trim();
+  if (!trimmed) return { ok: false, error: "Введи название" };
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+  const today = todayISOMoscow();
+
+  const { data: old, error: fetchErr } = await byUser(
+    db.from("medication").select("habit_key, is_as_needed, when_label, sort").eq("id", oldId),
+    uid,
+  ).maybeSingle();
+  if (fetchErr || !old) return { ok: false, error: "Препарат не найден" };
+
+  const { error: closeErr } = await byUser(
+    db.from("medication").update({ ended_at: today }).eq("id", oldId),
+    uid,
+  );
+  if (closeErr) return { ok: false, error: closeErr.message };
+
+  const { error: insertErr } = await db.from("medication").insert({
+    id: `custom_${Date.now()}`,
+    name: trimmed,
+    note: newNote.trim() || null,
+    when_label: old.when_label,
+    is_as_needed: old.is_as_needed,
+    habit_key: old.habit_key,
+    sort: old.sort,
+    started_at: today,
+    app_user_id: uid,
+  });
+  if (insertErr) return { ok: false, error: insertErr.message };
+
+  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 export async function deleteMed(id: string): Promise<{ ok: boolean; error?: string }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
@@ -109,6 +155,37 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   const { data, error } = await byUser(db.from("medication").delete().eq("id", id), uid).select("id");
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: "Препарат не найден" };
+  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+// One-tap logging for use mid-attack: just flags migraine=true for the day,
+// preserving whatever else is already in the row. Details (intensity, aura,
+// triggers, meds) can be filled in later via the full checkin form — asking
+// for all of that up front when someone feels terrible is the whole problem.
+export async function quickLogMigraine(dayKey: string): Promise<{ ok: boolean; error?: string }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+
+  const { data: existing } = await byUser(
+    db.from("daily_log").select("*").eq("log_date", dayKey),
+    uid,
+  ).maybeSingle();
+
+  const { id: _id, ...base } = (existing ?? {}) as Record<string, unknown>;
+  const row = {
+    ...base,
+    app_user_id: uid,
+    log_date: dayKey,
+    migraine: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await db.from("daily_log").upsert(row, { onConflict: "app_user_id,log_date" });
+  if (error) return { ok: false, error: error.message };
+
   revalidatePath("/checkin");
   revalidatePath("/dashboard");
   return { ok: true };
