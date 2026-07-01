@@ -77,7 +77,7 @@ export default async function Dashboard() {
     getRecentWearableData(7),
   ]);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
-  const length = Math.round(c.stats.avgLength);
+  const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
