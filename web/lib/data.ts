@@ -623,11 +623,30 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
   return rows.reverse();
 }
 
-// Default sport types shown to new users and as fallback
+// ── Sport types with palette colors ──────────────────────────────────────────
+
+export type SportType = { name: string; color: string };
+
+// 8 distinct colors that look good on dark backgrounds (VERTA palette)
+export const SPORT_PALETTE = [
+  "#e8a23a",  // янтарный   — сила, зал
+  "#4a8fe8",  // синий      — команда, волейбол
+  "#8f5ec8",  // фиолетовый — групповые, скалодром
+  "#d05a30",  // оранж-кр   — бег, HIIT
+  "#4fa85a",  // зелёный    — ходьба, природа
+  "#2aa09a",  // бирюзовый  — бассейн, функциональная
+  "#d4a030",  // золотой    — сноуборд, скайдайв
+  "#c85e88",  // розовый    — пилатес, танцы
+];
+
 const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
 const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
 
-export async function getSportTypes(): Promise<string[]> {
+function toSportTypes(names: string[]): SportType[] {
+  return names.map((name, i) => ({ name, color: SPORT_PALETTE[i % SPORT_PALETTE.length] }));
+}
+
+export async function getSportTypes(): Promise<SportType[]> {
   const db = supabaseAdmin();
   if (db) {
     const uid = await getAppUserId();
@@ -636,9 +655,9 @@ export async function getSportTypes(): Promise<string[]> {
       uid,
     );
     if (!error && data && data.length) {
-      return data.map((r: { name: string }) => r.name);
+      return toSportTypes(data.map((r: { name: string }) => r.name));
     }
-    if (uid && uid !== "__legacy__") return [...DEFAULT_SPORT_TYPES];
+    if (uid && uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
   }
-  return [...LEGACY_SPORT_TYPES];
+  return toSportTypes(LEGACY_SPORT_TYPES);
 }

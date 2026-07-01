@@ -1,9 +1,7 @@
 "use client";
 import { useState } from "react";
 import { saveWorkout, saveExercises } from "./actions";
-import type { WorkoutTemplate, ExerciseTemplate } from "@/lib/data";
-
-const FALLBACK_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
+import type { WorkoutTemplate, ExerciseTemplate, SportType } from "@/lib/data";
 
 // Map UI type labels to template type slugs
 const TYPE_SLUG: Record<string, string> = {
@@ -40,8 +38,16 @@ const emptyForm = (): FormState => ({
 
 type Mode = "form" | "exercises";
 
-export function TrainingForm({ templates, sportTypes }: { templates: WorkoutTemplate[]; sportTypes?: string[] }) {
-  const TYPES = [...(sportTypes ?? FALLBACK_TYPES), "Другое"];
+const FALLBACK_TYPES: SportType[] = [
+  { name: "Силовая",        color: "#e8a23a" },
+  { name: "Функциональная", color: "#2aa09a" },
+  { name: "Бег",            color: "#d05a30" },
+  { name: "Групповая",      color: "#8f5ec8" },
+];
+const OTHER_TYPE: SportType = { name: "Другое", color: "#888" };
+
+export function TrainingForm({ templates, sportTypes }: { templates: WorkoutTemplate[]; sportTypes?: SportType[] }) {
+  const TYPES = [...(sportTypes ?? FALLBACK_TYPES), OTHER_TYPE];
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("form");
   const [s, setS] = useState<FormState>(emptyForm());
@@ -266,17 +272,23 @@ export function TrainingForm({ templates, sportTypes }: { templates: WorkoutTemp
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">тип тренировки</p>
         <div className="mt-2.5 flex flex-wrap gap-2">
           {TYPES.map((t) => {
-            const on = s.type === t;
+            const on = s.type === t.name;
             return (
               <button
-                key={t}
+                key={t.name}
                 type="button"
-                onClick={() => setS({ ...s, type: t, customType: "" })}
-                className={`rounded-[3px] border px-3.5 py-2 text-[13px] font-medium transition ${
+                onClick={() => setS({ ...s, type: t.name, customType: "" })}
+                className={`flex items-center gap-1.5 rounded-[3px] border px-3.5 py-2 text-[13px] font-medium transition ${
                   on ? "border-phase bg-phase-soft font-semibold text-phase-deep" : "border-line bg-surface text-ink-2"
                 }`}
               >
-                {t}
+                {t.name !== "Другое" && (
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: on ? t.color : t.color + "99" }}
+                  />
+                )}
+                {t.name}
               </button>
             );
           })}
