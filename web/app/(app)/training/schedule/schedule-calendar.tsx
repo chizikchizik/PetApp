@@ -34,17 +34,21 @@ const MONTHS_RU = ["Январь","Февраль","Март","Апрель","М
 const DAYS_SHORT = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 const DAYS_FULL  = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
 
+function fmtLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function isoMonday(year: number, month: number): string {
   const d = new Date(year, month, 1);
   const dow = (d.getDay() + 6) % 7; // Mon=0
   d.setDate(d.getDate() - dow);
-  return d.toISOString().slice(0, 10);
+  return fmtLocal(d);
 }
 
 function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00");
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return fmtLocal(d);
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -488,17 +492,19 @@ export function ScheduleCalendar({
     else setMonth(m => m + 1);
   }
 
-  // Build 6-week calendar grid
+  // Build calendar grid (5 or 6 weeks)
   const firstMonday = isoMonday(year, month);
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+  const numWeeks = firstDayOfWeek + daysInMonth(year, month) > 35 ? 6 : 5;
   const weeks: string[][] = [];
-  for (let w = 0; w < 6; w++) {
+  for (let w = 0; w < numWeeks; w++) {
     const week: string[] = [];
     for (let d = 0; d < 7; d++) {
       week.push(addDays(firstMonday, w * 7 + d));
     }
     weeks.push(week);
   }
-  const lastWeek = weeks[5];
+  const lastWeek = weeks[numWeeks - 1];
   const lastDayISO = lastWeek[6];
   const firstISO   = firstMonday;
   const lastISO    = lastDayISO;

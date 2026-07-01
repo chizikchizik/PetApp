@@ -20,10 +20,9 @@ function buildDayRange(from: string, to: string): string[] {
   return days;
 }
 
-// Split days into weeks (Mon-Sun rows)
 function toWeeks(days: string[]): string[][] {
   if (days.length === 0) return [];
-  const firstDow = (new Date(days[0] + "T12:00:00").getDay() + 6) % 7; // Mon=0
+  const firstDow = (new Date(days[0] + "T12:00:00").getDay() + 6) % 7;
   const padded = Array(firstDow).fill(null).concat(days) as (string | null)[];
   const weeks: string[][] = [];
   for (let i = 0; i < padded.length; i += 7) {
@@ -33,7 +32,6 @@ function toWeeks(days: string[]): string[][] {
 }
 
 function MonthLabels({ days }: { days: string[] }) {
-  // Build month label positions (week index where month first appears)
   const weeks = toWeeks(days);
   const labels: { label: string; weekIdx: number }[] = [];
   let lastMonth = -1;
@@ -48,7 +46,7 @@ function MonthLabels({ days }: { days: string[] }) {
   });
 
   return (
-    <div className="relative mb-1 ml-0" style={{ display: "grid", gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}>
+    <div className="relative mb-1" style={{ display: "grid", gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}>
       {weeks.map((_, wi) => {
         const lbl = labels.find((l) => l.weekIdx === wi);
         return (
@@ -97,16 +95,14 @@ function MedRow({
         </div>
       </div>
 
-      {/* Month labels */}
       <MonthLabels days={days} />
 
-      {/* Heatmap grid */}
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${weeks.length}, 1fr)`, gap: "2px" }}>
         {weeks.map((week, wi) =>
           week.map((day, di) => {
             if (!day) return <div key={`${wi}-${di}`} className="aspect-square" />;
-            const taken   = intakeSet.has(day);
-            const migrain = migraineSet.has(day);
+            const taken    = intakeSet.has(day);
+            const migrain  = migraineSet.has(day);
             const isAsNeededMig = med.isAsNeeded && migrain;
 
             let bg = "var(--surface-3)";
@@ -115,7 +111,6 @@ function MedRow({
               bg = med.isAsNeeded ? "var(--warn, #e8a23a)" : "var(--phase)";
               title = `${day} — принято`;
             } else if (isAsNeededMig) {
-              // Migraine day but no triptan logged — could be Migrebot data
               bg = "rgba(232,162,58,0.35)";
               title = `${day} — мигрень (без отметки)`;
             }
@@ -132,7 +127,6 @@ function MedRow({
         )}
       </div>
 
-      {/* Row legend if as-needed */}
       {med.isAsNeeded && (
         <div className="mt-2 flex flex-wrap gap-3">
           <div className="flex items-center gap-1">
@@ -145,6 +139,69 @@ function MedRow({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Medication keywords to detect in MigreBot notes
+const MED_KEYWORDS: { pattern: RegExp; label: string }[] = [
+  { pattern: /суматриптан|имигран|суматрипт/i,     label: "Суматриптан" },
+  { pattern: /золмитриптан|зомиг/i,                label: "Золмитриптан" },
+  { pattern: /элетриптан|релпакс/i,                label: "Элетриптан" },
+  { pattern: /ризатриптан|максальт/i,              label: "Ризатриптан" },
+  { pattern: /наратриптан|нарамиг/i,               label: "Наратриптан" },
+  { pattern: /спрей|назальн/i,                     label: "Назальный спрей" },
+  { pattern: /ибупрофен|нурофен/i,                 label: "Ибупрофен" },
+  { pattern: /аспирин|ацетилсалицил/i,             label: "Аспирин" },
+  { pattern: /парацетамол|панадол|эффералган/i,    label: "Парацетамол" },
+  { pattern: /метоклопрамид|церукал/i,             label: "Метоклопрамид" },
+  { pattern: /кеторолак|кетанов|кеторол/i,        label: "Кеторолак" },
+  { pattern: /кофеин|каффетин/i,                  label: "Кофеин" },
+  { pattern: /эрготамин/i,                        label: "Эрготамин" },
+  { pattern: /амитриптилин/i,                     label: "Амитриптилин" },
+  { pattern: /топирамат|топамакс/i,               label: "Топирамат" },
+  { pattern: /пропранолол|анаприлин/i,            label: "Пропранолол" },
+];
+
+function detectMeds(note: string): string[] {
+  const found: string[] = [];
+  for (const { pattern, label } of MED_KEYWORDS) {
+    if (pattern.test(note) && !found.includes(label)) found.push(label);
+  }
+  return found;
+}
+
+type MigraineDayEntry = {
+  date: string;
+  note: string;
+  detectedMeds: string[];
+};
+
+function MigreBotSection({ entries }: { entries: MigraineDayEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-card border border-line bg-surface p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-warn">из дневника мигрени</span>
+        <span className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[9px] text-warn">{entries.length} записей</span>
+      </div>
+      <div className="space-y-2">
+        {entries.map((e) => (
+          <div key={e.date} className="flex gap-2">
+            <span className="shrink-0 font-mono text-[11px] text-ink-3 w-[72px]">{e.date.slice(5).replace("-", ".")}</span>
+            <div className="min-w-0 flex-1">
+              {e.detectedMeds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-0.5">
+                  {e.detectedMeds.map((m) => (
+                    <span key={m} className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[9px] text-warn">{m}</span>
+                  ))}
+                </div>
+              )}
+              <p className="font-sans text-[11px] text-ink-3 leading-snug line-clamp-2">{e.note}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -162,19 +219,38 @@ export function MedCalendar({
 }) {
   const days = buildDayRange(fromISO, todayISO);
 
-  // Build per-med intake sets and migraine set
   const migraineSet = new Set(intakeDays.filter((d) => d.migraine).map((d) => d.date));
 
+  // Build per-med intake sets using BOTH medIds (new app logs) and habitsDone (historical)
   const medIntakeSets = new Map<string, Set<string>>();
   for (const med of meds) {
     medIntakeSets.set(med.id, new Set());
   }
   for (const day of intakeDays) {
-    for (const medId of day.medIds) {
-      const set = medIntakeSets.get(medId);
-      if (set) set.add(day.date);
+    for (const med of meds) {
+      const set = medIntakeSets.get(med.id)!;
+      // Check by medication ID (new-style logs)
+      if (day.medIds.includes(med.id)) {
+        set.add(day.date);
+        continue;
+      }
+      // Check by habit_key (historical data logged as habits)
+      const habitKey = med.habit_key ?? med.name;
+      if (habitKey && day.habitsDone.includes(habitKey)) {
+        set.add(day.date);
+      }
     }
   }
+
+  // Collect MigreBot notes with any detected medications
+  const migreBotEntries: MigraineDayEntry[] = intakeDays
+    .filter((d) => d.migraineMedNote)
+    .map((d) => ({
+      date: d.date,
+      note: d.migraineMedNote!,
+      detectedMeds: detectMeds(d.migraineMedNote!),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const regularMeds  = meds.filter((m) => !m.isAsNeeded);
   const asNeededMeds = meds.filter((m) => m.isAsNeeded);
@@ -223,6 +299,8 @@ export function MedCalendar({
           </div>
         </div>
       )}
+
+      <MigreBotSection entries={migreBotEntries} />
 
       {/* Global legend */}
       <div className="flex flex-wrap gap-4 pt-1">

@@ -667,7 +667,9 @@ export async function getSportTypes(): Promise<SportType[]> {
 export type MedIntakeDay = {
   date: string;
   medIds: string[];
+  habitsDone: string[];
   migraine: boolean;
+  migraineMedNote: string | null;
 };
 
 export async function getMedIntakeDays(from: string, to: string): Promise<MedIntakeDay[]> {
@@ -676,18 +678,30 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
   const uid = await getAppUserId();
   const { data, error } = await byUser(
     db.from("daily_log")
-      .select("log_date, meds_taken, migraine")
+      .select("log_date, meds_taken, habits_done, migraine, note")
       .gte("log_date", from)
       .lte("log_date", to)
       .order("log_date"),
     uid,
   );
   if (error || !data) return [];
-  return (data as { log_date: string; meds_taken: string[] | null; migraine: boolean }[])
-    .filter((r) => (r.meds_taken && r.meds_taken.length > 0) || r.migraine)
+  return (data as {
+    log_date: string;
+    meds_taken: string[] | null;
+    habits_done: string[] | null;
+    migraine: boolean;
+    note: string | null;
+  }[])
+    .filter((r) =>
+      (r.meds_taken && r.meds_taken.length > 0) ||
+      (r.habits_done && r.habits_done.length > 0) ||
+      r.migraine
+    )
     .map((r) => ({
       date: r.log_date,
       medIds: r.meds_taken ?? [],
+      habitsDone: r.habits_done ?? [],
       migraine: r.migraine,
+      migraineMedNote: r.migraine && r.note ? r.note : null,
     }));
 }
