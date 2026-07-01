@@ -77,7 +77,7 @@ export default async function Dashboard() {
     getRecentWearableData(7),
   ]);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
-  const length = Math.round(c.stats.avgLength);
+  const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
   const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
@@ -231,18 +231,22 @@ export default async function Dashboard() {
           ) : null}
         </div>
         <div className="mt-2.5 flex items-baseline justify-between">
-          <div className="font-mono font-semibold text-[30px] leading-none text-ink">
+          <div className={`font-mono font-semibold text-[30px] leading-none ${triptanHigh ? "text-warn" : "text-ink"}`}>
             {triptan}
             <span className="text-[13px] font-normal text-ink-2"> / {MIGRAINE.triptanThreshold} дней</span>
           </div>
-          <div className="font-mono text-[10px] text-ink-3">порог МИГБ</div>
+          <div className={`font-mono text-[10px] ${triptanHigh ? "text-warn" : "text-ink-3"}`}>
+            {triptanHigh ? "близко к порогу МИГБ" : "порог МИГБ"}
+          </div>
         </div>
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-[1px] bg-surface-3">
-          <div className="h-full bg-phase" style={{ width: `${tiptanPct}%` }} />
+          <div className={`h-full ${triptanHigh ? "bg-warn" : "bg-phase"}`} style={{ width: `${tiptanPct}%` }} />
         </div>
         <p className="mt-2.5 text-[12px] leading-[1.5] text-ink-2">
           {c.inMigraineWindow
             ? "Перименструальное окно — следи за сном и не пропускай еду."
+            : triptanHigh
+            ? "Приём триптана участился. Стоит обсудить профилактику с неврологом."
             : "Держишься ниже порога. Пики ~8 — обсуди профилактику с неврологом."}{" "}
           <span className="font-semibold text-phase-deep">инсайты →</span>
         </p>

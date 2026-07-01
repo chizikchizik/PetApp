@@ -27,8 +27,10 @@ export default async function Weight() {
     getCurrentUser(),
   ]);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28);
-  const fromStart = current != null ? +(current - WEIGHT_GOAL.startKg).toFixed(1) : null;
-  const toGoal = current != null ? +(current - WEIGHT_GOAL.kg).toFixed(1) : null;
+  const goalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
+  const startKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
+  const fromStart = current != null ? +(current - startKg).toFixed(1) : null;
+  const toGoal = current != null ? +(current - goalKg).toFixed(1) : null;
 
   return (
     <>
@@ -41,7 +43,7 @@ export default async function Weight() {
       </Link>
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">ВЕС</h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
-        план и факт · цель {WEIGHT_GOAL.kg} кг
+        план и факт · цель {goalKg} кг
       </p>
 
       {/* ── Текущий вес ── */}
@@ -60,7 +62,7 @@ export default async function Weight() {
               <div className="font-mono font-semibold text-[15px] text-phase">
                 {fromStart} кг
               </div>
-              <div className="mt-1 font-mono text-[10px] text-ink-2">от старта {WEIGHT_GOAL.startKg}</div>
+              <div className="mt-1 font-mono text-[10px] text-ink-2">от старта {startKg}</div>
               <div className="mt-0.5 font-mono text-[10px] text-ink-2">
                 до цели {toGoal > 0 ? `−${toGoal}` : toGoal} кг
               </div>
@@ -89,7 +91,7 @@ export default async function Weight() {
         <div className="mt-3">
           <WeightChart
             rows={rows}
-            goalKg={WEIGHT_GOAL.kg}
+            goalKg={goalKg}
             goalDateISO={WEIGHT_GOAL.dateISO}
             todayISO={dayKey}
             calories={calories}

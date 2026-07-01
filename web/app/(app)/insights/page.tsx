@@ -157,13 +157,31 @@ function corrConfig(c: CycleCorrelation): CorrConfig {
   }
 }
 
+// Компактный индикатор надёжности — видно сразу, не читая абзац текста.
+// "insufficient" уже явно означает "мало данных", high/very_high — сильную выборку.
+function ConfidenceBadge({ corr }: { corr: CycleCorrelation }) {
+  if (corr.state === "no_cycle" || corr.state === "no_migraine") return null;
+  const strong = corr.state === "high" || corr.state === "very_high";
+  const weak = corr.state === "insufficient";
+  const color = weak ? "text-warn" : strong ? "text-phase" : "text-ink-3";
+  const bg = weak ? "bg-warn/10" : strong ? "bg-phase-soft" : "bg-surface-2";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-[3px] px-2 py-1 font-mono text-[10px] tracking-[0.02em] ${color} ${bg}`}>
+      {weak ? "мало данных" : "основано на"} · {corr.total} приступ{corr.total === 1 ? "" : corr.total < 5 ? "а" : "ов"} · {corr.cycleCount} цикл{corr.cycleCount === 1 ? "" : corr.cycleCount < 5 ? "а" : "ов"}
+    </span>
+  );
+}
+
 function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
   const cfg = corrConfig(corr);
   return (
     <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
-      <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        связь с циклом
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          связь с циклом
+        </p>
+        <ConfidenceBadge corr={corr} />
+      </div>
       <div className="mt-2">{cfg.verdict}</div>
       {cfg.body}
     </section>

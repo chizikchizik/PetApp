@@ -121,6 +121,7 @@ export async function getMeds(): Promise<Med[]> {
     const { data, error } = await byUser(
       db.from("medication")
         .select("id, name, note, when_label, habit_key, is_as_needed")
+        .is("ended_at", null)
         .order("sort", { ascending: true }),
       uid,
     );
@@ -146,6 +147,53 @@ export async function getMeds(): Promise<Med[]> {
     if (uid && uid !== "__legacy__") return [];
   }
   return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false }));
+}
+
+export type MedVersion = {
+  id: string;
+  name: string;
+  note: string;
+  startedAt: string;
+  endedAt: string | null;
+};
+
+// Full dose history (active + past versions) for a given habit_key — used to
+// show "Топирамат 25мг — с 1 марта по 14 июня, Топирамат 50мг — с 15 июня".
+export async function getMedDoseHistory(habitKey: string): Promise<MedVersion[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const uid = await getAppUserId();
+  const { data } = await byUser(
+    db.from("medication")
+      .select("id, name, note, started_at, ended_at")
+      .eq("habit_key", habitKey)
+      .order("started_at", { ascending: true }),
+    uid,
+  );
+  return ((data ?? []) as Array<{ id: string; name: string; note: string | null; started_at: string; ended_at: string | null }>).map(
+    (r) => ({ id: r.id, name: r.name, note: r.note ?? "", startedAt: r.started_at, endedAt: r.ended_at }),
+  );
+}
+
+// Count of daily_log entries where each med id appears in meds_taken, for a given month.
+export async function getMedMonthlyCounts(ym: string): Promise<Record<string, number>> {
+  const db = supabaseAdmin();
+  if (!db) return {};
+  const uid = await getAppUserId();
+  const start = `${ym}-01`;
+  const [y, m] = ym.split("-").map(Number);
+  const nextY = m === 12 ? y + 1 : y;
+  const nextM = m === 12 ? 1 : m + 1;
+  const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+  const { data } = await byUser(
+    db.from("daily_log").select("meds_taken").gte("log_date", start).lt("log_date", end),
+    uid,
+  );
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as Array<{ meds_taken: string[] | null }>) {
+    for (const id of row.meds_taken ?? []) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
 }
 
 export type HabitRow = {
