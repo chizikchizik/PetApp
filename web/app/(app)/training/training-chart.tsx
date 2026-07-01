@@ -126,6 +126,10 @@ export function TrainingChart({
   const BTXT_H   = 16;
   const BAR_SVG_W = 7 * BAR_STEP - BAR_GAP;
   const BAR_SVG_H = TOP_PAD + CHART_H + BTXT_H;
+  // Split column: workout on left (wider), migraine on right (narrow stripe)
+  const MIG_W    = 8;
+  const MIG_GAP  = 2;
+  const WORK_W   = BAR_W - MIG_W - MIG_GAP;
 
   // Legend: top workout types by frequency, using palette colors
   type LegendItem = { color: string; label: string; circle?: boolean };
@@ -139,7 +143,7 @@ export function TrainingChart({
   }
   const legendItems: LegendItem[] = [...colorToLabel.entries()].map(([color, label]) => ({ color, label }));
   if (sports.length > 0) legendItems.push({ color: C_SPORT, label: "спорт" });
-  if (migraines.length > 0) legendItems.push({ color: C_MIG, label: "мигрень", circle: true });
+  if (migraines.length > 0) legendItems.push({ color: C_MIG, label: "мигрень" });
 
   return (
     <div className="mt-5 space-y-4">
@@ -219,39 +223,39 @@ export function TrainingChart({
               const total = wCnt + sCnt;
               const wH    = (wCnt / maxBar) * CHART_H;
               const sH    = (sCnt / maxBar) * CHART_H;
+              const mH    = mCnt > 0 ? (mCnt / maxMig) * CHART_H : 0;
               const x     = i * BAR_STEP;
+              const xm    = x + WORK_W + MIG_GAP;
               return (
                 <g key={i}>
+                  {/* Workout bars (left portion) */}
                   {sH > 0 && (
-                    <rect x={x} y={TOP_PAD + CHART_H - sH} width={BAR_W} height={sH} rx={2} fill={C_SPORT} />
+                    <rect x={x} y={TOP_PAD + CHART_H - sH} width={WORK_W} height={sH} rx={2} fill={C_SPORT} />
                   )}
                   {wH > 0 && (
-                    <rect x={x} y={TOP_PAD + CHART_H - sH - wH} width={BAR_W} height={wH}
+                    <rect x={x} y={TOP_PAD + CHART_H - sH - wH} width={WORK_W} height={wH}
                       rx={wH > 3 ? 2 : 0} fill={C_BAR} />
                   )}
                   {total > 0 && (
-                    <text x={x + BAR_W / 2} y={TOP_PAD + CHART_H - sH - wH - 3}
+                    <text x={x + WORK_W / 2} y={TOP_PAD + CHART_H - sH - wH - 3}
                       textAnchor="middle" fontSize={8} fontFamily="monospace" fill="rgba(80,80,80,0.65)">
                       {total}
                     </text>
+                  )}
+                  {/* Migraine bar (right narrow stripe) */}
+                  {mH > 0 && (
+                    <g>
+                      <rect x={xm} y={TOP_PAD + CHART_H - mH} width={MIG_W} height={mH} rx={2} fill={C_MIG} />
+                      <text x={xm + MIG_W / 2} y={TOP_PAD + CHART_H - mH - 2}
+                        textAnchor="middle" fontSize={7} fontFamily="monospace" fill={C_MIG}>
+                        {mCnt}
+                      </text>
+                    </g>
                   )}
                   <text x={x + BAR_W / 2} y={TOP_PAD + CHART_H + 11}
                     textAnchor="middle" fontSize={8.5} fontFamily="monospace" fill="rgba(80,80,80,0.6)">
                     {label}
                   </text>
-                  {mCnt > 0 && (() => {
-                    const mH = (mCnt / maxMig) * CHART_H;
-                    const mY = TOP_PAD + CHART_H - mH;
-                    return (
-                      <g>
-                        <rect x={x} y={mY} width={BAR_W} height={mH} rx={2} fill="rgba(208,72,48,0.28)" />
-                        <text x={x + BAR_W / 2} y={mY - 2}
-                          textAnchor="middle" fontSize={7} fontFamily="monospace" fill={C_MIG}>
-                          {mCnt}
-                        </text>
-                      </g>
-                    );
-                  })()}
                 </g>
               );
             })}
