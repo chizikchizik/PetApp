@@ -18,6 +18,17 @@ const PRINT_STYLES = `
     body { background: white !important; color: black !important; }
     @page { margin: 20mm; }
     .report-root { color: black !important; background: white !important; }
+    /* Without this, Chrome's "Save as PDF" drops all background-color unless
+       the print dialog's "Background graphics" is manually checked (often
+       off by default) — this silently erased the training bar chart and the
+       cycle calendar cells, since both encode data purely via background
+       color with no border/text. */
+    .report-root, .report-root * {
+      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important;
+    }
+    .report-section { break-inside: avoid; }
+    .report-footer { break-inside: avoid; break-before: avoid; }
   }
 `;
 
@@ -79,6 +90,7 @@ function TrainingDowChart({ workouts, migraines }: { workouts: { date: string }[
                 width: "11px",
                 height: `${Math.max(2, (workoutByDow[i] / maxW) * BAR_H)}px`,
                 background: "#8A877D",
+                border: "1px solid #8A877D",
                 borderRadius: "1px 1px 0 0",
               }}
             />
@@ -88,6 +100,7 @@ function TrainingDowChart({ workouts, migraines }: { workouts: { date: string }[
                 width: "11px",
                 height: `${Math.max(2, (migByDow[i] / maxM) * BAR_H)}px`,
                 background: "#16150F",
+                border: "1px solid #16150F",
                 borderRadius: "1px 1px 0 0",
               }}
             />
@@ -98,8 +111,8 @@ function TrainingDowChart({ workouts, migraines }: { workouts: { date: string }[
         </div>
       ))}
       <div style={{ marginLeft: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#54524A" }}>
-        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#8A877D", borderRadius: "1px", marginRight: "5px" }} />тренировки</span>
-        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#16150F", borderRadius: "1px", marginRight: "5px" }} />мигрени</span>
+        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#8A877D", border: "1px solid #8A877D", borderRadius: "1px", marginRight: "5px" }} />тренировки</span>
+        <span><span style={{ display: "inline-block", width: "9px", height: "9px", background: "#16150F", border: "1px solid #16150F", borderRadius: "1px", marginRight: "5px" }} />мигрени</span>
       </div>
     </div>
   );
@@ -201,7 +214,7 @@ export default async function MigraineReport() {
         </header>
 
         {/* 2. Связь с циклом */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Связь приступов с менструальным циклом
           </h2>
@@ -216,7 +229,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 3. Аура */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Приступы с аурой
           </h2>
@@ -231,7 +244,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 4. Связь с тренировками */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Связь приступов с физической нагрузкой
           </h2>
@@ -246,7 +259,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 5. Профилактическая терапия */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Текущая терапия
           </h2>
@@ -284,7 +297,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 6. Таблица триптана по месяцам */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Приступы и приём триптана — последние 12 месяцев
           </h2>
@@ -329,7 +342,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 7. Цикловой календарь */}
-        <section style={{ marginBottom: "28px" }}>
+        <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Мигрень × цикл — последние 6 циклов
           </h2>
@@ -348,22 +361,26 @@ export default async function MigraineReport() {
                     print engine can collapse fr-sized grid tracks to 0 width when
                     the grid is nested inside a flex item without a resolved width. */}
                 <div style={{ marginLeft: "8px", whiteSpace: "nowrap", lineHeight: 0 }}>
-                  {cy.days.map((d) => (
-                    <span
-                      key={d.day}
-                      title={`день ${d.day}`}
-                      style={{
-                        display: "inline-block",
-                        width: "6px",
-                        height: "10px",
-                        marginRight: "1px",
-                        borderRadius: "1px",
-                        background: d.migraine ? "#16150F" : d.menstrual ? "rgba(177,74,99,0.4)" : "#E6E3DC",
-                        outline: d.isToday ? "1px solid #16150F" : "none",
-                        outlineOffset: "-1px",
-                      }}
-                    />
-                  ))}
+                  {cy.days.map((d) => {
+                    const cellColor = d.migraine ? "#16150F" : d.menstrual ? "rgba(177,74,99,0.4)" : "#E6E3DC";
+                    return (
+                      <span
+                        key={d.day}
+                        title={`день ${d.day}`}
+                        style={{
+                          display: "inline-block",
+                          width: "6px",
+                          height: "10px",
+                          marginRight: "1px",
+                          borderRadius: "1px",
+                          background: cellColor,
+                          border: `1px solid ${cellColor}`,
+                          outline: d.isToday ? "1px solid #16150F" : "none",
+                          outlineOffset: "-1px",
+                        }}
+                      />
+                    );
+                  })}
                 </div>
                 <span style={{ marginLeft: "8px", width: "24px", flexShrink: 0, fontFamily: "JetBrains Mono, monospace", fontSize: "9px", color: "#8A877D" }}>
                   {cy.length}д
@@ -377,7 +394,7 @@ export default async function MigraineReport() {
         </section>
 
         {/* 8. Футер */}
-        <footer style={{ borderTop: "1px solid #D6D2C9", paddingTop: "12px", marginTop: "16px" }}>
+        <footer className="report-footer" style={{ borderTop: "1px solid #D6D2C9", paddingTop: "12px", marginTop: "16px" }}>
           <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#8A877D", margin: 0, lineHeight: 1.6 }}>
             Сгенерировано приложением ВЕРТА · Данные из персонального дневника.<br />
             Не является медицинским документом. Все выводы — предварительные наблюдения по
