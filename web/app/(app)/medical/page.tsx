@@ -114,8 +114,32 @@ export default async function MedicalPage() {
         </div>
       )}
 
+      {/* Quick links: MigreBot + История */}
+      <div className="mt-4 flex gap-2">
+        <Link
+          href="/checkin/meds"
+          className="flex flex-1 items-center justify-between rounded-[3px] border border-line bg-surface px-3.5 py-3 active:scale-[0.99]"
+        >
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">препараты</p>
+            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">История мигреней</p>
+          </div>
+          <span className="font-mono text-[12px] text-phase">→</span>
+        </Link>
+        <Link
+          href="/import/migrebot"
+          className="flex flex-1 items-center justify-between rounded-[3px] border border-line bg-surface px-3.5 py-3 active:scale-[0.99]"
+        >
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">импорт</p>
+            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">MigreBot CSV</p>
+          </div>
+          <span className="font-mono text-[12px] text-phase">→</span>
+        </Link>
+      </div>
+
       {/* Upload form */}
-      <div className="mt-5">
+      <div className="mt-3">
         <UploadForm />
       </div>
 
