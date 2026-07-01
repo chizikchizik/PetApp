@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPeriodStarts, getMigraineEventsSince, getMeds } from "@/lib/data";
+import { getPeriodStarts, getMigraineEventsSince, getMeds, getWorkoutHistory } from "@/lib/data";
 import { monthlyTriptan, cycleCorrelation, buildCycleCalendar, type CorrelationState } from "@/lib/insights";
+import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
@@ -47,6 +48,24 @@ const CORR_TEXT: Record<CorrelationState, (c: { peri: number; total: number; cyc
     `${c.peri} из ${c.total} приступов (${c.pct}%) зафиксированы в окне −2…+3 дня от начала менструации. Такой паттерн обсуждается в диагностике менструальной / менструально-ассоциированной мигрени (ICHD-3, критерии A1.1/A1.2) — окончательную оценку делает врач.`,
 };
 
+// Тот же принцип, что и CORR_TEXT: наблюдение + размер выборки, без вердиктов —
+// "постэкзертационный" паттерн (тренировка → мигрень на следующий день) не диагноз,
+// его отмечает пользователь сама через приложение, а не медицинский алгоритм.
+function trainingText(p: TrainingPattern): string {
+  switch (p.state) {
+    case "no_workouts":
+      return "Нет записей о тренировках за период.";
+    case "too_few":
+      return `Недостаточно записей о тренировках для анализа (${p.count}, нужно ≥10).`;
+    case "no_migraines":
+      return `${p.count} тренировок за период, приступов не зафиксировано.`;
+    case "no_pattern":
+      return `${p.count} тренировок, ${p.migCount} приступов за период — устойчивой связи между тренировками и приступами не выявлено.`;
+    case "postexertional":
+      return `${p.peakWorkouts} тренировок в ${p.peakDowLabel.toLowerCase()} за период, из них ${p.peakPostEx} (${p.peakRate}%) предшествовали приступу в течение 1–2 дней. В целом по всем дням недели приступ следовал за тренировкой в ${p.overallRate}% случаев (${p.count} тренировок, ${p.migCount} приступов). Возможная связь с интенсивностью/восстановлением — обсудите с врачом.`;
+  }
+}
+
 const MONTHS_RU: Record<string, string> = {
   янв: "Январь", фев: "Февраль", мар: "Март", апр: "Апрель",
   май: "Май", июн: "Июнь", июл: "Июль", авг: "Август",
@@ -57,15 +76,17 @@ export default async function MigraineReport() {
   const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
   const since = isoDaysFromTodayMoscow(-365);
-  const [starts, events, meds] = await Promise.all([
+  const [starts, events, meds, workouts] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getMeds(),
+    getWorkoutHistory(since),
   ]);
 
   const corr = cycleCorrelation(events, starts);
   const bars = monthlyTriptan(events, today, 12);
   const cycles = buildCycleCalendar(starts, events, today, 6);
+  const trainingPattern = computeTrainingPatterns(workouts, events);
 
   const auraTotal = events.length;
   const auraCount = events.filter((e) => e.aura).length;
@@ -152,7 +173,17 @@ export default async function MigraineReport() {
           </p>
         </section>
 
-        {/* 4. Профилактическая терапия */}
+        {/* 4. Связь с тренировками */}
+        <section style={{ marginBottom: "28px" }}>
+          <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
+            Связь приступов с физической нагрузкой
+          </h2>
+          <p style={{ fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
+            {trainingText(trainingPattern)}
+          </p>
+        </section>
+
+        {/* 5. Профилактическая терапия */}
         <section style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Текущая терапия
@@ -190,7 +221,7 @@ export default async function MigraineReport() {
           )}
         </section>
 
-        {/* 5. Таблица триптана по месяцам */}
+        {/* 6. Таблица триптана по месяцам */}
         <section style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Приступы и приём триптана — последние 12 месяцев
@@ -235,7 +266,7 @@ export default async function MigraineReport() {
           </p>
         </section>
 
-        {/* 6. Цикловой календарь */}
+        {/* 7. Цикловой календарь */}
         <section style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
             Мигрень × цикл — последние 6 циклов
@@ -281,7 +312,7 @@ export default async function MigraineReport() {
           </p>
         </section>
 
-        {/* 7. Футер */}
+        {/* 8. Футер */}
         <footer style={{ borderTop: "1px solid #D6D2C9", paddingTop: "12px", marginTop: "16px" }}>
           <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#8A877D", margin: 0, lineHeight: 1.6 }}>
             Сгенерировано приложением ВЕРТА · Данные из персонального дневника.<br />

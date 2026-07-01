@@ -726,6 +726,26 @@ export async function getSportTypes(): Promise<SportType[]> {
   return toSportTypes(LEGACY_SPORT_TYPES);
 }
 
+export type MigraineTrigger = { id: number; name: string };
+
+const DEFAULT_MIGRAINE_TRIGGERS = ["Цикл", "Сон", "Пропуск еды", "Стресс", "Экран", "Погода", "Алкоголь"];
+
+export async function getMigraineTriggers(): Promise<MigraineTrigger[]> {
+  const db = supabaseAdmin();
+  if (db) {
+    const uid = await getAppUserId();
+    const { data, error } = await byUser(
+      db.from("migraine_trigger").select("id, name").order("sort", { ascending: true }),
+      uid,
+    );
+    if (!error && data && data.length) {
+      return data as MigraineTrigger[];
+    }
+    if (uid && uid !== "__legacy__") return [];
+  }
+  return DEFAULT_MIGRAINE_TRIGGERS.map((name, i) => ({ id: i, name }));
+}
+
 export type MedIntakeDay = {
   date: string;
   medIds: string[];

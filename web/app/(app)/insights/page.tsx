@@ -1,9 +1,18 @@
 import Link from "next/link";
-import { getPeriodStarts, getMigraineEventsSince, getAllMigraineEvents, getCycleHistory } from "@/lib/data";
+import {
+  getPeriodStarts,
+  getMigraineEventsSince,
+  getAllMigraineEvents,
+  getCycleHistory,
+  getWorkoutHistory,
+  getSportActivityDays,
+  getSportTypes,
+} from "@/lib/data";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
 import { CycleHistoryChart } from "./cycle-history";
+import { TrainingChart } from "../training/training-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -194,16 +203,21 @@ const MENS = "rgba(177,74,99,0.22)";
 export default async function Insights() {
   const today = new Date(todayISOMoscow() + "T12:00:00");
   const since = isoDaysFromTodayMoscow(-365);
-  const [starts, recentEvents, allEvents, cycleHistory] = await Promise.all([
+  const sinceTraining = isoDaysFromTodayMoscow(-26 * 7);
+  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getAllMigraineEvents(),
     getCycleHistory(),
+    getWorkoutHistory(sinceTraining),
+    getSportActivityDays(sinceTraining),
+    getSportTypes(),
   ]);
 
   const corr = cycleCorrelation(recentEvents, starts);
   const chartBars = allMonthlyBars(allEvents);
   const cycles = buildCycleCalendar(starts, recentEvents, today, 6);
+  const trainingMigraines = recentEvents.filter((e) => e.date >= sinceTraining);
 
   return (
     <>
@@ -293,6 +307,24 @@ export default async function Insights() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ── Мигрень × тренировки ── */}
+      <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            мигрень × тренировки
+          </p>
+          <Link href="/training" className="font-mono text-[10px] text-ink-3 underline underline-offset-2">
+            анализ паттернов →
+          </Link>
+        </div>
+        <TrainingChart
+          workouts={workoutHistory}
+          sports={sportDays}
+          migraines={trainingMigraines}
+          sportTypes={sportTypes}
+        />
       </section>
 
       {/* ── Вся история: цикл × мигрень ── */}

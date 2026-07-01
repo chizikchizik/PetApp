@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, type CheckinPayload } from "./actions";
-import type { DailyLog, Med } from "@/lib/data";
-
-const TRIGGERS = ["Цикл", "Сон", "Пропуск еды", "Стресс", "Экран", "Погода", "Алкоголь"];
+import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
+import type { DailyLog, Med, MigraineTrigger } from "@/lib/data";
 
 type State = CheckinPayload & { periodStart: boolean };
 
@@ -61,6 +59,7 @@ export function CheckinForm({
   meds,
   weightPlaceholder,
   medCounts,
+  triggers,
 }: {
   dayKey: string;
   todayISO: string;
@@ -69,6 +68,7 @@ export function CheckinForm({
   meds: Med[];
   weightPlaceholder: number | null;
   medCounts: Record<string, number>;
+  triggers: MigraineTrigger[];
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -90,6 +90,27 @@ export function CheckinForm({
   const [doseName, setDoseName] = useState("");
   const [doseNote, setDoseNote] = useState("");
   const [doseStatus, setDoseStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [editingTriggers, setEditingTriggers] = useState(false);
+  const [newTriggerName, setNewTriggerName] = useState("");
+  const [addTriggerStatus, setAddTriggerStatus] = useState<"idle" | "saving">("idle");
+
+  async function handleAddTrigger() {
+    if (!newTriggerName.trim()) return;
+    setAddTriggerStatus("saving");
+    await addMigraineTrigger(newTriggerName);
+    setNewTriggerName("");
+    setAddTriggerStatus("idle");
+    router.refresh();
+  }
+
+  async function handleDeleteTrigger(id: number, name: string) {
+    setS((prev) => ({
+      ...prev,
+      migraine: { ...prev.migraine, triggers: prev.migraine.triggers.filter((t) => t !== name) },
+    }));
+    await deleteMigraineTrigger(id);
+    router.refresh();
+  }
 
   async function handleQuickLog() {
     setQuickLogStatus("saving");
@@ -271,24 +292,68 @@ export function CheckinForm({
             </div>
 
             <div>
-              <span className={labelCls}>Триггеры</span>
+              <div className="flex items-center justify-between">
+                <span className={labelCls}>Триггеры</span>
+                <button
+                  type="button"
+                  onClick={() => setEditingTriggers((v) => !v)}
+                  className="font-mono text-[10px] text-ink-3 underline underline-offset-2"
+                >
+                  {editingTriggers ? "готово" : "изменить"}
+                </button>
+              </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {TRIGGERS.map((t) => {
-                  const on = m.triggers.includes(t);
-                  return (
+                {triggers.map((t) => {
+                  const on = m.triggers.includes(t.name);
+                  return editingTriggers ? (
+                    <span
+                      key={t.id}
+                      className={`${chipBase} flex items-center gap-1.5 border-line bg-surface text-ink-2`}
+                    >
+                      {t.name}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTrigger(t.id, t.name)}
+                        className="text-ink-4 transition active:text-ink-2"
+                        aria-label={`Удалить триггер ${t.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : (
                     <button
-                      key={t}
+                      key={t.id}
                       type="button"
-                      onClick={() => setS({ ...s, migraine: { ...m, triggers: toggle(m.triggers, t) } })}
+                      onClick={() => setS({ ...s, migraine: { ...m, triggers: toggle(m.triggers, t.name) } })}
                       className={`${chipBase} ${
                         on ? "border-phase bg-phase-soft font-semibold text-phase-deep" : "border-line bg-surface text-ink-2"
                       }`}
                     >
-                      {t}
+                      {t.name}
                     </button>
                   );
                 })}
               </div>
+              {editingTriggers && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newTriggerName}
+                    onChange={(e) => setNewTriggerName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddTrigger()}
+                    placeholder="Новый триггер"
+                    className="flex-1 rounded-[3px] border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTrigger}
+                    disabled={addTriggerStatus === "saving" || !newTriggerName.trim()}
+                    className="shrink-0 rounded-[3px] bg-phase px-3 py-2 font-mono text-[11px] font-semibold text-on-phase disabled:opacity-50"
+                  >
+                    + Добавить
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
