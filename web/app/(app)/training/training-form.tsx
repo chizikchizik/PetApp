@@ -223,7 +223,7 @@ export function TrainingForm({
                       <input
                         type={field === "actual_reps" ? "text" : "number"}
                         inputMode={field === "actual_weight" ? "decimal" : "numeric"}
-                        value={(ex as Record<string, string>)[field]}
+                        value={String((ex as Record<string, unknown>)[field] ?? "")}
                         onChange={(e) => updateRow(i, field as keyof ExerciseRow, e.target.value)}
                         placeholder="—"
                         className="w-full rounded-[2px] border border-line bg-surface px-1.5 py-1.5 text-[13px] text-ink text-center placeholder:text-ink-4 outline-none focus:border-phase"
