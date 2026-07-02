@@ -189,7 +189,7 @@ export default async function TrainingPage() {
 
       {/* ── Счётчик года ── */}
       {(() => {
-        const GOAL = 150;
+        const GOAL = user?.workoutYearGoal ?? 150;
         const pct = Math.min(100, Math.round((yearCount / GOAL) * 100));
         const left = GOAL - yearCount;
         return (
@@ -199,12 +199,12 @@ export default async function TrainingPage() {
                 тренировок в {year}
               </span>
               <span className="font-mono text-[11px] text-ink-3">
-                цель 150
+                цель {GOAL}
               </span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="font-serif font-bold text-[36px] leading-none text-ink">{yearCount}</span>
-              <span className="font-mono text-[13px] text-ink-3">/ 150</span>
+              <span className="font-mono text-[13px] text-ink-3">/ {GOAL}</span>
               <span className="ml-auto font-mono text-[11px] text-ink-2">{pct}%</span>
             </div>
             <div className="mt-3 h-[6px] overflow-hidden rounded-full bg-surface-3">

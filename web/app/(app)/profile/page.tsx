@@ -30,6 +30,7 @@ export default async function ProfilePage() {
         menstrualDays={user?.menstrualDays ?? null}
         weightGoalKg={user?.weightGoalKg ?? null}
         weightStartKg={user?.weightStartKg ?? null}
+        workoutYearGoal={user?.workoutYearGoal ?? null}
       />
 
       <form action={logout} className="mt-8 border-t border-line pt-5">

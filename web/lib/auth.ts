@@ -87,9 +87,10 @@ export type AppUser = {
   onboardingDone: boolean
   avgCycleLength: number | null
   menstrualDays: number | null
+  workoutYearGoal: number | null
 }
 
-const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days"
+const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days, workout_year_goal"
 
 function rowToUser(data: Record<string, unknown>): AppUser {
   return {
@@ -101,6 +102,7 @@ function rowToUser(data: Record<string, unknown>): AppUser {
     onboardingDone: (data.onboarding_done as boolean) ?? false,
     avgCycleLength: (data.avg_cycle_length as number | null) ?? null,
     menstrualDays: (data.menstrual_days as number | null) ?? null,
+    workoutYearGoal: (data.workout_year_goal as number | null) ?? null,
   }
 }
 
@@ -122,7 +124,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
           .single()
         if (data) return rowToUser(data as Record<string, unknown>)
       }
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null }
+      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null }
     }
     return null
   }

@@ -15,6 +15,7 @@ export async function saveProfile(input: {
   menstrualDays: number | null;
   weightGoalKg: number | null;
   weightStartKg: number | null;
+  workoutYearGoal: number | null;
 }) {
   const uid = await getUid();
   const db = supabaseAdmin();
@@ -28,6 +29,7 @@ export async function saveProfile(input: {
       menstrual_days: input.menstrualDays,
       weight_goal_kg: input.weightGoalKg,
       weight_start_kg: input.weightStartKg,
+      workout_year_goal: input.workoutYearGoal,
     })
     .eq("id", uid);
 
