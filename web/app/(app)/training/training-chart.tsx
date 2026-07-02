@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useRef } from "react";
 import type { WorkoutLogEntry, SportDay, MigraineEvent, SportType } from "@/lib/data";
 import { todayISOMoscow } from "@/lib/format";
 
@@ -59,6 +61,14 @@ export function TrainingChart({
   migraines: MigraineEvent[];
   sportTypes: SportType[];
 }) {
+  const heatmapScrollRef = useRef<HTMLDivElement>(null);
+
+  // Показывать сразу самые свежие недели, а не начало 26-недельной истории.
+  useEffect(() => {
+    const el = heatmapScrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, []);
+
   const colorMap = buildColorMap(sportTypes);
 
   const workoutTypeMap = new Map<string, string[]>();
@@ -153,7 +163,7 @@ export function TrainingChart({
         <p className="mb-1.5 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
           история · {weeks[0]?.[0]?.slice(0, 7)} — {todayISO.slice(0, 7)}
         </p>
-        <div className="rounded-[6px] border border-line" style={{ overflowX: "auto" }}>
+        <div ref={heatmapScrollRef} className="rounded-[6px] border border-line" style={{ overflowX: "auto" }}>
           <svg width={SVG_W} height={SVG_H} style={{ display: "block", minWidth: SVG_W, padding: "4px 4px 0 0" }}>
             {monthLabels.map(({ wi, month }) => (
               <text key={`m${wi}`} x={DAY_LABEL_W + wi * STEP} y={MONTH_H - 4}
