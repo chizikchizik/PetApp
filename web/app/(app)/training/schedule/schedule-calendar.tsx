@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   createCalendarEvent,
@@ -525,6 +525,18 @@ export function ScheduleCalendar({
     }
     router.refresh();
   }
+
+  // Re-fetch whenever the visible month changes — prev/nextMonth only moved
+  // year/month state, `events` stayed pinned to whatever range was fetched on
+  // page load, so paging away and back could look like everything vanished.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/calendar-events?from=${firstISO}&to=${lastISO}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data && !cancelled) setEvents(data); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month]);
 
   function onDayTap(iso: string) {
     const dayEvents = eventsByDate.get(iso) ?? [];
