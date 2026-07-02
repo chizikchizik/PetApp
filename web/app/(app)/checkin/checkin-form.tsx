@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
-import type { DailyLog, Med, MigraineTrigger } from "@/lib/data";
+import { TrainingQuickAdd } from "./training-quick-add";
+import type { DailyLog, Med, MigraineTrigger, SportType } from "@/lib/data";
 
 type State = CheckinPayload & { periodStart: boolean };
 
@@ -60,6 +61,7 @@ export function CheckinForm({
   weightPlaceholder,
   medCounts,
   triggers,
+  sportTypes,
 }: {
   dayKey: string;
   todayISO: string;
@@ -69,6 +71,7 @@ export function CheckinForm({
   weightPlaceholder: number | null;
   medCounts: Record<string, number>;
   triggers: MigraineTrigger[];
+  sportTypes?: SportType[];
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -385,6 +388,8 @@ export function CheckinForm({
           />
         </div>
       </div>
+
+      <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />
 
       <div>
         <div className="flex items-center justify-between">
