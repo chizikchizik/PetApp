@@ -362,35 +362,6 @@ export function CheckinForm({
         )}
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <span className={labelCls}>Вес, кг</span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.1"
-            value={s.weight}
-            placeholder={weightPlaceholder != null ? String(weightPlaceholder) : "кг"}
-            onChange={(e) => setS({ ...s, weight: e.target.value })}
-            className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
-          />
-        </div>
-        <div className="flex-1">
-          <span className={labelCls}>Ккал</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            step="1"
-            value={s.kcal}
-            placeholder="—"
-            onChange={(e) => setS({ ...s, kcal: e.target.value })}
-            className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
-          />
-        </div>
-      </div>
-
-      <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />
-
       <div>
         <div className="flex items-center justify-between">
           <span className={labelCls}>Приём препаратов</span>
@@ -567,6 +538,35 @@ export function CheckinForm({
           </div>
         )}
       </div>
+
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <span className={labelCls}>Вес, кг</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={s.weight}
+            placeholder={weightPlaceholder != null ? String(weightPlaceholder) : "кг"}
+            onChange={(e) => setS({ ...s, weight: e.target.value })}
+            className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
+          />
+        </div>
+        <div className="flex-1">
+          <span className={labelCls}>Ккал</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            value={s.kcal}
+            placeholder="—"
+            onChange={(e) => setS({ ...s, kcal: e.target.value })}
+            className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
+          />
+        </div>
+      </div>
+
+      <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />
 
       <div>
         <span className={labelCls}>Привычки</span>
