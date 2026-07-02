@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createHabit, stopHabit, resumeHabit, archiveHabit, removeFromMonth, moveStartToMonth, deleteHabit } from "./actions";
-import type { HabitRow } from "@/lib/data";
+import { createMed, deleteMed } from "../checkin/actions";
+import type { HabitRow, Med } from "@/lib/data";
 
 const RU_MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 
@@ -32,19 +34,26 @@ function classify(h: HabitRow, month: string): Section {
 
 export function HabitManager({
   habits,
+  meds = [],
   currentMonth,
   viewedMonth,
 }: {
   habits: HabitRow[];
+  meds?: Med[];
   currentMonth: string;
   viewedMonth?: string;
 }) {
+  const router = useRouter();
   const targetMonth = viewedMonth ?? currentMonth;
+  const [itemType, setItemType] = useState<"habit" | "med">("habit");
   const [newName, setNewName] = useState("");
   const [newStartMonth, setNewStartMonth] = useState(targetMonth);
+  const [medWhen, setMedWhen] = useState("");
+  const [medAsNeeded, setMedAsNeeded] = useState(false);
   const [addError, setAddError] = useState("");
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDeleteMed, setConfirmDeleteMed] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Sync default start month when navigating between months
@@ -57,15 +66,36 @@ export function HabitManager({
 
   function add() {
     setAddError("");
-    if (!newName.trim()) return;
+    const trimmed = newName.trim();
+    if (!trimmed) return;
     startTransition(async () => {
-      const res = await createHabit(newName.trim(), newStartMonth);
+      if (itemType === "med") {
+        const res = await createMed(trimmed, medWhen, medAsNeeded);
+        if (res.ok) {
+          setNewName("");
+          setMedWhen("");
+          setMedAsNeeded(false);
+          router.refresh();
+        } else {
+          setAddError(res.error ?? "Ошибка");
+        }
+        return;
+      }
+      const res = await createHabit(trimmed, newStartMonth);
       if (res.ok) {
         setNewName("");
         setNewStartMonth(targetMonth);
       } else {
         setAddError(res.error ?? "Ошибка");
       }
+    });
+  }
+
+  function removeMed(id: string) {
+    startTransition(async () => {
+      await deleteMed(id);
+      setConfirmDeleteMed(null);
+      router.refresh();
     });
   }
 
@@ -80,14 +110,30 @@ export function HabitManager({
 
           {/* ── Добавить ── */}
           <div>
-            <p className={labelCls}>Добавить привычку</p>
+            <p className={labelCls}>Добавить</p>
+            <div className="mt-2 flex gap-1.5">
+              {(["habit", "med"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setItemType(t); setAddError(""); }}
+                  className={`flex-1 rounded-[3px] border py-2 font-mono text-[10px] tracking-[0.06em] uppercase transition ${
+                    itemType === t
+                      ? "border-phase bg-phase-soft text-phase-deep font-semibold"
+                      : "border-line text-ink-3"
+                  }`}
+                >
+                  {t === "habit" ? "Привычка" : "Препарат (назначение)"}
+                </button>
+              ))}
+            </div>
             <div className="mt-2 flex gap-2">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && add()}
-                placeholder="Название"
+                placeholder={itemType === "med" ? "Название препарата" : "Название"}
                 className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
               />
               <button
@@ -99,18 +145,86 @@ export function HabitManager({
                 +
               </button>
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="font-mono text-[10px] text-ink-3">начать с</span>
-              <input
-                type="month"
-                value={newStartMonth}
-                max={nextMonth(currentMonth)}
-                onChange={(e) => setNewStartMonth(e.target.value || currentMonth)}
-                className="rounded-[3px] border border-line bg-surface px-2 py-1 font-mono text-[12px] text-ink outline-none focus:border-phase"
-              />
-            </div>
+            {itemType === "habit" ? (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="font-mono text-[10px] text-ink-3">начать с</span>
+                <input
+                  type="month"
+                  value={newStartMonth}
+                  max={nextMonth(currentMonth)}
+                  onChange={(e) => setNewStartMonth(e.target.value || currentMonth)}
+                  className="rounded-[3px] border border-line bg-surface px-2 py-1 font-mono text-[12px] text-ink outline-none focus:border-phase"
+                />
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2">
+                {!medAsNeeded && (
+                  <input
+                    type="time"
+                    value={medWhen}
+                    onChange={(e) => setMedWhen(e.target.value)}
+                    placeholder="Время"
+                    className="flex-1 rounded-[3px] border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-phase"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setMedAsNeeded((v) => !v)}
+                  className={`shrink-0 rounded-[3px] border px-3 py-2 font-mono text-[11px] tracking-[0.06em] transition ${
+                    medAsNeeded ? "border-warn bg-warn/10 text-warn" : "border-line text-ink-3"
+                  }`}
+                >
+                  {medAsNeeded ? "по мигрени ✓" : "по мигрени"}
+                </button>
+              </div>
+            )}
+            {itemType === "med" && (
+              <p className="mt-1.5 font-mono text-[9px] text-ink-4">
+                Появится в приёме препаратов на чек-ине
+              </p>
+            )}
             {addError && <p className="mt-1.5 font-sans text-[12px] text-warn">{addError}</p>}
           </div>
+
+          {/* ── Препараты ── */}
+          {meds.length > 0 && (
+            <div>
+              <p className={labelCls}>Препараты</p>
+              <div className="mt-2 divide-y divide-line rounded-card border border-line">
+                {meds.map((med) => (
+                  <div key={med.id} className={rowCls}>
+                    <div className="min-w-0 flex-1">
+                      <span className={nameCls}>{med.name}</span>
+                      {(med.isAsNeeded || med.when) && (
+                        <span className="ml-1.5 font-mono text-[10px] text-ink-3">
+                          {med.isAsNeeded ? "по мигрени" : med.when}
+                        </span>
+                      )}
+                    </div>
+                    {confirmDeleteMed === med.id ? (
+                      <div className="flex shrink-0 items-center gap-3">
+                        <button type="button" onClick={() => removeMed(med.id)} disabled={isPending} className={`${btnCls} text-warn`}>
+                          Удалить
+                        </button>
+                        <button type="button" onClick={() => setConfirmDeleteMed(null)} className={`${btnCls} text-ink-3`}>Отмена</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteMed(med.id)}
+                        className={`${btnCls} text-ink-4 hover:text-warn`}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1.5 font-mono text-[9px] text-ink-4">
+                Управление дозой — на чек-ине
+              </p>
+            </div>
+          )}
 
           {/* ── Активные ── */}
           {active.length > 0 && (

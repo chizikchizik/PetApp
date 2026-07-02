@@ -100,6 +100,8 @@ export async function createMed(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/checkin");
   revalidatePath("/dashboard");
+  revalidatePath("/habits");
+  revalidatePath("/habits/bulk");
   return { ok: true };
 }
 
@@ -157,6 +159,8 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   if (!data || data.length === 0) return { ok: false, error: "Препарат не найден" };
   revalidatePath("/checkin");
   revalidatePath("/dashboard");
+  revalidatePath("/habits");
+  revalidatePath("/habits/bulk");
   return { ok: true };
 }
 
