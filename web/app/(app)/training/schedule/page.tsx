@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { getCalendarEvents } from "./actions";
 import { ScheduleCalendar } from "./schedule-calendar";
+import { BackLink } from "@/components/back-link";
 import { isoLocal, nowMoscow } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +30,7 @@ export default async function SchedulePage() {
 
   return (
     <>
-      <Link href="/training" className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        ← тренинг
-      </Link>
+      <BackLink href="/training" label="← назад" />
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">
         РАСПИСАНИЕ
       </h1>
