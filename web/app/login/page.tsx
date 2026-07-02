@@ -1,4 +1,5 @@
 import { login } from "./actions";
+import { MaintenanceBanner } from "@/components/maintenance-banner";
 
 // Lynx mascot geometry from VERTA design system
 // viewBox "0 0 200 200"
@@ -52,6 +53,9 @@ export default async function Login({
 
   return (
     <main className="phase-follicular mx-auto flex min-h-dvh max-w-[430px] flex-col items-center justify-center px-6">
+      <div className="w-full">
+        <MaintenanceBanner />
+      </div>
       <style>{`
         @keyframes lynxDraw { to { stroke-dashoffset: 0; } }
         @keyframes lynxDotIn {

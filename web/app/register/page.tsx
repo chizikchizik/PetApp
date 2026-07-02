@@ -1,4 +1,5 @@
 import { register } from "./actions";
+import { MaintenanceBanner } from "@/components/maintenance-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function Register({
   const { e } = await searchParams;
   return (
     <main className="phase-follicular mx-auto flex min-h-dvh max-w-[430px] flex-col justify-center px-6">
+      <MaintenanceBanner />
       <p className="font-serif font-bold text-[22px] tracking-[0.04em] text-ink">VERTA</p>
       <h1 className="mt-2 font-serif text-[26px] font-bold uppercase">Регистрация</h1>
       <p className="mt-1 text-[13px] text-ink-2">Создай свой личный дневник</p>
