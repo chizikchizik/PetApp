@@ -77,7 +77,10 @@ async function ensureSectorsExist(
     description: s.description,
     sort: i,
   }));
-  await db.from("balance_sector").insert(rows);
+  // upsert + ignoreDuplicates (ON CONFLICT (app_user_id, sort) DO NOTHING) makes the
+  // write itself race-safe even if two requests both pass the SELECT check above at
+  // once — Postgres dedupes at the constraint level regardless of app-level timing.
+  await db.from("balance_sector").upsert(rows, { onConflict: "app_user_id,sort", ignoreDuplicates: true });
 }
 
 /** A client-held id might be a real row id, or (before the user's first edit) a

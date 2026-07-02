@@ -217,8 +217,12 @@ export function BalanceForm({ sectors, assessments }: { sectors: Sector[]; asses
 
           {managingSectors && (
             <div className="rounded-card border border-line bg-surface p-3.5 space-y-2.5">
-              {sectors.map((s) => (
-                <div key={s.id} className="flex items-center gap-2">
+              {sectors.map((s, i) => (
+                // Keyed by position, not s.id: the very first edit on a fresh user
+                // materializes synthetic ids (0..7) into real DB ids, which would
+                // otherwise remount every row (and drop any in-progress typing in
+                // a field the user hasn't blurred yet) right after router.refresh().
+                <div key={i} className="flex items-center gap-2">
                   <input
                     type="text"
                     defaultValue={s.label}
