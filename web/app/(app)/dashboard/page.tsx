@@ -310,7 +310,7 @@ export default async function Dashboard() {
             колесо баланса
           </div>
           <div className="mt-1 font-sans text-[13px] text-ink-2">
-            8 сфер · колесо жизни
+            колесо жизни
           </div>
         </div>
         <span className="font-mono text-[13px] text-phase">→</span>

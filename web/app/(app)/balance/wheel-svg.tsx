@@ -1,54 +1,42 @@
 "use client";
-import type { Scores } from "./actions";
-
-const N = 8;
-
-const SEGMENTS: { key: keyof Scores; label: string }[] = [
-  { key: "family",  label: "Семья"       },
-  { key: "work",    label: "Работа"      },
-  { key: "rest",    label: "Отдых"       },
-  { key: "health",  label: "Здоровье"    },
-  { key: "friends", label: "Дружба"      },
-  { key: "money",   label: "Деньги"      },
-  { key: "spirit",  label: "Духовность"  },
-  { key: "growth",  label: "Рост"        },
-];
+import type { Sector, ScoreMap } from "./actions";
 
 const CX = 155;
 const CY = 155;
 const MAX_R = 100;
 const LABEL_R = 130;
 
-function angle(i: number) {
-  return -Math.PI / 2 + (i * 2 * Math.PI) / N;
+function angle(i: number, n: number) {
+  return -Math.PI / 2 + (i * 2 * Math.PI) / n;
 }
 
 function polarXY(r: number, a: number) {
   return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) };
 }
 
-function gridPoints(r: number): string {
-  return SEGMENTS.map((_, i) => {
-    const { x, y } = polarXY(r, angle(i));
-    return `${x},${y}`;
-  }).join(" ");
-}
-
-function dataPoints(scores: Scores): string {
-  return SEGMENTS.map((s, i) => {
-    const v = Math.max(1, Math.min(10, scores[s.key] ?? 1));
-    const { x, y } = polarXY((v / 10) * MAX_R, angle(i));
-    return `${x},${y}`;
-  }).join(" ");
-}
-
-export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
+export function WheelSvg({ sectors, scores, prev }: { sectors: Sector[]; scores: ScoreMap; prev?: ScoreMap }) {
+  const n = sectors.length;
   const grids = [2, 4, 6, 8, 10];
 
+  function gridPoints(r: number): string {
+    return sectors.map((_, i) => {
+      const { x, y } = polarXY(r, angle(i, n));
+      return `${x},${y}`;
+    }).join(" ");
+  }
+
+  function dataPoints(s: ScoreMap): string {
+    return sectors.map((sec, i) => {
+      const v = Math.max(1, Math.min(10, s[sec.id] ?? 1));
+      const { x, y } = polarXY((v / 10) * MAX_R, angle(i, n));
+      return `${x},${y}`;
+    }).join(" ");
+  }
+
   return (
-    // viewBox extended left/right to give labels room outside the octagon
+    // viewBox extended left/right to give labels room outside the polygon
     <svg viewBox="-60 -20 430 360" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[340px]">
-      {/* Grid octagons */}
+      {/* Grid polygons */}
       {grids.map((g) => (
         <polygon
           key={g}
@@ -60,11 +48,11 @@ export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
       ))}
 
       {/* Axis lines */}
-      {SEGMENTS.map((_, i) => {
-        const outer = polarXY(MAX_R, angle(i));
+      {sectors.map((sec, i) => {
+        const outer = polarXY(MAX_R, angle(i, n));
         return (
           <line
-            key={i}
+            key={sec.id}
             x1={CX} y1={CY}
             x2={outer.x} y2={outer.y}
             stroke="var(--line)"
@@ -97,11 +85,11 @@ export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
       />
 
       {/* Score dots */}
-      {SEGMENTS.map((s, i) => {
-        const v = Math.max(1, Math.min(10, scores[s.key] ?? 1));
-        const { x, y } = polarXY((v / 10) * MAX_R, angle(i));
+      {sectors.map((sec, i) => {
+        const v = Math.max(1, Math.min(10, scores[sec.id] ?? 1));
+        const { x, y } = polarXY((v / 10) * MAX_R, angle(i, n));
         return (
-          <circle key={s.key} cx={x} cy={y} r={3.5} fill="var(--phase)" />
+          <circle key={sec.id} cx={x} cy={y} r={3.5} fill="var(--phase)" />
         );
       })}
 
@@ -116,8 +104,8 @@ export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
       })}
 
       {/* Segment labels */}
-      {SEGMENTS.map((s, i) => {
-        const a = angle(i);
+      {sectors.map((sec, i) => {
+        const a = angle(i, n);
         const { x, y } = polarXY(LABEL_R, a);
         const cosA = Math.cos(a);
         const sinA = Math.sin(a);
@@ -127,9 +115,9 @@ export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
           : "end";
         // vertical nudge: push up at top, down at bottom, center otherwise
         const dy = sinA < -0.3 ? -7 : sinA > 0.3 ? 13 : 4;
-        const v = scores[s.key] ?? 5;
+        const v = scores[sec.id] ?? 5;
         return (
-          <g key={s.key}>
+          <g key={sec.id}>
             <text
               x={x} y={y + dy - 6}
               textAnchor={anchor}
@@ -138,7 +126,7 @@ export function WheelSvg({ scores, prev }: { scores: Scores; prev?: Scores }) {
               fill="var(--ink)"
               fontFamily="Manrope, sans-serif"
             >
-              {s.label}
+              {sec.label}
             </text>
             <text
               x={x} y={y + dy + 5}

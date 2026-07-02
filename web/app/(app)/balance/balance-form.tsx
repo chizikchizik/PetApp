@@ -1,23 +1,16 @@
 "use client";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { WheelSvg } from "./wheel-svg";
-import { saveAssessment, type Scores, type Assessment } from "./actions";
-
-const SEGMENTS: { key: keyof Scores; label: string; desc: string }[] = [
-  { key: "family",  label: "Семья и любовь",       desc: "Близкие отношения, партнёр, родные, тепло дома" },
-  { key: "work",    label: "Работа и реализация",  desc: "Смысл, признание, карьера, реализация потенциала" },
-  { key: "rest",    label: "Отдых и развлечения",  desc: "Время для себя, хобби, развлечения, восстановление" },
-  { key: "health",  label: "Здоровье и красота",   desc: "Тело, питание, сон, внешность и самоощущение" },
-  { key: "friends", label: "Дружба и общение",     desc: "Круг общения, близкие друзья, социальная жизнь" },
-  { key: "money",   label: "Деньги и имущество",   desc: "Финансы, стабильность, собственность, достаток" },
-  { key: "spirit",  label: "Духовность",           desc: "Смыслы, ценности, внутренний мир, опора на себя" },
-  { key: "growth",  label: "Личностный рост",      desc: "Развитие, знания, навыки, кто ты через год" },
-];
-
-const DEFAULT_SCORES: Scores = {
-  family: 5, work: 5, rest: 5, health: 5,
-  friends: 5, money: 5, spirit: 5, growth: 5,
-};
+import {
+  saveAssessment,
+  addSector,
+  renameSector,
+  deleteSector,
+  type Sector,
+  type ScoreMap,
+  type Assessment,
+} from "./actions";
 
 const RU_MONTHS = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 function fmtDate(iso: string) {
@@ -29,16 +22,27 @@ function fmtDateTime(iso: string) {
   return `${d.getDate()} ${RU_MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
+function defaultScores(sectors: Sector[]): ScoreMap {
+  return Object.fromEntries(sectors.map((s) => [s.id, 5]));
+}
+
+export function BalanceForm({ sectors, assessments }: { sectors: Sector[]; assessments: Assessment[] }) {
+  const router = useRouter();
   const latest = assessments[0];
   const prev = assessments[1];
 
   const [editing, setEditing] = useState(!latest);
-  const [scores, setScores] = useState<Scores>(latest?.scores ?? DEFAULT_SCORES);
+  const [scores, setScores] = useState<ScoreMap>(latest?.scores ?? defaultScores(sectors));
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isPending, startTransition] = useTransition();
   const [viewingId, setViewingId] = useState<string | null>(null);
+
+  const [managingSectors, setManagingSectors] = useState(false);
+  const [renameDrafts, setRenameDrafts] = useState<Record<number, string>>({});
+  const [newSectorLabel, setNewSectorLabel] = useState("");
+  const [sectorError, setSectorError] = useState<string | null>(null);
+  const [sectorBusy, setSectorBusy] = useState(false);
 
   const viewingAssessment = viewingId ? assessments.find(a => a.id === viewingId) : null;
 
@@ -46,7 +50,7 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
     ? scores
     : viewingAssessment
       ? viewingAssessment.scores
-      : (latest?.scores ?? DEFAULT_SCORES);
+      : (latest?.scores ?? defaultScores(sectors));
 
   const displayPrev = editing
     ? (latest ? latest.scores : undefined)
@@ -54,8 +58,8 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       ? undefined
       : prev?.scores;
 
-  function setScore(key: keyof Scores, val: number) {
-    setScores((s) => ({ ...s, [key]: Math.max(1, Math.min(10, val)) }));
+  function setScore(id: number, val: number) {
+    setScores((s) => ({ ...s, [id]: Math.max(1, Math.min(10, val)) }));
   }
 
   function handleSave() {
@@ -68,6 +72,7 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
         setViewingId(null);
         setNote("");
         setTimeout(() => setStatus("idle"), 2000);
+        router.refresh();
       } else {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 3000);
@@ -76,22 +81,54 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
   }
 
   function startEditing() {
-    setScores(latest?.scores ?? DEFAULT_SCORES);
+    setScores(latest?.scores ?? defaultScores(sectors));
     setViewingId(null);
     setEditing(true);
   }
 
-  const weak = SEGMENTS
-    .map((s) => ({ ...s, v: displayScores[s.key] }))
-    .filter((s) => s.v <= 4)
-    .sort((a, b) => a.v - b.v)
+  async function handleRenameSector(id: number) {
+    const label = renameDrafts[id];
+    if (label == null) return;
+    setSectorBusy(true);
+    setSectorError(null);
+    const res = await renameSector(id, label);
+    if (!res.ok) setSectorError("Не удалось переименовать");
+    setSectorBusy(false);
+    router.refresh();
+  }
+
+  async function handleDeleteSector(id: number) {
+    setSectorBusy(true);
+    setSectorError(null);
+    const res = await deleteSector(id);
+    if (!res.ok) setSectorError(res.error ?? "Не удалось удалить");
+    setSectorBusy(false);
+    router.refresh();
+  }
+
+  async function handleAddSector() {
+    const label = newSectorLabel.trim();
+    if (!label) return;
+    setSectorBusy(true);
+    setSectorError(null);
+    const res = await addSector(label);
+    if (!res.ok) setSectorError("Не удалось добавить");
+    else setNewSectorLabel("");
+    setSectorBusy(false);
+    router.refresh();
+  }
+
+  const weak = sectors
+    .map((s) => ({ ...s, v: displayScores[s.id] }))
+    .filter((s) => s.v != null && s.v <= 4)
+    .sort((a, b) => (a.v ?? 0) - (b.v ?? 0))
     .slice(0, 2);
 
   return (
     <div>
       {/* Wheel */}
       <div className="flex justify-center mt-5">
-        <WheelSvg scores={displayScores} prev={displayPrev} />
+        <WheelSvg sectors={sectors} scores={displayScores} prev={displayPrev} />
       </div>
 
       {/* Date label */}
@@ -109,11 +146,11 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       {!editing && viewingAssessment && (
         <div className="mt-3 rounded-card border border-line bg-surface p-3.5">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            {SEGMENTS.map((s) => (
-              <div key={s.key} className="flex items-center justify-between">
+            {sectors.map((s) => (
+              <div key={s.id} className="flex items-center justify-between">
                 <span className="font-sans text-[11px] text-ink-2">{s.label}</span>
                 <span className="font-mono text-[12px] font-semibold" style={{ color: "var(--phase)" }}>
-                  {viewingAssessment.scores[s.key]}/10
+                  {viewingAssessment.scores[s.id] != null ? `${viewingAssessment.scores[s.id]}/10` : "—"}
                 </span>
               </div>
             ))}
@@ -139,7 +176,7 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
           </p>
           <div className="mt-1.5 space-y-1">
             {weak.map((s) => (
-              <div key={s.key} className="flex items-center gap-2">
+              <div key={s.id} className="flex items-center gap-2">
                 <span className="font-mono text-[11px] font-semibold text-phase-deep">{s.v}/10</span>
                 <span className="font-sans text-[13px] text-ink">{s.label}</span>
               </div>
@@ -165,30 +202,91 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
       {/* Editing form */}
       {editing && (
         <div className="mt-5 space-y-4">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            оцени каждую сферу от 1 до 10
-          </p>
-          {SEGMENTS.map((s) => (
-            <div key={s.key} className="rounded-card border border-line bg-surface p-4">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+              оцени каждую сферу от 1 до 10
+            </p>
+            <button
+              type="button"
+              onClick={() => { setManagingSectors((v) => !v); setSectorError(null); }}
+              className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3 underline"
+            >
+              {managingSectors ? "готово" : "настроить сферы"}
+            </button>
+          </div>
+
+          {managingSectors && (
+            <div className="rounded-card border border-line bg-surface p-3.5 space-y-2.5">
+              {sectors.map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    defaultValue={s.label}
+                    onChange={(e) => setRenameDrafts((d) => ({ ...d, [s.id]: e.target.value }))}
+                    onBlur={() => {
+                      if (renameDrafts[s.id] != null && renameDrafts[s.id] !== s.label) handleRenameSector(s.id);
+                    }}
+                    disabled={sectorBusy}
+                    className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-3 py-2 font-sans text-[13px] text-ink outline-none focus:border-phase"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSector(s.id)}
+                    disabled={sectorBusy}
+                    className="shrink-0 font-mono text-[11px] text-ink-4 transition hover:text-red-500 disabled:opacity-40"
+                  >
+                    удалить
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newSectorLabel}
+                  onChange={(e) => setNewSectorLabel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddSector()}
+                  placeholder="Новая сфера..."
+                  disabled={sectorBusy}
+                  className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-3 py-2 font-sans text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddSector}
+                  disabled={sectorBusy || !newSectorLabel.trim()}
+                  className="shrink-0 rounded-[3px] border border-line bg-surface px-4 font-mono text-[13px] text-phase disabled:opacity-40"
+                >
+                  +
+                </button>
+              </div>
+              {sectorError && (
+                <p className="font-mono text-[11px] text-red-400">{sectorError}</p>
+              )}
+            </div>
+          )}
+
+          {sectors.map((s) => (
+            <div key={s.id} className="rounded-card border border-line bg-surface p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-sans text-[14px] font-semibold text-ink">{s.label}</p>
-                  <p className="mt-0.5 font-sans text-[11px] text-ink-3">{s.desc}</p>
+                  {s.description && (
+                    <p className="mt-0.5 font-sans text-[11px] text-ink-3">{s.description}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setScore(s.key, scores[s.key] - 1)}
+                    onClick={() => setScore(s.id, (scores[s.id] ?? 5) - 1)}
                     className="flex h-7 w-7 items-center justify-center rounded-[3px] border border-line bg-surface text-ink-2 transition active:scale-90"
                   >
                     −
                   </button>
                   <span className="w-6 text-center font-mono text-[18px] font-semibold" style={{ color: "var(--phase)" }}>
-                    {scores[s.key]}
+                    {scores[s.id] ?? 5}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setScore(s.key, scores[s.key] + 1)}
+                    onClick={() => setScore(s.id, (scores[s.id] ?? 5) + 1)}
                     className="flex h-7 w-7 items-center justify-center rounded-[3px] border border-line bg-surface text-ink-2 transition active:scale-90"
                   >
                     +
@@ -198,8 +296,8 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
               <input
                 type="range"
                 min={1} max={10} step={1}
-                value={scores[s.key]}
-                onChange={(e) => setScore(s.key, +e.target.value)}
+                value={scores[s.id] ?? 5}
+                onChange={(e) => setScore(s.id, +e.target.value)}
                 className="mt-3 w-full h-5"
                 style={{ accentColor: "var(--phase)" }}
               />
@@ -244,9 +342,8 @@ export function BalanceForm({ assessments }: { assessments: Assessment[] }) {
           <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">история</p>
           <div className="mt-2 space-y-2">
             {assessments.slice(1).map((a) => {
-              const avg = Math.round(
-                Object.values(a.scores).reduce((s, v) => s + v, 0) / SEGMENTS.length
-              );
+              const vals = Object.values(a.scores);
+              const avg = vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 0;
               const isViewing = viewingId === a.id;
               return (
                 <button

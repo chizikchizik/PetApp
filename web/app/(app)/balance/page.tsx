@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getAssessments } from "./actions";
+import { getAssessments, getSectors } from "./actions";
 import { BalanceForm } from "./balance-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function BalancePage() {
-  const assessments = await getAssessments();
+  const [assessments, sectors] = await Promise.all([getAssessments(), getSectors()]);
 
   return (
     <>
@@ -19,14 +19,14 @@ export default async function BalancePage() {
         КОЛЕСО БАЛАНСА
       </h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
-        8 сфер · колесо жизни · ironby
+        {sectors.length} {sectors.length === 1 ? "сфера" : sectors.length < 5 ? "сферы" : "сфер"} · колесо жизни · ironby
       </p>
 
       <div className="mt-3 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 font-sans text-[11.5px] leading-relaxed text-ink-2">
         Оцени каждую сферу честно. Проблемные зоны станут фокусом работы.
       </div>
 
-      <BalanceForm assessments={assessments} />
+      <BalanceForm sectors={sectors} assessments={assessments} />
     </>
   );
 }
