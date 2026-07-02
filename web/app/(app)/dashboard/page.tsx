@@ -14,8 +14,16 @@ import {
   type WearableDay,
 } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
-import { formatDay, pluralDays, todayISOMoscow } from "@/lib/format";
+import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getCalendarEvents } from "../training/schedule/actions";
+
+const WEEK_TYPE_COLORS: Record<string, string> = {
+  workout:  "var(--phase)",
+  event:    "var(--ink-2)",
+  reminder: "var(--warn, #e8a23a)",
+};
+const DOW_SHORT = ["ПН","ВТ","СР","ЧТ","ПТ","СБ","ВС"];
 
 const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
   menstrual: {
@@ -66,7 +74,16 @@ export default async function Dashboard() {
   const ym = todayISO.slice(0, 7);
   const todayStr = todayISO;
 
-  const [user, triptan, weights, currentWeight, habits, todayLog, habitStats, wearable] = await Promise.all([
+  const dow = (today.getDay() + 6) % 7; // Mon=0
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dow);
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return isoLocal(d);
+  });
+
+  const [user, triptan, weights, currentWeight, habits, todayLog, habitStats, wearable, weekEvents] = await Promise.all([
     getCurrentUser(),
     getTriptanCount(ym),
     getRecentActualWeights(8),
@@ -75,7 +92,14 @@ export default async function Dashboard() {
     getDailyLog(todayStr),
     getMonthHabitStats(ym),
     getRecentWearableData(7),
+    getCalendarEvents(weekDates[0], weekDates[6]),
   ]);
+  const eventsByDate = new Map<string, typeof weekEvents>();
+  for (const ev of weekEvents) {
+    const list = eventsByDate.get(ev.event_date) ?? [];
+    list.push(ev);
+    eventsByDate.set(ev.event_date, list);
+  }
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
@@ -299,6 +323,47 @@ export default async function Dashboard() {
           <p className="mt-1.5 font-sans text-[11.5px] leading-[1.5] text-ink-2">{tip.text}</p>
         </Link>
       </div>
+
+      {/* ── Расписание недели ── */}
+      <Link
+        href="/training/schedule"
+        className="mt-3.5 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
+      >
+        <div className="flex items-center justify-between">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            расписание недели
+          </div>
+          <span className="font-mono text-[13px] text-phase">→</span>
+        </div>
+        <div className="mt-3 grid grid-cols-7 gap-1">
+          {weekDates.map((iso, i) => {
+            const dayEvents = eventsByDate.get(iso) ?? [];
+            const dayNum = parseInt(iso.slice(8), 10);
+            const isToday = iso === todayStr;
+            return (
+              <div key={iso} className="flex flex-col items-center gap-1">
+                <span className="font-mono text-[9px] uppercase text-ink-3">{DOW_SHORT[i]}</span>
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] ${
+                    isToday ? "bg-phase font-semibold text-on-phase" : "text-ink-2"
+                  }`}
+                >
+                  {dayNum}
+                </span>
+                <div className="flex h-[4px] gap-[2px]">
+                  {dayEvents.slice(0, 3).map((ev) => (
+                    <span
+                      key={ev.id}
+                      className="h-[4px] w-[4px] shrink-0 rounded-full"
+                      style={{ background: WEEK_TYPE_COLORS[ev.type] ?? "var(--ink-3)" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Link>
 
       {/* ── Колесо баланса ── */}
       <Link
