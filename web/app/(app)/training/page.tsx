@@ -14,7 +14,7 @@ import { TrainingForm } from "./training-form";
 import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
-import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow, pluralDays } from "@/lib/format";
+import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -151,15 +151,21 @@ const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
   },
 };
 
-/** "в среднем 2 в день" при темпе ≥1/день, иначе "в среднем раз в N дней" —
- * "1 в день" при реальном темпе 0.3/день (было раньше, Math.ceil всегда
- * округлял вверх минимум до 1) вводило в заблуждение. */
-function paceText(left: number, year: number): string {
-  const daysLeft = Math.max(1, Math.ceil((new Date(year, 11, 31).getTime() - Date.now()) / 86400000));
-  const perDay = left / daysLeft;
-  if (perDay >= 1) return `в среднем ${Math.ceil(perDay)} в день`;
-  const everyN = Math.max(1, Math.round(daysLeft / left));
-  return everyN <= 1 ? "в среднем раз в день" : `в среднем раз в ${pluralDays(everyN)}`;
+/** Фактический темп за прошедшую часть года: тренировок / прошедших недель,
+ * округлено — не прогноз на оставшиеся дни, а то, что реально было. */
+function paceText(yearCount: number, year: number): string {
+  const startOfYear = new Date(year, 0, 1).getTime();
+  const daysElapsed = Math.max(1, Math.ceil((Date.now() - startOfYear) / 86400000));
+  const weeksElapsed = daysElapsed / 7;
+  const perWeek = Math.round(yearCount / weeksElapsed);
+  return `в среднем ${perWeek} ${pluralTimes(perWeek)} в неделю`;
+}
+
+/** Русское склонение: 1 раз, 2 раза, 5 раз. */
+function pluralTimes(n: number): string {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  return a > 10 && a < 20 ? "раз" : b === 1 ? "раз" : b >= 2 && b <= 4 ? "раза" : "раз";
 }
 
 export default async function TrainingPage() {
@@ -225,7 +231,7 @@ export default async function TrainingPage() {
             </div>
             <p className="mt-2 font-mono text-[10px] text-ink-3">
               {left > 0
-                ? `ещё ${left} · ${paceText(left, year)}`
+                ? `ещё ${left} · ${paceText(yearCount, year)}`
                 : "цель достигнута 🎯"}
             </p>
           </div>
