@@ -262,6 +262,24 @@ export function TrainingChart({
             })}
           </svg>
         </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <div className="flex items-center gap-1.5">
+            <svg width={9} height={9}><rect width={9} height={9} rx={2} fill={C_BAR} /></svg>
+            <span className="font-mono text-[10px] text-ink-3">тренировки</span>
+          </div>
+          {sports.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <svg width={9} height={9}><rect width={9} height={9} rx={2} fill={C_SPORT} /></svg>
+              <span className="font-mono text-[10px] text-ink-3">спорт</span>
+            </div>
+          )}
+          {migraines.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <svg width={9} height={9}><rect width={9} height={9} rx={2} fill={C_MIG} /></svg>
+              <span className="font-mono text-[10px] text-ink-3">мигрень</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

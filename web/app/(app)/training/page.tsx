@@ -14,7 +14,7 @@ import { TrainingForm } from "./training-form";
 import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
-import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
+import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow, pluralDays } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -151,6 +151,16 @@ const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
   },
 };
 
+/** "в среднем 2 в день" при темпе ≥1/день, иначе "в среднем раз в N дней" —
+ * "1 в день" при реальном темпе 0.3/день (было раньше, Math.ceil всегда
+ * округлял вверх минимум до 1) вводило в заблуждение. */
+function paceText(left: number, year: number): string {
+  const daysLeft = Math.max(1, Math.ceil((new Date(year, 11, 31).getTime() - Date.now()) / 86400000));
+  const perDay = left / daysLeft;
+  if (perDay >= 1) return `в среднем ${Math.ceil(perDay)} в день`;
+  const everyN = Math.max(1, Math.round(daysLeft / left));
+  return everyN <= 1 ? "в среднем раз в день" : `в среднем раз в ${pluralDays(everyN)}`;
+}
 
 export default async function TrainingPage() {
   const sinceISO = isoDaysFromTodayMoscow(-26 * 7);
@@ -215,7 +225,7 @@ export default async function TrainingPage() {
             </div>
             <p className="mt-2 font-mono text-[10px] text-ink-3">
               {left > 0
-                ? `ещё ${left} · в среднем ${Math.ceil(left / Math.max(1, Math.ceil((new Date(year, 11, 31).getTime() - Date.now()) / 86400000)))} в день`
+                ? `ещё ${left} · ${paceText(left, year)}`
                 : "цель достигнута 🎯"}
             </p>
           </div>
