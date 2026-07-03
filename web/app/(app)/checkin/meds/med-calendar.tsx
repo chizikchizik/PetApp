@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Med, MedIntakeDay } from "@/lib/data";
+import type { Med, MedIntakeDay, QuickPainEntry } from "@/lib/data";
 import { setMedDrugClass } from "../actions";
 
 const MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
@@ -392,6 +392,35 @@ function MigreBotSection({ entries }: { entries: MigraineDayEntry[] }) {
   );
 }
 
+function QuickPainSection({ entries }: { entries: QuickPainEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-card border border-line bg-surface p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
+          разовые записи · другая боль
+        </span>
+        <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-ink-3">
+          {entries.length}
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {entries.map((e) => (
+          <div key={e.id} className="flex gap-2">
+            <span className="shrink-0 w-[52px] font-mono text-[11px] text-ink-3">
+              {e.logDate.slice(5).replace("-", ".")}
+            </span>
+            <p className="font-sans text-[12px] text-ink-2">
+              {e.painLocation}
+              {e.medName && ` · ${e.medName}`}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function MedCalendar({
@@ -399,11 +428,13 @@ export function MedCalendar({
   intakeDays,
   fromISO,
   todayISO,
+  quickPainEntries = [],
 }: {
   meds: Med[];
   intakeDays: MedIntakeDay[];
   fromISO: string;
   todayISO: string;
+  quickPainEntries?: QuickPainEntry[];
 }) {
   const days  = buildDayRange(fromISO, todayISO);
   const weeks = toWeeks(days);
@@ -513,6 +544,7 @@ export function MedCalendar({
       )}
 
       <MigreBotSection entries={migreBotEntries} />
+      <QuickPainSection entries={quickPainEntries} />
 
       <div className="flex flex-wrap gap-4 pt-1">
         <div className="flex items-center gap-1.5">

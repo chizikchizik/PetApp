@@ -210,6 +210,32 @@ export async function quickLogMigraine(dayKey: string): Promise<{ ok: boolean; e
   return { ok: true };
 }
 
+// Quick log for occasional non-migraine pain (Iteration 1, see migration 046).
+// Writes only to medication_intake — deliberately does NOT touch
+// meds_taken/habits_done, so it can never inflate the МИГБ counter or
+// adherence stats. medId is optional: often there's no medication to log,
+// just "stomach hurt, did nothing about it".
+export async function logQuickPain(
+  dayKey: string,
+  painLocation: string,
+  medId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+  const { error } = await db.from("medication_intake").insert({
+    app_user_id: uid,
+    medication_id: medId,
+    log_date: dayKey,
+    purpose: "pain_other",
+    pain_location: painLocation,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/checkin");
+  revalidatePath("/checkin/meds");
+  return { ok: true };
+}
+
 export async function savePeriodStart(dateISO: string): Promise<{ ok: boolean }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false };

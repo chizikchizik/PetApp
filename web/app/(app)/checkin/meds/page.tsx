@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMeds, getMedIntakeDays } from "@/lib/data";
+import { getMeds, getMedIntakeDays, getQuickPainEntries } from "@/lib/data";
 import { todayISOMoscow } from "@/lib/format";
 import { MedCalendar } from "./med-calendar";
 
@@ -26,9 +26,10 @@ export default async function MedsPage({
   const nextEnd  = addMonths(endISO, 3);
   const nextEnd2 = nextEnd > todayISO ? todayISO : nextEnd;
 
-  const [meds, intakeDays] = await Promise.all([
+  const [meds, intakeDays, quickPainEntries] = await Promise.all([
     getMeds(),
     getMedIntakeDays(fromISO, endISO),
+    getQuickPainEntries(fromISO, endISO),
   ]);
 
   const fromLabel = fromISO.slice(0, 7).replace("-", ".");
@@ -72,6 +73,7 @@ export default async function MedsPage({
           intakeDays={intakeDays}
           fromISO={fromISO}
           todayISO={endISO}
+          quickPainEntries={quickPainEntries}
         />
       </div>
 

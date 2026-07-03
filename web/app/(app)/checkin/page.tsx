@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CheckinForm } from "./checkin-form";
 import { getCurrentCycle, PHASE_LABELS } from "@/lib/cycle";
-import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight, getMedMonthlyCounts, getMigraineTriggers, getSportTypes } from "@/lib/data";
+import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight, getMedMonthlyCounts, getMigraineTriggers, getSportTypes, getQuickPainEntries } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 
@@ -25,7 +25,7 @@ export default async function CheckIn({
   const isToday = dayKey === todayISO;
   const targetDate = new Date(dayKey + "T12:00:00");
 
-  const [starts, initial, habits, meds, weight, user, medCounts, triggers, sportTypes] = await Promise.all([
+  const [starts, initial, habits, meds, weight, user, medCounts, triggers, sportTypes, todayQuickPain] = await Promise.all([
     getPeriodStarts(),
     getDailyLog(dayKey),
     getHabits(todayISO.slice(0, 7)),
@@ -35,6 +35,7 @@ export default async function CheckIn({
     getMedMonthlyCounts(dayKey.slice(0, 7)),
     getMigraineTriggers(),
     getSportTypes(),
+    getQuickPainEntries(dayKey, dayKey),
   ]);
   const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
 
@@ -78,6 +79,7 @@ export default async function CheckIn({
         medCounts={medCounts}
         triggers={triggers}
         sportTypes={sportTypes}
+        todayQuickPain={todayQuickPain}
       />
     </div>
   );

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
+import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, logQuickPain, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
 import { TrainingQuickAdd } from "./training-quick-add";
+import { PainQuickLogSheet } from "./pain-quick-log-sheet";
 import { SPORT_HABIT_NAMES } from "@/lib/habits-shared";
-import type { DailyLog, Med, MigraineTrigger, SportType } from "@/lib/data";
+import type { DailyLog, Med, MigraineTrigger, QuickPainEntry, SportType } from "@/lib/data";
 
 type State = CheckinPayload & { periodStart: boolean };
 
@@ -61,6 +62,7 @@ export function CheckinForm({
   medCounts,
   triggers,
   sportTypes,
+  todayQuickPain = [],
 }: {
   dayKey: string;
   todayISO: string;
@@ -71,6 +73,7 @@ export function CheckinForm({
   medCounts: Record<string, number>;
   triggers: MigraineTrigger[];
   sportTypes?: SportType[];
+  todayQuickPain?: QuickPainEntry[];
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -88,6 +91,7 @@ export function CheckinForm({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
   const [quickLogStatus, setQuickLogStatus] = useState<"idle" | "saving" | "done">("idle");
+  const [painSheetOpen, setPainSheetOpen] = useState(false);
   const [changingDoseId, setChangingDoseId] = useState<string | null>(null);
   const [doseName, setDoseName] = useState("");
   const [doseNote, setDoseNote] = useState("");
@@ -124,6 +128,14 @@ export function CheckinForm({
       router.refresh();
     } else {
       setQuickLogStatus("idle");
+    }
+  }
+
+  async function handleLogQuickPain(painLocation: string, medId: string | null) {
+    const res = await logQuickPain(dayKey, painLocation, medId);
+    if (res.ok) {
+      setPainSheetOpen(false);
+      router.refresh();
     }
   }
 
@@ -356,14 +368,44 @@ export function CheckinForm({
       </div>
 
       {!m.had && (
-        <button
-          type="button"
-          onClick={handleQuickLog}
-          disabled={quickLogStatus === "saving"}
-          className="flex w-full items-center justify-center gap-2 rounded-card border border-phase bg-phase-soft py-3.5 font-sans text-[14px] font-semibold text-phase-deep transition active:scale-[0.99] disabled:opacity-60"
-        >
-          {quickLogStatus === "saving" ? "Отмечаю…" : quickLogStatus === "done" ? "Отмечено ✓" : "⚡ Плохо сейчас — отметить одним тапом"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleQuickLog}
+            disabled={quickLogStatus === "saving"}
+            className="flex-1 rounded-card border border-phase bg-phase-soft py-3.5 font-sans text-[14px] font-semibold text-phase-deep transition active:scale-[0.99] disabled:opacity-60"
+          >
+            {quickLogStatus === "saving" ? "Отмечаю…" : quickLogStatus === "done" ? "Отмечено ✓" : "⚡ Голова — отметить"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPainSheetOpen(true)}
+            className="flex-1 rounded-card border border-line bg-surface-2 py-3.5 font-sans text-[14px] font-semibold text-ink-2 transition active:scale-[0.99]"
+          >
+            Другая боль
+          </button>
+        </div>
+      )}
+
+      {todayQuickPain.length > 0 && (
+        <div className="space-y-1.5">
+          {todayQuickPain.map((entry) => (
+            <div key={entry.id} className="flex items-center gap-2 rounded-[3px] border border-line bg-surface-2 px-3 py-2">
+              <span className="text-[12px] text-ink-2">
+                {entry.painLocation}
+                {entry.medName && ` · ${entry.medName}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {painSheetOpen && (
+        <PainQuickLogSheet
+          asNeededMeds={meds.filter((med) => med.isAsNeeded)}
+          onSave={handleLogQuickPain}
+          onClose={() => setPainSheetOpen(false)}
+        />
       )}
 
       <div className="rounded-card border border-line bg-surface p-4 shadow-sm">
@@ -504,19 +546,24 @@ export function CheckinForm({
         </div>
 
         <div className="mt-2 rounded-card border border-line bg-surface px-4">
-          {regularMeds.map((med, i) => renderMedRow(med, i))}
-          {supplementMeds.length > 0 && (
-            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${regularMeds.length > 0 ? "border-t border-line" : ""}`}>
-              витамины
-            </p>
-          )}
-          {supplementMeds.map((med, i) => renderMedRow(med, i))}
           {topAsNeeded.length > 0 && (
-            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${regularMeds.length + supplementMeds.length > 0 ? "border-t border-line" : ""}`}>
+            <p className="pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4">
               по мигрени
             </p>
           )}
           {topAsNeeded.map((med, i) => renderMedRow(med, i))}
+          {regularMeds.length > 0 && (
+            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${topAsNeeded.length > 0 ? "border-t border-line" : ""}`}>
+              регулярные
+            </p>
+          )}
+          {regularMeds.map((med, i) => renderMedRow(med, i))}
+          {supplementMeds.length > 0 && (
+            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${topAsNeeded.length + regularMeds.length > 0 ? "border-t border-line" : ""}`}>
+              витамины
+            </p>
+          )}
+          {supplementMeds.map((med, i) => renderMedRow(med, i))}
           {meds.length === 0 && (
             <p className="py-3 font-mono text-[12px] text-ink-4">Нет препаратов — добавь ниже</p>
           )}
