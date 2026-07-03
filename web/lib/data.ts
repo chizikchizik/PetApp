@@ -167,7 +167,7 @@ export async function getMigraineMedStats(ym: string): Promise<MigraineMedStats>
   return { highRisk: seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0, nsaid: 0, unclassified: 0 };
 }
 
-export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string };
+export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string; isSupplement: boolean };
 
 export async function getMeds(): Promise<Med[]> {
   const db = supabaseAdmin();
@@ -175,7 +175,7 @@ export async function getMeds(): Promise<Med[]> {
     const uid = await getAppUserId();
     const { data, error } = await byUser(
       db.from("medication")
-        .select("id, name, note, when_label, habit_key, is_as_needed, drug_class")
+        .select("id, name, note, when_label, habit_key, is_as_needed, drug_class, is_supplement")
         .is("ended_at", null)
         .order("sort", { ascending: true }),
       uid,
@@ -190,6 +190,7 @@ export async function getMeds(): Promise<Med[]> {
           habit_key: string | null;
           is_as_needed: boolean | null;
           drug_class: string | null;
+          is_supplement: boolean | null;
         }) => ({
           id: r.id,
           name: r.name,
@@ -198,12 +199,13 @@ export async function getMeds(): Promise<Med[]> {
           habit_key: r.habit_key ?? r.name,
           isAsNeeded: r.is_as_needed ?? false,
           drugClass: r.drug_class ?? "unclassified",
+          isSupplement: r.is_supplement ?? false,
         }),
       );
     }
     if (uid && uid !== "__legacy__") return [];
   }
-  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified" }));
+  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified", isSupplement: false }));
 }
 
 export type MedVersion = {

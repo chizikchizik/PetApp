@@ -129,12 +129,23 @@ export default async function HabitsPage({
     .filter((h) => !medHabitKeys.has(h) && !SPORT_HABIT_NAMES.has(h))
     .map((h) => ({ key: h, label: h, active: (d) => d.done.includes(h) }));
 
-  const medRows: Row[] = meds.map((med) => ({
-    key: med.id,
-    label: med.name,
-    sublabel: med.isAsNeeded ? "для купирования" : "по назначению",
-    active: (d) => d.done.includes(med.habit_key),
-  }));
+  const medRows: Row[] = meds
+    .filter((med) => !med.isSupplement)
+    .map((med) => ({
+      key: med.id,
+      label: med.name,
+      sublabel: med.isAsNeeded ? "для купирования" : "по назначению",
+      active: (d) => d.done.includes(med.habit_key),
+    }));
+
+  const supplementRows: Row[] = meds
+    .filter((med) => med.isSupplement)
+    .map((med) => ({
+      key: med.id,
+      label: med.name,
+      sublabel: med.note || undefined,
+      active: (d) => d.done.includes(med.habit_key),
+    }));
 
   // Конкретный вид спорта — из workout_log за этот месяц (ограничиваем месяцем,
   // т.к. getWorkoutHistory возвращает всё "с этой даты и позже").
@@ -219,6 +230,13 @@ export default async function HabitsPage({
             <Matrix rows={medRows} days={days} todayDate={todayDate} />
           ) : (
             <p className="mt-2 font-mono text-[11px] text-ink-4">Нет препаратов — добавь на чек-ине или странице управления</p>
+          )}
+
+          {supplementRows.length > 0 && (
+            <>
+              <p className="mt-5 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">витамины</p>
+              <Matrix rows={supplementRows} days={days} todayDate={todayDate} />
+            </>
           )}
 
           <p className="mt-5 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">спорт</p>

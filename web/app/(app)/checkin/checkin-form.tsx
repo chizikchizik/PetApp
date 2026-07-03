@@ -204,7 +204,8 @@ export function CheckinForm({
   // "По факту мигрени" может разрастись до 10+ (MigreBot-импорт) — показываем
   // топ-3 по частоте приёма за месяц, остальное прячем за "Другое", но не
   // прячем уже отмеченный сегодня препарат, даже если он не в топ-3.
-  const regularMeds = meds.filter((med) => !med.isAsNeeded);
+  const regularMeds = meds.filter((med) => !med.isAsNeeded && !med.isSupplement);
+  const supplementMeds = meds.filter((med) => !med.isAsNeeded && med.isSupplement);
   const asNeededSorted = meds
     .filter((med) => med.isAsNeeded)
     .sort((a, b) => (medCounts[b.id] ?? 0) - (medCounts[a.id] ?? 0));
@@ -504,7 +505,18 @@ export function CheckinForm({
 
         <div className="mt-2 rounded-card border border-line bg-surface px-4">
           {regularMeds.map((med, i) => renderMedRow(med, i))}
-          {topAsNeeded.map((med, i) => renderMedRow(med, regularMeds.length + i))}
+          {supplementMeds.length > 0 && (
+            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${regularMeds.length > 0 ? "border-t border-line" : ""}`}>
+              витамины
+            </p>
+          )}
+          {supplementMeds.map((med, i) => renderMedRow(med, i))}
+          {topAsNeeded.length > 0 && (
+            <p className={`pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-4 ${regularMeds.length + supplementMeds.length > 0 ? "border-t border-line" : ""}`}>
+              по мигрени
+            </p>
+          )}
+          {topAsNeeded.map((med, i) => renderMedRow(med, i))}
           {meds.length === 0 && (
             <p className="py-3 font-mono text-[12px] text-ink-4">Нет препаратов — добавь ниже</p>
           )}
