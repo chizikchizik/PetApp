@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Med, MedIntakeDay, QuickPainEntry } from "@/lib/data";
 import { setMedDrugClass } from "../actions";
+import { MIGREBOT_MED_PATTERNS, detectMedLabels } from "@/lib/migrebot-meds";
 
 const MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 const DOW_LABELS   = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
@@ -44,28 +45,14 @@ function toWeeks(days: string[]): string[][] {
 // row if one happens to exist under that exact id. Custom-added meds always get
 // a `custom_<timestamp>` id, so the old fixed-id table silently never matched
 // them even when the name was an exact match (e.g. a self-added "Суматриптан").
-const MED_PATTERNS: RegExp[] = [
-  /суматриптан|имигран/i,
-  /нурофен|ибупрофен/i,
-  /спрей|назальн|эксенза/i,
-  /спазмалгон/i,
-  /пенталгин/i,
-  /триптаджик/i,
-  /делмигрен/i,
-  /капориза/i,
-  /релпакс|элетриптан/i,
-  /аскофен|аскопар/i,
-  /золмитриптан|зомиг/i,
-  /ризатриптан|максальт/i,
-  /парацетамол|панадол/i,
-  /кеторолак|кетанов/i,
-];
+// Patterns themselves live in lib/migrebot-meds.ts, shared with the import
+// action's auto-registration so the two can never drift apart again.
 
 // Detect medication ids mentioned in a meds text, resolved against the user's
 // own active medications by name (see comment above).
 function detectMedIds(medsText: string, meds: Med[]): string[] {
   const found: string[] = [];
-  for (const pattern of MED_PATTERNS) {
+  for (const { pattern } of MIGREBOT_MED_PATTERNS) {
     if (!pattern.test(medsText)) continue;
     for (const med of meds) {
       if (pattern.test(med.name) && !found.includes(med.id)) found.push(med.id);
@@ -74,27 +61,8 @@ function detectMedIds(medsText: string, meds: Med[]): string[] {
   return found;
 }
 
-// Detect human-readable labels from meds text (for display in the log section)
-const DISPLAY_PATTERNS: { pattern: RegExp; label: string }[] = [
-  { pattern: /суматриптан|имигран/i,   label: "Суматриптан" },
-  { pattern: /нурофен|ибупрофен/i,    label: "Нурофен" },
-  { pattern: /спрей|назальн|эксенза/i, label: "Эксенза" },
-  { pattern: /спазмалгон/i,           label: "Спазмалгон" },
-  { pattern: /пенталгин/i,            label: "Пенталгин" },
-  { pattern: /триптаджик/i,           label: "Триптаджик" },
-  { pattern: /делмигрен/i,            label: "Делмигрен" },
-  { pattern: /капориза/i,             label: "Капориза" },
-  { pattern: /релпакс|элетриптан/i,  label: "Релпакс" },
-  { pattern: /аскофен/i,             label: "Аскофен" },
-];
-
-function detectLabels(medsText: string): string[] {
-  const found: string[] = [];
-  for (const { pattern, label } of DISPLAY_PATTERNS) {
-    if (pattern.test(medsText) && !found.includes(label)) found.push(label);
-  }
-  return found;
-}
+// detectLabels (for display in the log section) is detectMedLabels, imported above.
+const detectLabels = detectMedLabels;
 
 // ── Классификация препарата для счётчика МИГБ ───────────────────────────────
 // Подсказки только по однозначным МНН (международным непатентованным

@@ -3,6 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { MIGREBOT_MED_PATTERNS } from "@/lib/migrebot-meds";
 
 async function getAppUserId(): Promise<string | null> {
   try {
@@ -11,6 +12,46 @@ async function getAppUserId(): Promise<string | null> {
     return user.id;
   } catch {
     return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function byUser(q: any, uid: string | null): any {
+  if (!uid) return q.is("app_user_id", null);
+  return q.eq("app_user_id", uid);
+}
+
+// A MigreBot import's free-text meds mentions (e.g. "Спрей", "Делмигрен")
+// can reference a medication the user has never added a real record for —
+// detectMedIds()/med-calendar.tsx then has nothing to match against, and
+// those days silently never count toward "по факту мигрени". Registers
+// any detected medication missing from the user's own list as as-needed
+// (купирование), so history stays visible without a manual fix each time.
+async function autoRegisterDetectedMeds(
+  db: NonNullable<ReturnType<typeof supabaseAdmin>>,
+  uid: string | null,
+  medsTexts: string[],
+): Promise<void> {
+  const allText = medsTexts.join(" | ");
+  const detectedLabels = MIGREBOT_MED_PATTERNS
+    .filter(({ pattern }) => pattern.test(allText))
+    .map(({ label }) => label);
+  if (detectedLabels.length === 0) return;
+
+  const { data: existing } = await byUser(db.from("medication").select("name"), uid);
+  const existingNames = new Set((existing ?? []).map((m: { name: string }) => m.name));
+
+  const toCreate = detectedLabels.filter((label) => !existingNames.has(label));
+  for (let i = 0; i < toCreate.length; i++) {
+    await db.from("medication").insert({
+      id: `custom_${Date.now()}_${i}`,
+      name: toCreate[i],
+      is_as_needed: true,
+      kind: "as_needed",
+      habit_key: toCreate[i],
+      sort: 99,
+      app_user_id: uid,
+    });
   }
 }
 
@@ -140,6 +181,8 @@ export async function importCSV(
     if (error) return { ok: false, error: error.message };
   }
 
+  await autoRegisterDetectedMeds(db, uid, dataRows.map((r) => r[6] ?? ""));
+
   const migraineCount = toImport.filter((r) => r.migraine).length;
   const dates = dataRows.map((r) => r[0]).sort();
 
@@ -158,6 +201,8 @@ export async function importCSV(
   revalidatePath("/insights");
   revalidatePath("/dashboard");
   revalidatePath("/checkin");
+  revalidatePath("/checkin/meds");
+  revalidatePath("/habits");
 
   return {
     ok: true,
