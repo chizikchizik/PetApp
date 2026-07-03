@@ -89,6 +89,18 @@ export const WEIGHT_GOAL = {
   dateISO: seed.WEIGHT.goalDateISO,
 };
 
+// Ids of the current user's medications explicitly classified as triptans
+// (medication.drug_class = 'triptan') — 'unclassified' never counts, so this
+// under-counts rather than mis-attributes an unconfirmed drug's overuse risk.
+async function getTriptanMedIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  uid: string | null,
+): Promise<Set<string>> {
+  const { data } = await byUser(db.from("medication").select("id").eq("drug_class", "triptan"), uid);
+  return new Set((data ?? []).map((r: { id: string }) => r.id));
+}
+
 export async function getTriptanCount(ym: string): Promise<number> {
   const db = supabaseAdmin();
   if (db) {
@@ -98,15 +110,33 @@ export async function getTriptanCount(ym: string): Promise<number> {
     const nextY = m === 12 ? y + 1 : y;
     const nextM = m === 12 ? 1 : m + 1;
     const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
-    const { count, error } = await byUser(
+
+    // Legacy MigreBot-imported history — its own triptan flag.
+    const { data: legacyRows, error: legacyError } = await byUser(
       db.from("migraine_event")
-        .select("*", { count: "exact", head: true })
+        .select("event_date")
         .eq("triptan", true)
         .gte("event_date", start)
         .lt("event_date", end),
       uid,
     );
-    if (!error && typeof count === "number") return count;
+    const days = new Set<string>((legacyRows ?? []).map((r: { event_date: string }) => r.event_date));
+
+    // Modern check-in path — meds_taken checked against classified triptans.
+    // Was previously ignored entirely, so any attack logged via check-in
+    // never counted toward the МИГБ threshold.
+    const triptanIds = await getTriptanMedIds(db, uid);
+    if (triptanIds.size > 0) {
+      const { data: logRows } = await byUser(
+        db.from("daily_log").select("log_date, meds_taken").gte("log_date", start).lt("log_date", end),
+        uid,
+      );
+      for (const r of (logRows ?? []) as { log_date: string; meds_taken: string[] | null }[]) {
+        if ((r.meds_taken ?? []).some((id) => triptanIds.has(id))) days.add(r.log_date);
+      }
+    }
+
+    if (!legacyError) return days.size;
     if (uid && uid !== "__legacy__") return 0;
   }
   return seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
@@ -296,7 +326,7 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const [{ data: evData }, { data: logData }] = await Promise.all([
+  const [{ data: evData }, { data: logData }, triptanIds] = await Promise.all([
     byUser(
       db.from("migraine_event")
         .select("event_date, aura, triptan")
@@ -306,12 +336,13 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
     ),
     byUser(
       db.from("daily_log")
-        .select("log_date, migraine_aura")
+        .select("log_date, migraine_aura, meds_taken")
         .eq("migraine", true)
         .gte("log_date", sinceISO)
         .order("log_date", { ascending: true }),
       uid,
     ),
+    getTriptanMedIds(db, uid),
   ]);
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];
@@ -319,9 +350,10 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
     seen.add(r.event_date);
     result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
   }
-  for (const r of (logData ?? [])) {
+  for (const r of (logData ?? []) as { log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }[]) {
     if (!seen.has(r.log_date)) {
-      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+      const triptan = (r.meds_taken ?? []).some((id) => triptanIds.has(id));
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan });
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date));
@@ -331,7 +363,7 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const [{ data: evData }, { data: logData }] = await Promise.all([
+  const [{ data: evData }, { data: logData }, triptanIds] = await Promise.all([
     byUser(
       db.from("migraine_event")
         .select("event_date, aura, triptan")
@@ -340,11 +372,12 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
     ),
     byUser(
       db.from("daily_log")
-        .select("log_date, migraine_aura")
+        .select("log_date, migraine_aura, meds_taken")
         .eq("migraine", true)
         .order("log_date", { ascending: true }),
       uid,
     ),
+    getTriptanMedIds(db, uid),
   ]);
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];
@@ -352,9 +385,10 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
     seen.add(r.event_date);
     result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
   }
-  for (const r of (logData ?? [])) {
+  for (const r of (logData ?? []) as { log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }[]) {
     if (!seen.has(r.log_date)) {
-      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: false });
+      const triptan = (r.meds_taken ?? []).some((id) => triptanIds.has(id));
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan });
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date));
