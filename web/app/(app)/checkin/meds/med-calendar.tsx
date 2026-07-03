@@ -440,7 +440,8 @@ export function MedCalendar({
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const regularMeds  = meds.filter((m) => !m.isAsNeeded);
+  const regularMeds     = meds.filter((m) => !m.isAsNeeded && !m.isSupplement);
+  const supplementMeds  = meds.filter((m) => !m.isAsNeeded && m.isSupplement);
   // "По факту мигрени" препараты с 0 приёмов в периоде — не показываем
   // (это в основном шум от эвристики MigreBot-регэкспа по чужим заметкам,
   // а не реально принимавшиеся препараты). Регулярные не фильтруем — там
@@ -465,6 +466,23 @@ export function MedCalendar({
           <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Регулярные</p>
           <div className="space-y-3">
             {regularMeds.map((med) => (
+              <MedRow
+                key={med.id}
+                med={med}
+                weeks={weeks}
+                intakeSet={medIntakeSets.get(med.id) ?? new Set()}
+                migraineSet={migraineSet}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {supplementMeds.length > 0 && (
+        <div>
+          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Витамины</p>
+          <div className="space-y-3">
+            {supplementMeds.map((med) => (
               <MedRow
                 key={med.id}
                 med={med}
