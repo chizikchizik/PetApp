@@ -347,6 +347,155 @@ function MedRow({
   );
 }
 
+// ── Supplement calendar (one combined heatmap, per-cell letter codes) ───────
+// Several supplements are often taken together on the same day; showing one
+// GitHub-style square per supplement per day made the "Витамины" block a
+// stack of near-identical cards. Instead: one heatmap, one cell per day,
+// letter code(s) inside the cell for whichever supplement(s) were taken.
+
+const SUPPLEMENT_CODES: Record<string, string> = {
+  "Витамин D": "D",
+  "Калия Йодид": "Й",
+  "Фолиевая кислота": "Ф",
+  "Магний": "М",
+  "Витамины": "В",
+};
+
+function codeFor(name: string): string {
+  return SUPPLEMENT_CODES[name] ?? name.charAt(0).toUpperCase();
+}
+
+function SupplementHeatmap({
+  weeks,
+  supplements,
+}: {
+  weeks: string[][];
+  supplements: { med: Med; intakeSet: Set<string> }[];
+}) {
+  const nWeeks = weeks.length;
+
+  const monthLabels = new Map<number, string>();
+  let lastM = -1;
+  weeks.forEach((week, wi) => {
+    const first = week.find((d) => d);
+    if (!first) return;
+    const m = parseInt(first.slice(5, 7)) - 1;
+    if (m !== lastM) { monthLabels.set(wi, MONTHS_SHORT[m]); lastM = m; }
+  });
+
+  return (
+    <div className="flex gap-1.5 overflow-x-auto">
+      <div className="shrink-0 flex flex-col" style={{ paddingTop: "16px" }}>
+        {DOW_LABELS.map((label, i) => (
+          <div
+            key={label}
+            className="flex items-center justify-end pr-1"
+            style={{ height: "13px", marginBottom: "2px", opacity: i % 2 === 0 ? 1 : 0 }}
+          >
+            <span className="font-mono text-[8px] text-ink-4">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="min-w-0" style={{ flexShrink: 0 }}>
+        <div
+          className="mb-0.5"
+          style={{ display: "grid", gridTemplateColumns: `repeat(${nWeeks}, 13px)`, gap: "2px" }}
+        >
+          {weeks.map((_, wi) => (
+            <div
+              key={wi}
+              className="font-mono text-[8px] text-ink-4"
+              style={{ whiteSpace: "nowrap", overflow: "visible" }}
+            >
+              {monthLabels.get(wi) ?? ""}
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${nWeeks}, 13px)`,
+            gridTemplateRows: "repeat(7, 13px)",
+            gridAutoFlow: "column",
+            gap: "2px",
+          }}
+        >
+          {weeks.map((week, wi) =>
+            week.map((day, di) => {
+              if (!day) return <div key={`${wi}-${di}`} />;
+              const active = supplements.filter((s) => s.intakeSet.has(day));
+              const bg = active.length > 0 ? "var(--phase)" : "var(--surface-3)";
+              const label = active.map((s) => codeFor(s.med.name)).join("");
+              const title = active.length > 0
+                ? `${day} — ${active.map((s) => s.med.name).join(", ")}`
+                : day;
+              return (
+                <div
+                  key={`${wi}-${di}`}
+                  className="flex items-center justify-center rounded-[2px] transition"
+                  style={{ background: bg, width: "13px", height: "13px" }}
+                  title={title}
+                >
+                  {active.length > 0 && (
+                    <span
+                      className="font-mono font-bold leading-none"
+                      style={{ fontSize: active.length > 1 ? "5px" : "7px", color: "var(--on-phase)" }}
+                    >
+                      {label}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SupplementCalendar({
+  supplements,
+  weeks,
+}: {
+  supplements: { med: Med; intakeSet: Set<string> }[];
+  weeks: string[][];
+}) {
+  if (supplements.length === 0) return null;
+  const anyDay = new Set<string>();
+  for (const s of supplements) for (const d of s.intakeSet) anyDay.add(d);
+
+  return (
+    <div className="rounded-card border border-line bg-surface p-3">
+      <div className="mb-2.5 flex items-start gap-2">
+        <span className="flex-1 font-sans text-[14px] font-semibold text-ink">Витамины</span>
+        <div className="shrink-0 text-right">
+          <span className="font-mono text-[18px] font-bold text-ink leading-none">{anyDay.size}</span>
+          <span className="block font-mono text-[8px] text-ink-4">дней</span>
+        </div>
+      </div>
+
+      <SupplementHeatmap weeks={weeks} supplements={supplements} />
+
+      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
+        {supplements.map(({ med, intakeSet }) => (
+          <div key={med.id} className="flex items-center gap-1">
+            <span
+              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[1px] font-mono text-[8px] font-bold"
+              style={{ background: "var(--phase-soft)", color: "var(--phase-deep)" }}
+            >
+              {codeFor(med.name)}
+            </span>
+            <span className="font-mono text-[9px] text-ink-4">{med.name} · {intakeSet.size}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── MigreBot history section ─────────────────────────────────────────────────
 
 type MigraineDayEntry = {
@@ -512,17 +661,10 @@ export function MedCalendar({
       {supplementMeds.length > 0 && (
         <div>
           <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Витамины</p>
-          <div className="space-y-3">
-            {supplementMeds.map((med) => (
-              <MedRow
-                key={med.id}
-                med={med}
-                weeks={weeks}
-                intakeSet={medIntakeSets.get(med.id) ?? new Set()}
-                migraineSet={migraineSet}
-              />
-            ))}
-          </div>
+          <SupplementCalendar
+            supplements={supplementMeds.map((med) => ({ med, intakeSet: medIntakeSets.get(med.id) ?? new Set<string>() }))}
+            weeks={weeks}
+          />
         </div>
       )}
 
