@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getRecords, getSignedUrl } from "./actions";
+import { getMeds } from "@/lib/data";
 import { UploadForm } from "./upload-form";
 import { DeleteButton } from "./delete-button";
 
@@ -56,7 +57,7 @@ function groupByYear(records: Awaited<ReturnType<typeof getRecords>>) {
 }
 
 export default async function MedicalPage() {
-  const records = await getRecords();
+  const [records, meds] = await Promise.all([getRecords(), getMeds()]);
 
   // Pre-resolve signed URLs for all records with files (server-side, 1h TTL)
   const signedUrls = new Map<string, string>();
@@ -111,6 +112,38 @@ export default async function MedicalPage() {
               <span className="opacity-70">{countByCategory.get(c)}</span>
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Текущие препараты — связь с приёмом на чек-ине/привычках */}
+      {meds.length > 0 && (
+        <div className="mt-4 rounded-card border border-line bg-surface p-3.5">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">
+              текущие препараты
+            </p>
+            <Link
+              href="/habits/bulk"
+              className="font-mono text-[10px] text-phase underline underline-offset-2"
+            >
+              управлять →
+            </Link>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {meds.map((med) => (
+              <span
+                key={med.id}
+                className="rounded-[3px] border border-line px-2 py-1 font-sans text-[12px] text-ink"
+              >
+                {med.name}
+                {med.isAsNeeded ? (
+                  <span className="ml-1 text-[10px] text-warn">по мигрени</span>
+                ) : med.when ? (
+                  <span className="ml-1 text-[10px] text-ink-3">{med.when}</span>
+                ) : null}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
