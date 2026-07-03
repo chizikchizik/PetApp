@@ -155,7 +155,7 @@ export default async function MedicalPage() {
         >
           <div>
             <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3">препараты</p>
-            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">История мигреней</p>
+            <p className="mt-0.5 font-sans text-[12px] font-semibold text-ink">История приёма</p>
           </div>
           <span className="font-mono text-[12px] text-phase">→</span>
         </Link>
