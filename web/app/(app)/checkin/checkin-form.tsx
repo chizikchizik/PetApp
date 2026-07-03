@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
 import { TrainingQuickAdd } from "./training-quick-add";
+import { SPORT_HABIT_NAMES } from "@/lib/habits-shared";
 import type { DailyLog, Med, MigraineTrigger, SportType } from "@/lib/data";
 
 type State = CheckinPayload & { periodStart: boolean };
@@ -46,8 +47,6 @@ function fromLog(l: DailyLog | null): State {
 function toggle(arr: string[], v: string): string[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
-
-const SPORT_HABITS = new Set<string>(["Спорт", "Бег"]);
 
 const labelCls = "font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3";
 const chipBase = "rounded-[2px] border px-[13px] py-[9px] font-sans text-[13px] transition";
@@ -199,7 +198,7 @@ export function CheckinForm({
   }
 
   const m = s.migraine;
-  const medHabitKeys = new Set([...meds.map((med) => med.habit_key), ...SPORT_HABITS]);
+  const medHabitKeys = new Set([...meds.map((med) => med.habit_key), ...SPORT_HABIT_NAMES]);
 
   // Регулярные препараты нужно отмечать каждый день — всегда видны.
   // "По факту мигрени" может разрастись до 10+ (MigreBot-импорт) — показываем
