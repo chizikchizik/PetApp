@@ -1,0 +1,19 @@
+-- 053: the self-service /import/migrebot CSV uploader was folding its
+-- detected meds text into daily_log.note, alongside whatever free-text
+-- comment the user's own check-in note might contain — but the combined
+-- "по факту мигрени" heatmap and diary section only ever scanned
+-- migraine_event.meds for medication mentions, never daily_log.note. That
+-- table is only ever populated by one-off admin SQL imports (migrations
+-- 014/027/028), so any OTHER user importing their own CSV through the app
+-- would get medications auto-registered (see migration 052's code change)
+-- but never see the actual intake days on the heatmap.
+--
+-- Writing into migraine_event instead was considered and rejected: its
+-- UNIQUE constraint is on event_date alone (migration 014), not scoped per
+-- user — two different users importing overlapping dates would collide.
+-- Fixing that is a separate concern; this migration only adds a properly
+-- scoped column on daily_log (which already has UNIQUE(app_user_id,
+-- log_date)) dedicated to MigreBot-detected meds text, kept separate from
+-- the free-text check-in note so medication-pattern detection never
+-- accidentally scans an unrelated personal note.
+ALTER TABLE daily_log ADD COLUMN IF NOT EXISTS migrebot_meds_text text;

@@ -853,16 +853,22 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
   if (!db) return [];
   const uid = await getAppUserId();
 
-  // 1. daily_log: new-style med logging + habit tracking
+  // 1. daily_log: new-style med logging + habit tracking, plus meds text
+  // from the self-service MigreBot CSV importer (migrebot_meds_text — kept
+  // separate from the free-text `note` column specifically so medication-
+  // pattern detection never scans an unrelated personal note, see
+  // migration 053).
   const { data: logData } = await byUser(
     db.from("daily_log")
-      .select("log_date, meds_taken, habits_done, migraine")
+      .select("log_date, meds_taken, habits_done, migraine, migrebot_meds_text")
       .gte("log_date", from)
       .lte("log_date", to),
     uid,
   );
 
-  // 2. migraine_event: historical MigreBot data (meds column has medication text)
+  // 2. migraine_event: historical MigreBot data (meds column has medication text) —
+  // only ever populated by one-off admin SQL imports, not by the self-service
+  // importer (see migration 053's comment for why).
   const { data: migData } = await byUser(
     db.from("migraine_event")
       .select("event_date, meds")
@@ -880,18 +886,20 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
     meds_taken: string[] | null;
     habits_done: string[] | null;
     migraine: boolean;
+    migrebot_meds_text: string | null;
   }[]) {
     if (
       (r.meds_taken && r.meds_taken.length > 0) ||
       (r.habits_done && r.habits_done.length > 0) ||
-      r.migraine
+      r.migraine ||
+      r.migrebot_meds_text
     ) {
       byDate.set(r.log_date, {
         date: r.log_date,
         medIds: r.meds_taken ?? [],
         habitsDone: r.habits_done ?? [],
         migraine: r.migraine,
-        migraineMeds: null,
+        migraineMeds: r.migrebot_meds_text,
       });
     }
   }
@@ -900,7 +908,7 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
     const existing = byDate.get(m.event_date);
     if (existing) {
       existing.migraine = true;
-      existing.migraineMeds = m.meds;
+      existing.migraineMeds = existing.migraineMeds ? `${existing.migraineMeds}; ${m.meds}` : m.meds;
     } else {
       byDate.set(m.event_date, {
         date: m.event_date,

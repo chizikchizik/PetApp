@@ -156,7 +156,6 @@ export async function importCSV(
 
     const medsText = r[6] ? r[6].replace(/\n/g, "; ").trim() : "";
     const comment = r[17] ? r[17].trim() : "";
-    const note = [medsText, comment].filter(Boolean).join(" · ") || null;
 
     return {
       app_user_id: uid,
@@ -165,7 +164,8 @@ export async function importCSV(
       migraine_aura: r[4] === "Да",
       migraine_intensity: hasMigraine && r[7] ? parseInt(r[7]) || null : null,
       migraine_triggers: triggers,
-      note,
+      note: comment || null,
+      migrebot_meds_text: medsText || null,
       updated_at: new Date().toISOString(),
     };
   });
