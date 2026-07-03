@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { Med, MedIntakeDay } from "@/lib/data";
+import { setMedDrugClass } from "../actions";
 
 const MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 const DOW_LABELS   = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
@@ -91,6 +94,95 @@ function detectLabels(medsText: string): string[] {
     if (pattern.test(medsText) && !found.includes(label)) found.push(label);
   }
   return found;
+}
+
+// ── Классификация препарата для счётчика МИГБ ───────────────────────────────
+// Подсказки только по однозначным МНН (международным непатентованным
+// названиям) — фармакологический факт, не догадка. Для непонятных брендов
+// (Спрей, Делмигрен, Капориза, Триптаджик и т.п.) подсказки нет вообще —
+// пользователь выбирает сам или отмечает "не уверена", см. рекомендацию
+// Елены в feedback-dev-patterns.
+const CLASS_HINTS: { pattern: RegExp; drugClass: string; label: string }[] = [
+  { pattern: /суматриптан|золмитриптан|ризатриптан|наратриптан|элетриптан|имигран|зомиг|максальт/i, drugClass: "triptan", label: "триптан" },
+  { pattern: /ибупрофен|нурофен|парацетамол|панадол|аспирин|напроксен/i, drugClass: "nsaid", label: "НПВС" },
+  { pattern: /метамизол|анальгин|спазмалгон|пенталгин|аскофен|кеторолак|кетанов/i, drugClass: "combination_analgesic", label: "комбинированный анальгетик" },
+];
+
+function suggestDrugClass(name: string): { drugClass: string; label: string } | null {
+  for (const h of CLASS_HINTS) if (h.pattern.test(name)) return { drugClass: h.drugClass, label: h.label };
+  return null;
+}
+
+const CLASS_LABELS: Record<string, string> = {
+  triptan: "Триптан",
+  nsaid: "НПВС",
+  combination_analgesic: "Комбинированный",
+  unsure: "Не уверена",
+};
+
+function DrugClassPrompt({ meds }: { meds: Med[] }) {
+  const router = useRouter();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [, startT] = useTransition();
+
+  const pending = meds.filter((m) => m.isAsNeeded && m.drugClass === "unclassified");
+  if (pending.length === 0) return null;
+
+  function apply(medId: string, drugClass: string) {
+    setBusyId(medId);
+    startT(async () => {
+      await setMedDrugClass(medId, drugClass);
+      setBusyId(null);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="rounded-card border border-line bg-surface p-3.5">
+      <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
+        {pending.length} {pending.length === 1 ? "приём" : "приёма"} без указанного типа
+      </p>
+      <p className="mt-1 font-sans text-[11.5px] leading-relaxed text-ink-3">
+        Не учитываются в счётчике риска. Укажи тип препарата — это не диагноз, просто чтобы точно считалось.
+      </p>
+      <div className="mt-3 space-y-2.5">
+        {pending.map((med) => {
+          const hint = suggestDrugClass(med.name);
+          const busy = busyId === med.id;
+          return (
+            <div key={med.id} className="rounded-[3px] border border-line bg-surface-2 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-sans text-[13px] font-semibold text-ink">{med.name}</span>
+                {hint && (
+                  <button
+                    type="button"
+                    onClick={() => apply(med.id, hint.drugClass)}
+                    disabled={busy}
+                    className="shrink-0 font-mono text-[10px] text-phase underline underline-offset-2 disabled:opacity-50"
+                  >
+                    похоже на {hint.label} · подтвердить
+                  </button>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {(["triptan", "nsaid", "combination_analgesic", "unsure"] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => apply(med.id, c)}
+                    disabled={busy}
+                    className="rounded-[2px] border border-line px-2 py-1 font-mono text-[10px] text-ink-2 transition active:bg-surface-3 disabled:opacity-50"
+                  >
+                    {CLASS_LABELS[c]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ── Heatmap (GitHub-style: columns = weeks, rows = days Mon→Sun) ─────────────
@@ -366,6 +458,8 @@ export function MedCalendar({
 
   return (
     <div className="space-y-4">
+      <DrugClassPrompt meds={meds} />
+
       {regularMeds.length > 0 && (
         <div>
           <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Регулярные</p>

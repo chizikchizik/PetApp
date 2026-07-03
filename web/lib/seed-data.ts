@@ -53,7 +53,8 @@ export const WEIGHT = {
 export const MIGRAINE = {
   withAura: true,
   abortive: "Триптан",
-  triptanThreshold: 10, // дней/мес — порог риска медикаментозной ГБ
+  triptanThreshold: 10, // дней/мес — триптаны/эрготамины/опиоиды/комб. анальгетики (ICHD-3 8.2)
+  nsaidThreshold: 15,   // дней/мес — простые анальгетики (НПВС/парацетамол-моно)
   /** Дни с приёмом триптана по месяцам (для счётчика МИГБ). */
   triptanDaysByMonth: {
     "2026-06": 5,

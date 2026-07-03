@@ -5,7 +5,7 @@ import {
   getPeriodStarts,
   getRecentActualWeights,
   getCurrentWeight,
-  getTriptanCount,
+  getMigraineMedStats,
   getHabits,
   getDailyLog,
   getMonthHabitStats,
@@ -83,9 +83,9 @@ export default async function Dashboard() {
     return isoLocal(d);
   });
 
-  const [user, triptan, weights, currentWeight, habits, todayLog, habitStats, wearable, weekEvents] = await Promise.all([
+  const [user, medStats, weights, currentWeight, habits, todayLog, habitStats, wearable, weekEvents] = await Promise.all([
     getCurrentUser(),
-    getTriptanCount(ym),
+    getMigraineMedStats(ym),
     getRecentActualWeights(8),
     getCurrentWeight(),
     getHabits(ym),
@@ -109,7 +109,20 @@ export default async function Dashboard() {
   const weightGoalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
   const weightStartKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
 
-  const triptanHigh = triptan >= 8;
+  // Риск МИГБ (ICHD-3 8.2): триптаны/эрготамины/опиоиды/комб. анальгетики
+  // считаются вместе (порог 10 дней/мес — не два независимых лимита по 10),
+  // НПВС/парацетамол-моно — отдельно (порог 15). См. рецензию Елены в памяти.
+  const highRiskPct = Math.min(100, Math.round((medStats.highRisk / MIGRAINE.triptanThreshold) * 100));
+  const nsaidPct = Math.min(100, Math.round((medStats.nsaid / MIGRAINE.nsaidThreshold) * 100));
+  const nsaidLeads = nsaidPct > highRiskPct;
+  const leadCount = nsaidLeads ? medStats.nsaid : medStats.highRisk;
+  const leadThreshold = nsaidLeads ? MIGRAINE.nsaidThreshold : MIGRAINE.triptanThreshold;
+  const leadPct = nsaidLeads ? nsaidPct : highRiskPct;
+  const leadLabel = nsaidLeads ? "НПВС" : "триптаны/анальгетики";
+  const otherLabel = nsaidLeads ? "триптаны/анальгетики" : "НПВС";
+  const otherCount = nsaidLeads ? medStats.highRisk : medStats.nsaid;
+  const otherThreshold = nsaidLeads ? MIGRAINE.triptanThreshold : MIGRAINE.nsaidThreshold;
+  const leadHigh = leadPct >= 70;
   const weightDelta = currentWeight != null ? +(currentWeight - weightStartKg).toFixed(1) : null;
   const ws = weights.map((w) => w.actual);
   const wMin = ws.length ? Math.min(...ws) : 0;
@@ -130,7 +143,6 @@ export default async function Dashboard() {
   const monthPct = habitStats.daysLogged > 0 && totalHabits > 0
     ? Math.round((habitStats.done / (totalHabits * habitStats.daysLogged)) * 100)
     : 0;
-  const tiptanPct = Math.min(100, Math.round((triptan / MIGRAINE.triptanThreshold) * 100));
   const ticks = buildTicks(c.day, length);
 
   return (
@@ -223,11 +235,11 @@ export default async function Dashboard() {
         <Link href="/insights" className="flex-1 border-r border-line px-3 py-3.5 active:bg-surface-2">
           <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">мигрень</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {triptan}
-            <span className="text-[12px] font-normal text-ink-3">/{MIGRAINE.triptanThreshold}</span>
+            {leadCount}
+            <span className="text-[12px] font-normal text-ink-3">/{leadThreshold}</span>
           </div>
           <div className="mt-1 font-mono text-[10px] text-ink-3">
-            {triptanHigh ? "близко к порогу" : "в норме"}
+            {leadHigh ? "близко к порогу" : "в норме"}
           </div>
         </Link>
         <Link href="/habits" className="flex-1 px-3 py-3.5 active:bg-surface-2">
@@ -249,7 +261,7 @@ export default async function Dashboard() {
       >
         <div className="flex items-center justify-between">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            мигрень · триптан
+            риск МИГБ · {leadLabel}
           </div>
           {c.inMigraineWindow ? (
             <span className="animate-pulse font-mono text-[9px] tracking-[0.08em] uppercase bg-phase px-[7px] py-[3px] text-on-phase">
@@ -258,23 +270,29 @@ export default async function Dashboard() {
           ) : null}
         </div>
         <div className="mt-2.5 flex items-baseline justify-between">
-          <div className={`font-mono font-semibold text-[30px] leading-none ${triptanHigh ? "text-warn" : "text-ink"}`}>
-            {triptan}
-            <span className="text-[13px] font-normal text-ink-2"> / {MIGRAINE.triptanThreshold} дней</span>
+          <div className={`font-mono font-semibold text-[30px] leading-none ${leadHigh ? "text-warn" : "text-ink"}`}>
+            {leadCount}
+            <span className="text-[13px] font-normal text-ink-2"> / {leadThreshold} дней</span>
           </div>
-          <div className={`font-mono text-[10px] ${triptanHigh ? "text-warn" : "text-ink-3"}`}>
-            {triptanHigh ? "близко к порогу МИГБ" : "порог МИГБ"}
+          <div className={`font-mono text-[10px] ${leadHigh ? "text-warn" : "text-ink-3"}`}>
+            {leadHigh ? "близко к порогу" : "риск ниже порога"}
           </div>
         </div>
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-[1px] bg-surface-3">
-          <div className={`h-full ${triptanHigh ? "bg-warn" : "bg-phase"}`} style={{ width: `${tiptanPct}%` }} />
+          <div className={`h-full ${leadHigh ? "bg-warn" : "bg-phase"}`} style={{ width: `${leadPct}%` }} />
+        </div>
+        <div className="mt-2 flex items-center justify-between border-t border-line pt-2 font-mono text-[10px] text-ink-3">
+          <span>{otherLabel}: {otherCount}/{otherThreshold}</span>
+          {medStats.unclassified > 0 && (
+            <span className="text-ink-4">{medStats.unclassified} без типа →</span>
+          )}
         </div>
         <p className="mt-2.5 text-[12px] leading-[1.5] text-ink-2">
           {c.inMigraineWindow
             ? "Перименструальное окно — следи за сном и не пропускай еду."
-            : triptanHigh
-            ? "Приём триптана участился. Стоит обсудить профилактику с неврологом."
-            : "Держишься ниже порога. Пики ~8 — обсуди профилактику с неврологом."}{" "}
+            : leadHigh
+            ? "Приём обезболивающих участился. Стоит обсудить профилактику с неврологом."
+            : "Считаем дни приёма, не дни боли — точный диагноз МИГБ за неврологом."}{" "}
           <span className="font-semibold text-phase-deep">инсайты →</span>
         </p>
       </Link>

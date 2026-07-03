@@ -89,19 +89,41 @@ export const WEIGHT_GOAL = {
   dateISO: seed.WEIGHT.goalDateISO,
 };
 
-// Ids of the current user's medications explicitly classified as triptans
-// (medication.drug_class = 'triptan') — 'unclassified' never counts, so this
-// under-counts rather than mis-attributes an unconfirmed drug's overuse risk.
-async function getTriptanMedIds(
+// ICHD-3 8.2 splits medication-overuse thresholds by drug class: triptans /
+// ergots / opioids / combination analgesics ≥10 days/mo, simple analgesics
+// (NSAID/paracetamol-mono) ≥15 days/mo. Only *as-needed* (abortive) intake
+// counts — a preventive med taken daily (Амитриптилин) or a supplement
+// (Витамины) can never enter this regardless of drug_class, so we filter on
+// is_as_needed at the query level as a structural safeguard, not just by class.
+// Reviewed with Elena (medical) — see feedback-dev-patterns memory.
+type MedClassBuckets = { highRisk: Set<string>; nsaid: Set<string>; unclassified: Set<string> };
+
+async function getAsNeededMedIdsByClass(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: any,
   uid: string | null,
-): Promise<Set<string>> {
-  const { data } = await byUser(db.from("medication").select("id").eq("drug_class", "triptan"), uid);
-  return new Set((data ?? []).map((r: { id: string }) => r.id));
+): Promise<MedClassBuckets> {
+  const { data } = await byUser(
+    db.from("medication").select("id, drug_class").eq("is_as_needed", true),
+    uid,
+  );
+  const highRisk = new Set<string>();
+  const nsaid = new Set<string>();
+  const unclassified = new Set<string>();
+  for (const r of (data ?? []) as { id: string; drug_class: string | null }[]) {
+    const cls = r.drug_class ?? "unclassified";
+    if (cls === "triptan" || cls === "combination_analgesic" || cls === "ergot" || cls === "opioid") highRisk.add(r.id);
+    else if (cls === "nsaid") nsaid.add(r.id);
+    else if (cls === "unclassified") unclassified.add(r.id);
+    // 'unsure'/'other' — user explicitly opted out of classification; excluded
+    // from every counter and from the "needs review" nudge, on purpose.
+  }
+  return { highRisk, nsaid, unclassified };
 }
 
-export async function getTriptanCount(ym: string): Promise<number> {
+export type MigraineMedStats = { highRisk: number; nsaid: number; unclassified: number };
+
+export async function getMigraineMedStats(ym: string): Promise<MigraineMedStats> {
   const db = supabaseAdmin();
   if (db) {
     const uid = await getAppUserId();
@@ -111,7 +133,8 @@ export async function getTriptanCount(ym: string): Promise<number> {
     const nextM = m === 12 ? 1 : m + 1;
     const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
 
-    // Legacy MigreBot-imported history — its own triptan flag.
+    // Legacy MigreBot-imported history only ever recorded a single triptan
+    // flag — folded into the merged high-risk bucket for continuity.
     const { data: legacyRows, error: legacyError } = await byUser(
       db.from("migraine_event")
         .select("event_date")
@@ -120,29 +143,31 @@ export async function getTriptanCount(ym: string): Promise<number> {
         .lt("event_date", end),
       uid,
     );
-    const days = new Set<string>((legacyRows ?? []).map((r: { event_date: string }) => r.event_date));
+    const highRiskDays = new Set<string>((legacyRows ?? []).map((r: { event_date: string }) => r.event_date));
+    const nsaidDays = new Set<string>();
+    const unclassifiedDays = new Set<string>();
 
-    // Modern check-in path — meds_taken checked against classified triptans.
-    // Was previously ignored entirely, so any attack logged via check-in
-    // never counted toward the МИГБ threshold.
-    const triptanIds = await getTriptanMedIds(db, uid);
-    if (triptanIds.size > 0) {
+    const { highRisk, nsaid, unclassified } = await getAsNeededMedIdsByClass(db, uid);
+    if (highRisk.size || nsaid.size || unclassified.size) {
       const { data: logRows } = await byUser(
         db.from("daily_log").select("log_date, meds_taken").gte("log_date", start).lt("log_date", end),
         uid,
       );
       for (const r of (logRows ?? []) as { log_date: string; meds_taken: string[] | null }[]) {
-        if ((r.meds_taken ?? []).some((id) => triptanIds.has(id))) days.add(r.log_date);
+        const taken = r.meds_taken ?? [];
+        if (taken.some((id) => highRisk.has(id))) highRiskDays.add(r.log_date);
+        if (taken.some((id) => nsaid.has(id))) nsaidDays.add(r.log_date);
+        if (taken.some((id) => unclassified.has(id))) unclassifiedDays.add(r.log_date);
       }
     }
 
-    if (!legacyError) return days.size;
-    if (uid && uid !== "__legacy__") return 0;
+    if (!legacyError) return { highRisk: highRiskDays.size, nsaid: nsaidDays.size, unclassified: unclassifiedDays.size };
+    if (uid && uid !== "__legacy__") return { highRisk: 0, nsaid: 0, unclassified: 0 };
   }
-  return seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
+  return { highRisk: seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0, nsaid: 0, unclassified: 0 };
 }
 
-export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean };
+export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string };
 
 export async function getMeds(): Promise<Med[]> {
   const db = supabaseAdmin();
@@ -150,7 +175,7 @@ export async function getMeds(): Promise<Med[]> {
     const uid = await getAppUserId();
     const { data, error } = await byUser(
       db.from("medication")
-        .select("id, name, note, when_label, habit_key, is_as_needed")
+        .select("id, name, note, when_label, habit_key, is_as_needed, drug_class")
         .is("ended_at", null)
         .order("sort", { ascending: true }),
       uid,
@@ -164,6 +189,7 @@ export async function getMeds(): Promise<Med[]> {
           when_label: string | null;
           habit_key: string | null;
           is_as_needed: boolean | null;
+          drug_class: string | null;
         }) => ({
           id: r.id,
           name: r.name,
@@ -171,12 +197,13 @@ export async function getMeds(): Promise<Med[]> {
           when: r.when_label ?? "",
           habit_key: r.habit_key ?? r.name,
           isAsNeeded: r.is_as_needed ?? false,
+          drugClass: r.drug_class ?? "unclassified",
         }),
       );
     }
     if (uid && uid !== "__legacy__") return [];
   }
-  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false }));
+  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified" }));
 }
 
 export type MedVersion = {
@@ -320,6 +347,10 @@ export async function getWeightEntries(): Promise<WeightRow[]> {
   return fb;
 }
 
+// `triptan` here means "high-risk abortive taken" (triptan + combination
+// analgesic + ergot + opioid, is_as_needed=true) — kept the field name for
+// call-site compatibility (charts, correlation math), but it's the same
+// merged bucket as the dashboard's МИГБ counter, not triptan-only.
 export type MigraineEvent = { date: string; aura: boolean; triptan: boolean };
 
 export async function getMigraineEventsSince(sinceISO: string): Promise<MigraineEvent[]> {
@@ -342,7 +373,7 @@ export async function getMigraineEventsSince(sinceISO: string): Promise<Migraine
         .order("log_date", { ascending: true }),
       uid,
     ),
-    getTriptanMedIds(db, uid),
+    getAsNeededMedIdsByClass(db, uid).then((b) => b.highRisk),
   ]);
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];
@@ -377,7 +408,7 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
         .order("log_date", { ascending: true }),
       uid,
     ),
-    getTriptanMedIds(db, uid),
+    getAsNeededMedIdsByClass(db, uid).then((b) => b.highRisk),
   ]);
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];

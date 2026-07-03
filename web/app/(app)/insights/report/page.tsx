@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPeriodStarts, getMigraineEventsSince, getMeds, getWorkoutHistory } from "@/lib/data";
+import { getPeriodStarts, getMigraineEventsSince, getMeds, getWorkoutHistory, getMedIntakeDays } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { monthlyTriptan, cycleCorrelation, buildCycleCalendar, type CorrelationState } from "@/lib/insights";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
@@ -147,12 +147,13 @@ export default async function MigraineReport() {
   const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
   const since = isoDaysFromTodayMoscow(-365);
-  const [starts, events, meds, workouts, user] = await Promise.all([
+  const [starts, events, meds, workouts, user, intakeDays] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getMeds(),
     getWorkoutHistory(since),
     getCurrentUser(),
+    getMedIntakeDays(since, todayISO),
   ]);
 
   const corr = cycleCorrelation(events, starts);
@@ -166,6 +167,36 @@ export default async function MigraineReport() {
 
   const prophylactic = meds.filter((m) => !m.isAsNeeded);
   const asNeeded = meds.filter((m) => m.isAsNeeded);
+
+  // Разбивка абортивных препаратов по видам — Елена (медицинская ревизия):
+  // невролог должен видеть конкретный класс, объединять в одну цифру
+  // допустимо только для повседневного экрана самонаблюдения, не для отчёта.
+  const DRUG_CLASS_LABELS: Record<string, string> = {
+    triptan: "Триптан",
+    nsaid: "НПВС",
+    combination_analgesic: "Комбинированный анальгетик",
+    ergot: "Эрготамин",
+    opioid: "Опиоид",
+  };
+  const medDayCounts = new Map<string, Set<string>>();
+  for (const day of intakeDays) {
+    for (const id of day.medIds) {
+      if (!medDayCounts.has(id)) medDayCounts.set(id, new Set());
+      medDayCounts.get(id)!.add(day.date);
+    }
+  }
+  const abortiveBreakdown = asNeeded
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      classLabel: DRUG_CLASS_LABELS[m.drugClass] ?? "Без указанного класса",
+      days: medDayCounts.get(m.id)?.size ?? 0,
+    }))
+    .filter((r) => r.days > 0 && r.classLabel !== "Без указанного класса")
+    .sort((a, b) => b.days - a.days);
+  const unclassifiedAbortiveDays = asNeeded
+    .filter((m) => !DRUG_CLASS_LABELS[m.drugClass])
+    .reduce((sum, m) => sum + (medDayCounts.get(m.id)?.size ?? 0), 0);
 
   const generatedDate = today.toLocaleDateString("ru-RU", {
     day: "2-digit",
@@ -298,17 +329,17 @@ export default async function MigraineReport() {
           )}
         </section>
 
-        {/* 6. Таблица триптана по месяцам */}
+        {/* 6. Таблица приёма абортивных препаратов по месяцам */}
         <section className="report-section" style={{ marginBottom: "28px" }}>
           <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
-            Приступы и приём триптана — последние 12 месяцев
+            Приступы и приём абортивных препаратов — последние 12 месяцев
           </h2>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #16150F" }}>
                 <th style={{ textAlign: "left", padding: "6px 8px 6px 0", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Месяц</th>
                 <th style={{ textAlign: "center", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней с мигренью</th>
-                <th style={{ textAlign: "center", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней триптана</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней высокого риска*</th>
                 <th style={{ textAlign: "center", padding: "6px 0 6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Статус</th>
               </tr>
             </thead>
@@ -335,13 +366,44 @@ export default async function MigraineReport() {
             </tbody>
           </table>
           <p style={{ marginTop: "8px", fontSize: "11px", color: "#54524A", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.5 }}>
-            Дни приёма триптана в месяц (риск-фактор МИГБ при систематическом приёме
-            ≥10 дней/мес в течение ≥3 месяцев, ICHD-3, код 8.2). Указаны дни приёма только
-            триптана — если для купирования используются также другие обезболивающие,
-            их частоту нужно обсудить с врачом отдельно. Это не диагноз — окончательную
-            оценку даёт невролог с учётом общего числа дней головной боли в месяц.
+            *Триптаны + комбинированные анальгетики + эрготамины + опиоиды вместе (ICHD-3 8.2,
+            порог ≥10 дней/мес ≥3 мес) — разбивку по конкретным препаратам см. в таблице ниже.
+            Простые анальгетики (НПВС/парацетамол-моно, порог ≥15 дней/мес) считаются отдельно,
+            не входят в это число. Это не диагноз — окончательную оценку даёт невролог с учётом
+            общего числа дней головной боли в месяц.
           </p>
         </section>
+
+        {/* 6b. Разбивка по конкретным препаратам */}
+        {abortiveBreakdown.length > 0 && (
+          <section className="report-section" style={{ marginBottom: "28px" }}>
+            <h2 style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A877D", marginBottom: "10px" }}>
+              Абортивные препараты по видам — последние 12 месяцев
+            </h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #16150F" }}>
+                  <th style={{ textAlign: "left", padding: "6px 8px 6px 0", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Препарат</th>
+                  <th style={{ textAlign: "left", padding: "6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Класс</th>
+                  <th style={{ textAlign: "center", padding: "6px 0 6px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: "11px" }}>Дней</th>
+                </tr>
+              </thead>
+              <tbody>
+                {abortiveBreakdown.map((row) => (
+                  <tr key={row.id} style={{ borderBottom: "1px solid #D6D2C9" }}>
+                    <td style={{ padding: "5px 8px 5px 0", fontSize: "12px" }}>{row.name}</td>
+                    <td style={{ padding: "5px 8px", fontSize: "11px", color: "#54524A", fontFamily: "JetBrains Mono, monospace" }}>{row.classLabel}</td>
+                    <td style={{ textAlign: "center", padding: "5px 0 5px 8px", fontFamily: "JetBrains Mono, monospace", fontSize: "13px", fontWeight: 500 }}>{row.days}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ marginTop: "8px", fontSize: "11px", color: "#54524A", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.5 }}>
+              Считаются отметки в приложении с текущей версии, без учёта исторического импорта MigreBot.
+              {unclassifiedAbortiveDays > 0 && ` Ещё ${unclassifiedAbortiveDays} дн. приёма препаратов без указанного класса не вошли в разбивку.`}
+            </p>
+          </section>
+        )}
 
         {/* 7. Цикловой календарь */}
         <section className="report-section" style={{ marginBottom: "28px" }}>

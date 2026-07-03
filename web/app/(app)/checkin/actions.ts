@@ -164,6 +164,21 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   return { ok: true };
 }
 
+// Valid drug_class values: triptan, nsaid, combination_analgesic, ergot,
+// opioid — count toward the МИГБ risk counters; 'unsure'/'other' explicitly
+// opt out (no nag, no count); 'unclassified' is the not-yet-reviewed default.
+export async function setMedDrugClass(medId: string, drugClass: string): Promise<{ ok: boolean }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false };
+  const uid = await getAppUserId();
+  const { error } = await byUser(db.from("medication").update({ drug_class: drugClass }).eq("id", medId), uid);
+  if (error) return { ok: false };
+  revalidatePath("/checkin");
+  revalidatePath("/checkin/meds");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 // One-tap logging for use mid-attack: just flags migraine=true for the day,
 // preserving whatever else is already in the row. Details (intensity, aura,
 // triggers, meds) can be filled in later via the full checkin form — asking
