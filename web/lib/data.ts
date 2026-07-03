@@ -167,19 +167,18 @@ export async function getMigraineMedStats(ym: string): Promise<MigraineMedStats>
   return { highRisk: seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0, nsaid: 0, unclassified: 0 };
 }
 
-export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string; isSupplement: boolean; kind: string };
+export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string; isSupplement: boolean; kind: string; archived: boolean };
 
-export async function getMeds(): Promise<Med[]> {
+async function fetchMeds(includeArchived: boolean): Promise<Med[]> {
   const db = supabaseAdmin();
   if (db) {
     const uid = await getAppUserId();
-    const { data, error } = await byUser(
-      db.from("medication")
-        .select("id, name, note, when_label, habit_key, is_as_needed, drug_class, is_supplement, kind")
-        .is("ended_at", null)
-        .order("sort", { ascending: true }),
-      uid,
-    );
+    let q = db.from("medication")
+      .select("id, name, note, when_label, habit_key, is_as_needed, drug_class, is_supplement, kind, archived_at")
+      .is("ended_at", null)
+      .order("sort", { ascending: true });
+    if (!includeArchived) q = q.is("archived_at", null);
+    const { data, error } = await byUser(q, uid);
     if (!error && data && data.length) {
       return data.map(
         (r: {
@@ -192,6 +191,7 @@ export async function getMeds(): Promise<Med[]> {
           drug_class: string | null;
           is_supplement: boolean | null;
           kind: string | null;
+          archived_at: string | null;
         }) => ({
           id: r.id,
           name: r.name,
@@ -202,12 +202,26 @@ export async function getMeds(): Promise<Med[]> {
           drugClass: r.drug_class ?? "unclassified",
           isSupplement: r.is_supplement ?? false,
           kind: r.kind ?? (r.is_supplement ? "supplement" : r.is_as_needed ? "as_needed" : "regular"),
+          archived: r.archived_at != null,
         }),
       );
     }
     if (uid && uid !== "__legacy__") return [];
   }
-  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified", isSupplement: false, kind: "regular" }));
+  return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified", isSupplement: false, kind: "regular", archived: false }));
+}
+
+// Meds actively offered for new logging (checkin, habits management, etc).
+export async function getMeds(): Promise<Med[]> {
+  return fetchMeds(false);
+}
+
+// Every med including archived ones — for surfaces that must never lose
+// history (the /checkin/meds heatmap, the habits history matrix, the
+// neurologist report): "delete" only means "stop offering," never
+// "forget it was ever taken."
+export async function getAllMeds(): Promise<Med[]> {
+  return fetchMeds(true);
 }
 
 export type MedVersion = {

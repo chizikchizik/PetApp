@@ -1,0 +1,13 @@
+-- 054: "Удалить" on a medication was a hard DELETE — but medication history
+-- (habit_key/id matches in daily_log, and name matches against MigreBot
+-- free-text in migraine_event) is looked up dynamically by joining against
+-- the current medication row, not stored per-row. Deleting the row didn't
+-- touch any history, but made it invisible everywhere (the exact same
+-- failure mode fixed for Спрей/Делмигрен in migrations 049/050/052) — the
+-- user only wanted it to stop being offered for new entries, not for its
+-- past intake to disappear from the heatmap/report.
+--
+-- Soft delete instead: archived_at set means "don't offer for new
+-- logging," but the row (and therefore its history) stays fully visible
+-- wherever the app deliberately looks at the full picture (getAllMeds()).
+ALTER TABLE medication ADD COLUMN IF NOT EXISTS archived_at timestamptz;

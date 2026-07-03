@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMeds, getMedIntakeDays, getQuickPainEntries } from "@/lib/data";
+import { getAllMeds, getMedIntakeDays, getQuickPainEntries } from "@/lib/data";
 import { todayISOMoscow } from "@/lib/format";
 import { MedCalendar } from "./med-calendar";
 
@@ -27,7 +27,7 @@ export default async function MedsPage({
   const nextEnd2 = nextEnd > todayISO ? todayISO : nextEnd;
 
   const [meds, intakeDays, quickPainEntries] = await Promise.all([
-    getMeds(),
+    getAllMeds(),
     getMedIntakeDays(fromISO, endISO),
     getQuickPainEntries(fromISO, endISO),
   ]);

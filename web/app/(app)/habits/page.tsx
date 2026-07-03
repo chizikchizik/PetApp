@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getHabits, getMeds, getWorkoutHistory, type Med } from "@/lib/data";
+import { getHabits, getAllMeds, getWorkoutHistory, type Med } from "@/lib/data";
 import { getHabitMonth, monthLabel, prevMonth, nextMonth, type HabitDay } from "@/lib/habits";
 import { SPORT_HABIT_NAMES } from "@/lib/habits-shared";
 import { todayISOMoscow } from "@/lib/format";
@@ -114,7 +114,7 @@ export default async function HabitsPage({
   const [habits, days, meds, workoutHistory] = await Promise.all([
     getHabits(targetMonth),
     getHabitMonth(targetMonth),
-    getMeds(),
+    getAllMeds(),
     getWorkoutHistory(`${targetMonth}-01`),
   ]);
 
@@ -134,7 +134,7 @@ export default async function HabitsPage({
     .map((med) => ({
       key: med.id,
       label: med.name,
-      sublabel: med.isAsNeeded ? "для купирования" : "по назначению",
+      sublabel: (med.isAsNeeded ? "для купирования" : "по назначению") + (med.archived ? " · архив" : ""),
       active: (d) => d.done.includes(med.habit_key),
     }));
 
@@ -143,7 +143,7 @@ export default async function HabitsPage({
     .map((med) => ({
       key: med.id,
       label: med.name,
-      sublabel: med.note || undefined,
+      sublabel: [med.note, med.archived ? "архив" : null].filter(Boolean).join(" · ") || undefined,
       active: (d) => d.done.includes(med.habit_key),
     }));
 

@@ -150,17 +150,27 @@ export async function changeMedDose(
   return { ok: true };
 }
 
+// Soft delete — sets archived_at instead of removing the row. History
+// (habit_key/id matches in daily_log, name matches against migraine_event
+// text) is looked up dynamically against the medication row, not stored
+// per-entry, so a hard delete would silently erase past intake from every
+// heatmap/report. Archiving just stops it being offered for new logging.
 export async function deleteMed(id: string): Promise<{ ok: boolean; error?: string }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
-  const { data, error } = await byUser(db.from("medication").delete().eq("id", id), uid).select("id");
+  const { data, error } = await byUser(
+    db.from("medication").update({ archived_at: new Date().toISOString() }).eq("id", id),
+    uid,
+  ).select("id");
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: "Препарат не найден" };
   revalidatePath("/checkin");
+  revalidatePath("/checkin/meds");
   revalidatePath("/dashboard");
   revalidatePath("/habits");
   revalidatePath("/habits/bulk");
+  revalidatePath("/insights/report");
   return { ok: true };
 }
 

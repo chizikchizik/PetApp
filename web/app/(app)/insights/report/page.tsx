@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPeriodStarts, getMigraineEventsSince, getMeds, getWorkoutHistory, getMedIntakeDays } from "@/lib/data";
+import { getPeriodStarts, getMigraineEventsSince, getAllMeds, getWorkoutHistory, getMedIntakeDays } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { monthlyTriptan, cycleCorrelation, buildCycleCalendar, type CorrelationState } from "@/lib/insights";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
@@ -150,7 +150,7 @@ export default async function MigraineReport() {
   const [starts, events, meds, workouts, user, intakeDays] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
-    getMeds(),
+    getAllMeds(),
     getWorkoutHistory(since),
     getCurrentUser(),
     getMedIntakeDays(since, todayISO),

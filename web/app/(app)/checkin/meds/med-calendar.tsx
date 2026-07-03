@@ -278,6 +278,11 @@ function MedRow({
                 по мигрени
               </span>
             )}
+            {med.archived && (
+              <span className="rounded-[2px] bg-surface-3 px-1.5 py-0.5 font-mono text-[9px] uppercase text-ink-4">
+                архив
+              </span>
+            )}
           </div>
           {med.note && <p className="font-mono text-[10px] text-ink-3 mt-0.5">{med.note}</p>}
           {!med.isAsNeeded && med.when && (
@@ -492,7 +497,9 @@ function SupplementCalendar({
             >
               {codes[med.name]}
             </span>
-            <span className="font-mono text-[9px] text-ink-4">{med.name} · {intakeSet.size}</span>
+            <span className="font-mono text-[9px] text-ink-4">
+              {med.name} · {intakeSet.size}{med.archived ? " · архив" : ""}
+            </span>
           </div>
         ))}
       </div>
@@ -642,7 +649,9 @@ function AsNeededCalendar({
             >
               {codes[med.name]}
             </span>
-            <span className="font-mono text-[9px] text-ink-4">{med.name} · {(intakeSets.get(med.id) ?? new Set()).size}</span>
+            <span className="font-mono text-[9px] text-ink-4">
+              {med.name} · {(intakeSets.get(med.id) ?? new Set()).size}{med.archived ? " · архив" : ""}
+            </span>
           </div>
         ))}
         <div className="flex items-center gap-1">
