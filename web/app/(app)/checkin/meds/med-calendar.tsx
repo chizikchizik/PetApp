@@ -778,13 +778,14 @@ export function MedCalendar({
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const regularMeds     = meds.filter((m) => !m.isAsNeeded && !m.isSupplement);
-  const supplementMeds  = meds.filter((m) => !m.isAsNeeded && m.isSupplement);
-  // "По факту мигрени" препараты с 0 приёмов в периоде — не показываем
-  // (это в основном шум от эвристики MigreBot-регэкспа по чужим заметкам,
-  // а не реально принимавшиеся препараты). Регулярные не фильтруем — там
-  // 0 приёмов сама по себе значимая информация (пропуск профилактики).
-  const asNeededMeds = meds.filter((m) => m.isAsNeeded && (medIntakeSets.get(m.id)?.size ?? 0) > 0);
+  // Препараты с 0 приёмов за выбранный период не показываем — их тепловая
+  // карта была бы полностью пустой (для "по факту мигрени" это ещё и шум
+  // от эвристики MigreBot-регэкспа по чужим заметкам, а не реально
+  // принимавшийся препарат).
+  const hasIntake = (m: Med) => (medIntakeSets.get(m.id)?.size ?? 0) > 0;
+  const regularMeds     = meds.filter((m) => !m.isAsNeeded && !m.isSupplement && hasIntake(m));
+  const supplementMeds  = meds.filter((m) => !m.isAsNeeded && m.isSupplement && hasIntake(m));
+  const asNeededMeds = meds.filter((m) => m.isAsNeeded && hasIntake(m));
 
   if (meds.length === 0) {
     return (
