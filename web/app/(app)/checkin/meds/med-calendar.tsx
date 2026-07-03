@@ -353,7 +353,12 @@ function MedRow({
 // stack of near-identical cards. Instead: one heatmap, one cell per day,
 // letter code(s) inside the cell for whichever supplement(s) were taken.
 
-const SUPPLEMENT_CODES: Record<string, string> = {
+// Curated codes for the admin account's known supplements — purely cosmetic
+// preference (e.g. "D" reads better than an auto-picked prefix). For any
+// other name (any other user's own supplements), assignCodes() below falls
+// back to its collision-safe auto-assignment, so this never causes two
+// different supplements to render the same letter.
+const SUPPLEMENT_CODE_HINTS: Record<string, string> = {
   "Витамин D": "D",
   "Калия Йодид": "Й",
   "Фолиевая кислота": "Ф",
@@ -361,16 +366,46 @@ const SUPPLEMENT_CODES: Record<string, string> = {
   "Витамины": "В",
 };
 
-function codeFor(name: string): string {
-  return SUPPLEMENT_CODES[name] ?? name.charAt(0).toUpperCase();
+// Assigns a short, unique-per-call display code to each name. `preferred`
+// gives cosmetic hints (used only if they don't collide); everything else
+// gets the shortest unique prefix, extending on collision and finally
+// falling back to a numeric suffix — this is what keeps the merged
+// heatmap correct for every user's own, unpredictable set of medication
+// names, not just the admin account's.
+function assignCodes(names: string[], preferred: Record<string, string> = {}): Record<string, string> {
+  const codes: Record<string, string> = {};
+  const used = new Set<string>();
+  for (const name of names) {
+    const hint = preferred[name];
+    if (hint && !used.has(hint)) {
+      codes[name] = hint;
+      used.add(hint);
+    }
+  }
+  for (const name of names) {
+    if (codes[name]) continue;
+    let len = 1;
+    let candidate = name.slice(0, len).toUpperCase();
+    while (used.has(candidate) && len < name.length) {
+      len++;
+      candidate = name.slice(0, len).toUpperCase();
+    }
+    let suffix = 2;
+    while (used.has(candidate)) { candidate = name.slice(0, len).toUpperCase() + suffix; suffix++; }
+    codes[name] = candidate;
+    used.add(candidate);
+  }
+  return codes;
 }
 
 function SupplementHeatmap({
   weeks,
   supplements,
+  codes,
 }: {
   weeks: string[][];
   supplements: { med: Med; intakeSet: Set<string> }[];
+  codes: Record<string, string>;
 }) {
   const nWeeks = weeks.length;
 
@@ -427,7 +462,7 @@ function SupplementHeatmap({
               if (!day) return <div key={`${wi}-${di}`} />;
               const active = supplements.filter((s) => s.intakeSet.has(day));
               const bg = active.length > 0 ? "var(--phase)" : "var(--surface-3)";
-              const label = active.map((s) => codeFor(s.med.name)).join("");
+              const label = active.map((s) => codes[s.med.name] ?? "").join("");
               const title = active.length > 0
                 ? `${day} — ${active.map((s) => s.med.name).join(", ")}`
                 : day;
@@ -466,6 +501,7 @@ function SupplementCalendar({
   if (supplements.length === 0) return null;
   const anyDay = new Set<string>();
   for (const s of supplements) for (const d of s.intakeSet) anyDay.add(d);
+  const codes = assignCodes(supplements.map((s) => s.med.name), SUPPLEMENT_CODE_HINTS);
 
   return (
     <div className="rounded-card border border-line bg-surface p-3">
@@ -477,16 +513,16 @@ function SupplementCalendar({
         </div>
       </div>
 
-      <SupplementHeatmap weeks={weeks} supplements={supplements} />
+      <SupplementHeatmap weeks={weeks} supplements={supplements} codes={codes} />
 
       <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
         {supplements.map(({ med, intakeSet }) => (
           <div key={med.id} className="flex items-center gap-1">
             <span
-              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[1px] font-mono text-[8px] font-bold"
+              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[8px] font-bold"
               style={{ background: "var(--phase-soft)", color: "var(--phase-deep)" }}
             >
-              {codeFor(med.name)}
+              {codes[med.name]}
             </span>
             <span className="font-mono text-[9px] text-ink-4">{med.name} · {intakeSet.size}</span>
           </div>
@@ -497,27 +533,9 @@ function SupplementCalendar({
 }
 
 // ── As-needed (abortive) calendar — one combined heatmap, dynamic codes ─────
-// Unlike supplements, the as-needed med list is user-defined and open-ended
-// (Суматриптан, Нурофен, Спрей, Делмигрен, …) so codes can't be a fixed
-// lookup — assign the shortest unique prefix per name, extending on
-// collision (e.g. Суматриптан → "С", Спрей then can't reuse "С" → "Сп").
-function assignCodes(names: string[]): Record<string, string> {
-  const codes: Record<string, string> = {};
-  const used = new Set<string>();
-  for (const name of names) {
-    let len = 1;
-    let candidate = name.slice(0, len).toUpperCase();
-    while (used.has(candidate) && len < name.length) {
-      len++;
-      candidate = name.slice(0, len).toUpperCase();
-    }
-    let suffix = 2;
-    while (used.has(candidate)) { candidate = name.slice(0, len).toUpperCase() + suffix; suffix++; }
-    codes[name] = candidate;
-    used.add(candidate);
-  }
-  return codes;
-}
+// Uses the same assignCodes() as the supplement calendar above, with no
+// cosmetic hints — the as-needed med list is fully user-defined and
+// open-ended (Суматриптан, Нурофен, Спрей, Делмигрен, …).
 
 function AsNeededHeatmap({
   weeks,
