@@ -35,29 +35,37 @@ function toWeeks(days: string[]): string[][] {
 // (e.g. "не помог спрей от насморка" would match nasal_spray). Acceptable for a
 // history-display heuristic; original text is shown alongside via MigreBotSection
 // so the user can always see what was actually written.
-const MED_PATTERNS: { pattern: RegExp; ids: string[] }[] = [
-  { pattern: /суматриптан|имигран/i,              ids: ["sumatriptan"] },
-  { pattern: /нурофен|ибупрофен/i,               ids: ["nurofen"] },
-  { pattern: /спрей|назальн/i,                   ids: ["nasal_spray"] },
-  { pattern: /спазмалгон/i,                      ids: ["spazmalgon"] },
-  { pattern: /пенталгин/i,                       ids: ["pentalgin"] },
-  { pattern: /триптаджик/i,                      ids: ["triptadjik"] },
-  { pattern: /делмигрен/i,                       ids: ["delmigren"] },
-  { pattern: /капориза/i,                        ids: ["kaporiza"] },
-  { pattern: /релпакс|элетриптан/i,              ids: ["relpax"] },
-  { pattern: /аскофен|аскопар/i,                ids: ["ascofene"] },
-  { pattern: /золмитриптан|зомиг/i,             ids: ["zolmitriptan"] },
-  { pattern: /ризатриптан|максальт/i,           ids: ["rizatriptan"] },
-  { pattern: /парацетамол|панадол/i,            ids: ["paracetamol"] },
-  { pattern: /кеторолак|кетанов/i,             ids: ["ketorolac"] },
+//
+// Matches by NAME against the user's actual active medications (not a fixed id
+// table) — a static id like "sumatriptan" only lines up with a real medication
+// row if one happens to exist under that exact id. Custom-added meds always get
+// a `custom_<timestamp>` id, so the old fixed-id table silently never matched
+// them even when the name was an exact match (e.g. a self-added "Суматриптан").
+const MED_PATTERNS: RegExp[] = [
+  /суматриптан|имигран/i,
+  /нурофен|ибупрофен/i,
+  /спрей|назальн/i,
+  /спазмалгон/i,
+  /пенталгин/i,
+  /триптаджик/i,
+  /делмигрен/i,
+  /капориза/i,
+  /релпакс|элетриптан/i,
+  /аскофен|аскопар/i,
+  /золмитриптан|зомиг/i,
+  /ризатриптан|максальт/i,
+  /парацетамол|панадол/i,
+  /кеторолак|кетанов/i,
 ];
 
-// Detect medication IDs mentioned in a meds text
-function detectMedIds(medsText: string): string[] {
+// Detect medication ids mentioned in a meds text, resolved against the user's
+// own active medications by name (see comment above).
+function detectMedIds(medsText: string, meds: Med[]): string[] {
   const found: string[] = [];
-  for (const { pattern, ids } of MED_PATTERNS) {
-    if (pattern.test(medsText)) {
-      for (const id of ids) if (!found.includes(id)) found.push(id);
+  for (const pattern of MED_PATTERNS) {
+    if (!pattern.test(medsText)) continue;
+    for (const med of meds) {
+      if (pattern.test(med.name) && !found.includes(med.id)) found.push(med.id);
     }
   }
   return found;
@@ -133,7 +141,11 @@ function Heatmap({
           style={{ display: "grid", gridTemplateColumns: `repeat(${nWeeks}, 13px)`, gap: "2px" }}
         >
           {weeks.map((_, wi) => (
-            <div key={wi} className="font-mono text-[8px] text-ink-4 truncate">
+            <div
+              key={wi}
+              className="font-mono text-[8px] text-ink-4"
+              style={{ whiteSpace: "nowrap", overflow: "visible" }}
+            >
               {monthLabels.get(wi) ?? ""}
             </div>
           ))}
@@ -312,7 +324,7 @@ export function MedCalendar({
 
   for (const day of intakeDays) {
     // Detect med IDs from MigreBot meds text
-    const migraineMedIds = day.migraineMeds ? detectMedIds(day.migraineMeds) : [];
+    const migraineMedIds = day.migraineMeds ? detectMedIds(day.migraineMeds, meds) : [];
 
     for (const med of meds) {
       const set = medIntakeSets.get(med.id)!;
@@ -337,7 +349,11 @@ export function MedCalendar({
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const regularMeds  = meds.filter((m) => !m.isAsNeeded);
-  const asNeededMeds = meds.filter((m) => m.isAsNeeded);
+  // "По факту мигрени" препараты с 0 приёмов в периоде — не показываем
+  // (это в основном шум от эвристики MigreBot-регэкспа по чужим заметкам,
+  // а не реально принимавшиеся препараты). Регулярные не фильтруем — там
+  // 0 приёмов сама по себе значимая информация (пропуск профилактики).
+  const asNeededMeds = meds.filter((m) => m.isAsNeeded && (medIntakeSets.get(m.id)?.size ?? 0) > 0);
 
   if (meds.length === 0) {
     return (

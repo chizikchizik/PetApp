@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightInput } from "./weight-input";
+import { WeightHistory } from "./weight-history";
 import { CalorieInput } from "./calorie-input";
 
 export const dynamic = "force-dynamic";
@@ -122,6 +123,8 @@ export default async function Weight() {
           лучше утром, натощак, в одинаковых условиях
         </p>
       </div>
+
+      <WeightHistory todayISO={dayKey} rows={rows} />
 
       {/* ── Калории ── */}
       <CalorieInput todayISO={dayKey} history={calories} />
