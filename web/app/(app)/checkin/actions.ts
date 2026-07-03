@@ -88,6 +88,29 @@ export async function createMed(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+
+  // If she's coming back to a medication she previously archived (see
+  // deleteMed), reactivate that same row instead of creating a duplicate —
+  // a new row would share the same habit_key and double up every day in
+  // its history on the heatmap.
+  const { data: archived } = await byUser(
+    db.from("medication").select("id").eq("name", trimmed).not("archived_at", "is", null),
+    uid,
+  ).maybeSingle();
+  if (archived) {
+    const { error: restoreErr } = await byUser(
+      db.from("medication").update({ archived_at: null }).eq("id", archived.id),
+      uid,
+    );
+    if (restoreErr) return { ok: false, error: restoreErr.message };
+    revalidatePath("/checkin");
+    revalidatePath("/checkin/meds");
+    revalidatePath("/dashboard");
+    revalidatePath("/habits");
+    revalidatePath("/habits/bulk");
+    return { ok: true };
+  }
+
   const { error } = await db.from("medication").insert({
     id: `custom_${Date.now()}`,
     name: trimmed,
