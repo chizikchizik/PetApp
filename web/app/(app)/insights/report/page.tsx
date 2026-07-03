@@ -165,8 +165,14 @@ export default async function MigraineReport() {
   const auraCount = events.filter((e) => e.aura).length;
   const auraPct = auraTotal ? Math.round((auraCount / auraTotal) * 100) : 0;
 
-  const prophylactic = meds.filter((m) => !m.isAsNeeded);
-  const asNeeded = meds.filter((m) => m.isAsNeeded);
+  // "Текущая терапия" must reflect what she's actually on right now — an
+  // archived (soft-deleted) medication stays in `meds` (getAllMeds()) so its
+  // history still counts in abortiveBreakdown below, but listing it here as
+  // current prophylaxis/abortive therapy would show the neurologist a drug
+  // she explicitly stopped/removed as if it were still in use.
+  const currentMeds = meds.filter((m) => !m.archived);
+  const prophylactic = currentMeds.filter((m) => !m.isAsNeeded);
+  const asNeeded = currentMeds.filter((m) => m.isAsNeeded);
 
   // Разбивка абортивных препаратов по видам — Елена (медицинская ревизия):
   // невролог должен видеть конкретный класс, объединять в одну цифру
@@ -185,7 +191,12 @@ export default async function MigraineReport() {
       medDayCounts.get(id)!.add(day.date);
     }
   }
-  const abortiveBreakdown = asNeeded
+  // Uses the full (unfiltered-by-archived) med list — a year of history can
+  // easily span a medication she's since archived, and its past intake days
+  // should still count toward this breakdown even though it's excluded from
+  // "current therapy" above.
+  const abortiveBreakdown = meds
+    .filter((m) => m.isAsNeeded)
     .map((m) => ({
       id: m.id,
       name: m.name,
@@ -194,8 +205,8 @@ export default async function MigraineReport() {
     }))
     .filter((r) => r.days > 0 && r.classLabel !== "Без указанного класса")
     .sort((a, b) => b.days - a.days);
-  const unclassifiedAbortiveDays = asNeeded
-    .filter((m) => !DRUG_CLASS_LABELS[m.drugClass])
+  const unclassifiedAbortiveDays = meds
+    .filter((m) => m.isAsNeeded && !DRUG_CLASS_LABELS[m.drugClass])
     .reduce((sum, m) => sum + (medDayCounts.get(m.id)?.size ?? 0), 0);
 
   const generatedDate = today.toLocaleDateString("ru-RU", {

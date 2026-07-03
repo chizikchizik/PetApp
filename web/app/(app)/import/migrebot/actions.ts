@@ -43,7 +43,14 @@ async function autoRegisterDetectedMeds(
 
   const toCreate = detectedLabels.filter((label) => !existingNames.has(label));
   for (let i = 0; i < toCreate.length; i++) {
-    await db.from("medication").insert({
+    // id includes both the timestamp and the loop index specifically to stay
+    // unique within this one call; across two different users importing in
+    // the same millisecond with the same detected-med index, `id` (primary
+    // key) could theoretically still collide. onConflict-ignore means that
+    // extremely rare case just skips this insert instead of throwing an
+    // unhandled error that would otherwise silently abort the rest of the
+    // import loop.
+    const { error } = await db.from("medication").insert({
       id: `custom_${Date.now()}_${i}`,
       name: toCreate[i],
       is_as_needed: true,
@@ -52,6 +59,10 @@ async function autoRegisterDetectedMeds(
       sort: 99,
       app_user_id: uid,
     });
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(`autoRegisterDetectedMeds: failed to create "${toCreate[i]}"`, error.message);
+    }
   }
 }
 

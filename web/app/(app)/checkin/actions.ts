@@ -111,6 +111,19 @@ export async function createMed(
     return { ok: true };
   }
 
+  // Reject a duplicate of an already-active medication outright — without
+  // this, a same-name insert silently creates a second row with its own id
+  // and habit_key, splitting one medication's history/heatmap/МИГБ count in
+  // two (found live on the admin account: two separate "Суматриптан" rows
+  // from two create calls a day apart). The archived-reactivation case above
+  // already covers the legitimate "adding it back" flow, so anything left
+  // here really is a duplicate name, not a comeback.
+  const { data: activeDup } = await byUser(
+    db.from("medication").select("id").eq("name", trimmed).is("archived_at", null),
+    uid,
+  ).maybeSingle();
+  if (activeDup) return { ok: false, error: "Такой препарат уже есть в списке" };
+
   const { error } = await db.from("medication").insert({
     id: `custom_${Date.now()}`,
     name: trimmed,
@@ -256,6 +269,19 @@ export async function logQuickPain(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+
+  // medId comes straight from the client (this server action is a public
+  // endpoint) — without checking ownership here, passing someone else's
+  // medication id would insert a row that later joins to *their* medication
+  // name in getQuickPainEntries(), leaking it into this user's own history.
+  if (medId) {
+    const { data: owned } = await byUser(
+      db.from("medication").select("id").eq("id", medId),
+      uid,
+    ).maybeSingle();
+    if (!owned) return { ok: false, error: "Препарат не найден" };
+  }
+
   const { error } = await db.from("medication_intake").insert({
     app_user_id: uid,
     medication_id: medId,

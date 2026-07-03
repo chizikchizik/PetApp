@@ -93,7 +93,7 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startT] = useTransition();
 
-  const pending = meds.filter((m) => m.isAsNeeded && m.drugClass === "unclassified");
+  const pending = meds.filter((m) => m.isAsNeeded && m.drugClass === "unclassified" && !m.archived);
   if (pending.length === 0) return null;
 
   function apply(medId: string, drugClass: string) {
