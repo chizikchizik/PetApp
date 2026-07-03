@@ -93,6 +93,7 @@ export function CheckinForm({
   const [doseName, setDoseName] = useState("");
   const [doseNote, setDoseNote] = useState("");
   const [doseStatus, setDoseStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [showOtherMeds, setShowOtherMeds] = useState(false);
   const [editingTriggers, setEditingTriggers] = useState(false);
   const [newTriggerName, setNewTriggerName] = useState("");
   const [addTriggerStatus, setAddTriggerStatus] = useState<"idle" | "saving">("idle");
@@ -199,6 +200,129 @@ export function CheckinForm({
 
   const m = s.migraine;
   const medHabitKeys = new Set([...meds.map((med) => med.habit_key), ...SPORT_HABITS]);
+
+  // Регулярные препараты нужно отмечать каждый день — всегда видны.
+  // "По факту мигрени" может разрастись до 10+ (MigreBot-импорт) — показываем
+  // топ-3 по частоте приёма за месяц, остальное прячем за "Другое", но не
+  // прячем уже отмеченный сегодня препарат, даже если он не в топ-3.
+  const regularMeds = meds.filter((med) => !med.isAsNeeded);
+  const asNeededSorted = meds
+    .filter((med) => med.isAsNeeded)
+    .sort((a, b) => (medCounts[b.id] ?? 0) - (medCounts[a.id] ?? 0));
+  const pinnedIds = new Set(asNeededSorted.slice(0, 3).map((med) => med.id));
+  for (const med of asNeededSorted) if (s.habits.includes(med.habit_key)) pinnedIds.add(med.id);
+  const topAsNeeded = asNeededSorted.filter((med) => pinnedIds.has(med.id));
+  const otherAsNeeded = asNeededSorted.filter((med) => !pinnedIds.has(med.id));
+
+  function renderMedRow(med: Med, i: number) {
+    const on = s.habits.includes(med.habit_key);
+    const isConfirming = confirmDeleteId === med.id;
+    const count = medCounts[med.id] ?? 0;
+    const isChangingDose = changingDoseId === med.id;
+    return (
+      <div
+        key={med.id}
+        className={`py-3 ${i > 0 ? "border-t border-line" : ""}`}
+      >
+        <div className="flex w-full items-center gap-3">
+          <button
+            type="button"
+            onClick={() => toggleMed(med)}
+            className="flex flex-1 items-center gap-3 text-left min-w-0"
+          >
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-[3px] border-2 transition ${on ? "border-phase bg-phase text-on-phase" : "border-ink-3 text-transparent"}`}>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <path d="M5 12l5 5L20 7" />
+              </svg>
+            </span>
+            <span className={`text-[15px] leading-snug ${on ? "text-ink-3 line-through" : "text-ink"}`}>
+              {med.name}
+              {med.note && <span className="text-[12px] text-ink-3"> · {med.note}</span>}
+              {med.isAsNeeded
+                ? <span className="text-[11px] text-warn"> · по мигрени{count > 0 ? ` · ${count} раз/мес` : ""}</span>
+                : med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
+            </span>
+          </button>
+          {isConfirming ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteMed(med.id)}
+                className="rounded-[2px] bg-red-600 px-2.5 py-1 font-mono text-[11px] text-white"
+              >
+                Да
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(null)}
+                className="font-mono text-[11px] text-ink-3"
+              >
+                Нет
+              </button>
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => (isChangingDose ? setChangingDoseId(null) : startChangeDose(med))}
+                className="font-mono text-[10px] tracking-[0.04em] text-ink-3 underline underline-offset-2 transition active:text-ink"
+                aria-label="Изменить дозу"
+              >
+                доза
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(med.id)}
+                className="pl-1 font-mono text-[16px] leading-none text-ink-4 transition active:text-ink-2"
+                aria-label="Удалить препарат"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isChangingDose && (
+          <div className="mt-2.5 space-y-2 rounded-[3px] border border-line bg-surface-2 p-3">
+            <p className="font-mono text-[9px] tracking-[0.06em] uppercase text-ink-3">
+              Новая доза/название — старая запись сохранится в истории
+            </p>
+            <input
+              type="text"
+              value={doseName}
+              onChange={(e) => setDoseName(e.target.value)}
+              placeholder="Название"
+              className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-phase"
+            />
+            <input
+              type="text"
+              value={doseNote}
+              onChange={(e) => setDoseNote(e.target.value)}
+              placeholder="Заметка (доза, мг и т.п.)"
+              className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-phase"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setChangingDoseId(null)}
+                className="rounded-[2px] px-3 py-1.5 font-mono text-[11px] text-ink-3"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleChangeDose}
+                disabled={doseStatus === "saving"}
+                className="flex-1 rounded-[2px] bg-phase py-1.5 font-mono text-[11px] font-semibold text-on-phase disabled:opacity-60"
+              >
+                {doseStatus === "saving" ? "Сохраняю…" : doseStatus === "error" ? "Ошибка" : "Сохранить как новую дозу"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="mt-5 space-y-5">
@@ -380,119 +504,29 @@ export function CheckinForm({
         </div>
 
         <div className="mt-2 rounded-card border border-line bg-surface px-4">
-          {meds.map((med, i) => {
-            const on = s.habits.includes(med.habit_key);
-            const isConfirming = confirmDeleteId === med.id;
-            const count = medCounts[med.id] ?? 0;
-            const isChangingDose = changingDoseId === med.id;
-            return (
-              <div
-                key={med.id}
-                className={`py-3 ${i > 0 ? "border-t border-line" : ""}`}
-              >
-                <div className="flex w-full items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleMed(med)}
-                    className="flex flex-1 items-center gap-3 text-left min-w-0"
-                  >
-                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-[3px] border-2 transition ${on ? "border-phase bg-phase text-on-phase" : "border-ink-3 text-transparent"}`}>
-                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                        <path d="M5 12l5 5L20 7" />
-                      </svg>
-                    </span>
-                    <span className={`text-[15px] leading-snug ${on ? "text-ink-3 line-through" : "text-ink"}`}>
-                      {med.name}
-                      {med.note && <span className="text-[12px] text-ink-3"> · {med.note}</span>}
-                      {med.isAsNeeded
-                        ? <span className="text-[11px] text-warn"> · по мигрени{count > 0 ? ` · ${count} раз/мес` : ""}</span>
-                        : med.when && <span className="text-[12px] text-ink-3"> · {med.when}</span>}
-                    </span>
-                  </button>
-                  {isConfirming ? (
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMed(med.id)}
-                        className="rounded-[2px] bg-red-600 px-2.5 py-1 font-mono text-[11px] text-white"
-                      >
-                        Да
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="font-mono text-[11px] text-ink-3"
-                      >
-                        Нет
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => (isChangingDose ? setChangingDoseId(null) : startChangeDose(med))}
-                        className="font-mono text-[10px] tracking-[0.04em] text-ink-3 underline underline-offset-2 transition active:text-ink"
-                        aria-label="Изменить дозу"
-                      >
-                        доза
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(med.id)}
-                        className="pl-1 font-mono text-[16px] leading-none text-ink-4 transition active:text-ink-2"
-                        aria-label="Удалить препарат"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {isChangingDose && (
-                  <div className="mt-2.5 space-y-2 rounded-[3px] border border-line bg-surface-2 p-3">
-                    <p className="font-mono text-[9px] tracking-[0.06em] uppercase text-ink-3">
-                      Новая доза/название — старая запись сохранится в истории
-                    </p>
-                    <input
-                      type="text"
-                      value={doseName}
-                      onChange={(e) => setDoseName(e.target.value)}
-                      placeholder="Название"
-                      className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-phase"
-                    />
-                    <input
-                      type="text"
-                      value={doseNote}
-                      onChange={(e) => setDoseNote(e.target.value)}
-                      placeholder="Заметка (доза, мг и т.п.)"
-                      className="w-full rounded-[3px] border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-phase"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setChangingDoseId(null)}
-                        className="rounded-[2px] px-3 py-1.5 font-mono text-[11px] text-ink-3"
-                      >
-                        Отмена
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleChangeDose}
-                        disabled={doseStatus === "saving"}
-                        className="flex-1 rounded-[2px] bg-phase py-1.5 font-mono text-[11px] font-semibold text-on-phase disabled:opacity-60"
-                      >
-                        {doseStatus === "saving" ? "Сохраняю…" : doseStatus === "error" ? "Ошибка" : "Сохранить как новую дозу"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {regularMeds.map((med, i) => renderMedRow(med, i))}
+          {topAsNeeded.map((med, i) => renderMedRow(med, regularMeds.length + i))}
           {meds.length === 0 && (
             <p className="py-3 font-mono text-[12px] text-ink-4">Нет препаратов — добавь ниже</p>
           )}
         </div>
+
+        {otherAsNeeded.length > 0 && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setShowOtherMeds((v) => !v)}
+              className="font-mono text-[11px] text-ink-3 underline underline-offset-2"
+            >
+              {showOtherMeds ? "скрыть" : `другое (${otherAsNeeded.length}) →`}
+            </button>
+            {showOtherMeds && (
+              <div className="mt-2 rounded-card border border-line bg-surface px-4">
+                {otherAsNeeded.map((med, i) => renderMedRow(med, i))}
+              </div>
+            )}
+          </div>
+        )}
 
         {addingMed && (
           <div className="mt-2 space-y-2">
