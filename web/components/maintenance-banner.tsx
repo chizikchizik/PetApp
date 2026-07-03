@@ -1,9 +1,10 @@
-// Разовое уведомление про технические работы 2 июля 2026 — само скрывается
-// после дедлайна, ничего вручную убирать не нужно.
+// Уведомление про технические работы 2-3 июля 2026 — само скрывается
+// после дедлайна, ничего вручную убирать не нужно. Продлено на 3 июля —
+// пиши новую дату в MAINTENANCE_UNTIL, если работы продолжаются ещё.
 // ВАЖНО: сравниваем с реальным epoch (Date.now()), не с nowMoscow() — та
 // возвращает Date.now()+3ч для чтения через UTC-геттеры, а не настоящее
 // время; сравнение .getTime() с ней сдвинуло бы порог на 3 часа раньше.
-const MAINTENANCE_UNTIL = new Date("2026-07-02T18:00:00+03:00");
+const MAINTENANCE_UNTIL = new Date("2026-07-03T22:00:00+03:00");
 const TELEGRAM_HANDLE = "@MToldinova";
 
 export function MaintenanceBanner() {
@@ -11,7 +12,7 @@ export function MaintenanceBanner() {
 
   return (
     <div className="mb-3 rounded-card border border-warn bg-warn-soft px-3.5 py-2.5 font-sans text-[12px] leading-relaxed text-ink-2">
-      <span className="font-semibold text-warn">На сервере технические работы до 18:00.</span>{" "}
+      <span className="font-semibold text-warn">На сервере технические работы.</span>{" "}
       Если что-то не работает — напишите в Telegram: {" "}
       <a
         href={`https://t.me/${TELEGRAM_HANDLE.slice(1)}`}
