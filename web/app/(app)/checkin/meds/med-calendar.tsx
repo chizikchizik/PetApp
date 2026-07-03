@@ -496,6 +496,178 @@ function SupplementCalendar({
   );
 }
 
+// ── As-needed (abortive) calendar — one combined heatmap, dynamic codes ─────
+// Unlike supplements, the as-needed med list is user-defined and open-ended
+// (Суматриптан, Нурофен, Спрей, Делмигрен, …) so codes can't be a fixed
+// lookup — assign the shortest unique prefix per name, extending on
+// collision (e.g. Суматриптан → "С", Спрей then can't reuse "С" → "Сп").
+function assignCodes(names: string[]): Record<string, string> {
+  const codes: Record<string, string> = {};
+  const used = new Set<string>();
+  for (const name of names) {
+    let len = 1;
+    let candidate = name.slice(0, len).toUpperCase();
+    while (used.has(candidate) && len < name.length) {
+      len++;
+      candidate = name.slice(0, len).toUpperCase();
+    }
+    let suffix = 2;
+    while (used.has(candidate)) { candidate = name.slice(0, len).toUpperCase() + suffix; suffix++; }
+    codes[name] = candidate;
+    used.add(candidate);
+  }
+  return codes;
+}
+
+function AsNeededHeatmap({
+  weeks,
+  meds,
+  intakeSets,
+  migraineSet,
+  codes,
+}: {
+  weeks: string[][];
+  meds: Med[];
+  intakeSets: Map<string, Set<string>>;
+  migraineSet: Set<string>;
+  codes: Record<string, string>;
+}) {
+  const nWeeks = weeks.length;
+
+  const monthLabels = new Map<number, string>();
+  let lastM = -1;
+  weeks.forEach((week, wi) => {
+    const first = week.find((d) => d);
+    if (!first) return;
+    const m = parseInt(first.slice(5, 7)) - 1;
+    if (m !== lastM) { monthLabels.set(wi, MONTHS_SHORT[m]); lastM = m; }
+  });
+
+  return (
+    <div className="flex gap-1.5 overflow-x-auto">
+      <div className="shrink-0 flex flex-col" style={{ paddingTop: "16px" }}>
+        {DOW_LABELS.map((label, i) => (
+          <div
+            key={label}
+            className="flex items-center justify-end pr-1"
+            style={{ height: "13px", marginBottom: "2px", opacity: i % 2 === 0 ? 1 : 0 }}
+          >
+            <span className="font-mono text-[8px] text-ink-4">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="min-w-0" style={{ flexShrink: 0 }}>
+        <div
+          className="mb-0.5"
+          style={{ display: "grid", gridTemplateColumns: `repeat(${nWeeks}, 13px)`, gap: "2px" }}
+        >
+          {weeks.map((_, wi) => (
+            <div
+              key={wi}
+              className="font-mono text-[8px] text-ink-4"
+              style={{ whiteSpace: "nowrap", overflow: "visible" }}
+            >
+              {monthLabels.get(wi) ?? ""}
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${nWeeks}, 13px)`,
+            gridTemplateRows: "repeat(7, 13px)",
+            gridAutoFlow: "column",
+            gap: "2px",
+          }}
+        >
+          {weeks.map((week, wi) =>
+            week.map((day, di) => {
+              if (!day) return <div key={`${wi}-${di}`} />;
+              const active = meds.filter((m) => intakeSets.get(m.id)?.has(day));
+              const migraineNoMed = active.length === 0 && migraineSet.has(day);
+              let bg = "var(--surface-3)";
+              if (active.length > 0) bg = "var(--warn, #e8a23a)";
+              else if (migraineNoMed) bg = "rgba(232,162,58,0.28)";
+              const label = active.map((m) => codes[m.name] ?? "").join("");
+              const title = active.length > 0
+                ? `${day} — ${active.map((m) => m.name).join(", ")}`
+                : migraineNoMed ? `${day} — мигрень, не зафиксировано` : day;
+              return (
+                <div
+                  key={`${wi}-${di}`}
+                  className="flex items-center justify-center rounded-[2px] transition"
+                  style={{ background: bg, width: "13px", height: "13px" }}
+                  title={title}
+                >
+                  {active.length > 0 && (
+                    <span
+                      className="font-mono font-bold leading-none"
+                      style={{ fontSize: active.length > 1 ? "5px" : "7px", color: "#fff" }}
+                    >
+                      {label}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AsNeededCalendar({
+  meds,
+  weeks,
+  intakeSets,
+  migraineSet,
+}: {
+  meds: Med[];
+  weeks: string[][];
+  intakeSets: Map<string, Set<string>>;
+  migraineSet: Set<string>;
+}) {
+  if (meds.length === 0) return null;
+  const codes = assignCodes(meds.map((m) => m.name));
+  const anyDay = new Set<string>();
+  for (const med of meds) for (const d of intakeSets.get(med.id) ?? []) anyDay.add(d);
+
+  return (
+    <div className="rounded-card border border-line bg-surface p-3">
+      <div className="mb-2.5 flex items-start gap-2">
+        <span className="flex-1 font-sans text-[14px] font-semibold text-ink">По факту мигрени</span>
+        <div className="shrink-0 text-right">
+          <span className="font-mono text-[18px] font-bold text-ink leading-none">{anyDay.size}</span>
+          <span className="block font-mono text-[8px] text-ink-4">дней</span>
+        </div>
+      </div>
+
+      <AsNeededHeatmap weeks={weeks} meds={meds} intakeSets={intakeSets} migraineSet={migraineSet} codes={codes} />
+
+      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
+        {meds.map((med) => (
+          <div key={med.id} className="flex items-center gap-1">
+            <span
+              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[8px] font-bold"
+              style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+            >
+              {codes[med.name]}
+            </span>
+            <span className="font-mono text-[9px] text-ink-4">{med.name} · {(intakeSets.get(med.id) ?? new Set()).size}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-[1px]" style={{ background: "rgba(232,162,58,0.28)" }} />
+          <span className="font-mono text-[9px] text-ink-4">мигрень без отметки</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MigreBot history section ─────────────────────────────────────────────────
 
 type MigraineDayEntry = {
@@ -671,17 +843,12 @@ export function MedCalendar({
       {asNeededMeds.length > 0 && (
         <div>
           <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">По факту мигрени</p>
-          <div className="space-y-3">
-            {asNeededMeds.map((med) => (
-              <MedRow
-                key={med.id}
-                med={med}
-                weeks={weeks}
-                intakeSet={medIntakeSets.get(med.id) ?? new Set()}
-                migraineSet={migraineSet}
-              />
-            ))}
-          </div>
+          <AsNeededCalendar
+            meds={asNeededMeds}
+            weeks={weeks}
+            intakeSets={medIntakeSets}
+            migraineSet={migraineSet}
+          />
         </div>
       )}
 
