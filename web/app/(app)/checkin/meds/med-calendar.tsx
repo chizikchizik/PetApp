@@ -119,14 +119,14 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
           const busy = busyId === med.id;
           return (
             <div key={med.id} className="rounded-[3px] border border-line bg-surface-2 p-2.5">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-sans text-[13px] font-semibold text-ink">{med.name}</span>
                 {hint && (
                   <button
                     type="button"
                     onClick={() => apply(med.id, hint.drugClass)}
                     disabled={busy}
-                    className="shrink-0 font-mono text-[10px] text-phase underline underline-offset-2 disabled:opacity-50"
+                    className="font-mono text-[10px] text-phase underline underline-offset-2 disabled:opacity-50"
                   >
                     похоже на {hint.label} · подтвердить
                   </button>
