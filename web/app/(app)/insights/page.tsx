@@ -8,7 +8,7 @@ import {
   getSportActivityDays,
   getSportTypes,
 } from "@/lib/data";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
@@ -217,7 +217,16 @@ export default async function Insights() {
     getCurrentUser(),
   ]);
 
-  const corr = cycleCorrelation(recentEvents, starts);
+  const pregnant = isPregnant(user);
+  // Окно беременности исключается из корреляции с циклом (и во время, и
+  // после — по сохранённым pregnant_since/until), иначе безфазовый период
+  // загрязняет статистику "приступ в окне −2…+3 от месячных".
+  const corrEvents = recentEvents.filter((e) => {
+    if (!user?.pregnantSince) return true;
+    const until = user.pregnantUntil ?? "9999-12-31";
+    return e.date < user.pregnantSince || e.date > until;
+  });
+  const corr = cycleCorrelation(corrEvents, starts);
   const chartBars = allMonthlyBars(allEvents);
   const cycles = buildCycleCalendar(starts, recentEvents, today, 6, user?.menstrualDays ?? 5);
   const trainingMigraines = recentEvents.filter((e) => e.date >= sinceTraining);
@@ -249,10 +258,22 @@ export default async function Insights() {
       </Link>
 
       {/* ── Связь с циклом ── */}
-      <CycleCorrelationBlock corr={corr} />
+      {pregnant ? (
+        <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            связь с циклом
+          </p>
+          <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            На паузе на время беременности — период без цикла исключается из расчёта,
+            чтобы не искажать статистику. Корреляция возобновится вместе с циклом.
+          </p>
+        </section>
+      ) : (
+        <CycleCorrelationBlock corr={corr} />
+      )}
 
       {/* ── Давление и мигрень ── */}
-      <PressureBlock attackDates={recentEvents.map((e) => e.date)} />
+      <PressureBlock attackDates={recentEvents.map((e) => e.date)} pregnant={pregnant} />
 
       {/* ── Приступы по месяцам ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
@@ -269,7 +290,9 @@ export default async function Insights() {
         </p>
       </section>
 
-      {/* ── Мигрень × цикл ── */}
+      {/* ── Мигрень × цикл ── (на паузе при беременности: "текущий цикл"
+          в календаре был бы бесконечным и вводил бы в заблуждение) */}
+      {!pregnant && (
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
           мигрень × цикл
@@ -314,6 +337,7 @@ export default async function Insights() {
           ))}
         </div>
       </section>
+      )}
 
       {/* ── Мигрень × тренировки ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">

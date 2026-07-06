@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAllMeds, getMedIntakeDays, getQuickPainEntries } from "@/lib/data";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { MedCalendar } from "./med-calendar";
 
@@ -26,11 +27,13 @@ export default async function MedsPage({
   const nextEnd  = addMonths(endISO, 3);
   const nextEnd2 = nextEnd > todayISO ? todayISO : nextEnd;
 
-  const [meds, intakeDays, quickPainEntries] = await Promise.all([
+  const [meds, intakeDays, quickPainEntries, user] = await Promise.all([
     getAllMeds(),
     getMedIntakeDays(fromISO, endISO),
     getQuickPainEntries(fromISO, endISO),
+    getCurrentUser(),
   ]);
+  const pregnant = isPregnant(user);
 
   const fromLabel = fromISO.slice(0, 7).replace("-", ".");
   const toLabel   = endISO.slice(0, 7).replace("-", ".");
@@ -43,6 +46,16 @@ export default async function MedsPage({
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">
         ПРЕПАРАТЫ
       </h1>
+
+      {pregnant && (
+        <div className="mt-3 rounded-card border border-line bg-surface-2 px-3.5 py-2.5" style={{ borderLeft: "2px solid var(--warn)" }}>
+          <p className="font-sans text-[12px] leading-[1.55] text-ink-2">
+            Во время беременности обсуди с врачом все препараты и добавки — и те, что
+            принимаешь постоянно, и те, что для купирования. Не отменяй назначенное
+            самостоятельно.
+          </p>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="mt-2 flex items-center gap-3">

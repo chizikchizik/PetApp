@@ -13,7 +13,7 @@ import {
   WEIGHT_GOAL,
   type WearableDay,
 } from "@/lib/data";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCalendarEvents } from "../training/schedule/actions";
@@ -100,6 +100,7 @@ export default async function Dashboard() {
     list.push(ev);
     eventsByDate.set(ev.event_date, list);
   }
+  const pregnant = isPregnant(user);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
@@ -151,13 +152,13 @@ export default async function Dashboard() {
       <header className="flex items-start justify-between pb-4">
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-phase">
-            // {PHASE_LABELS[c.phase]}
+            // {pregnant ? "БЕРЕМЕННОСТЬ" : PHASE_LABELS[c.phase]}
           </div>
           <div className="mt-1.5 font-serif font-bold text-[23px] leading-[1.05] uppercase">
             {displayName.toUpperCase()}
           </div>
           <div className="mt-1.5 font-mono text-[11px] text-ink-3">
-            ДЕНЬ {c.day} · {formatDateHeader(today)}
+            {pregnant ? formatDateHeader(today) : `ДЕНЬ ${c.day} · ${formatDateHeader(today)}`}
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
@@ -171,7 +172,25 @@ export default async function Dashboard() {
         </div>
       </header>
 
-      {/* ── Главный циферблат ── */}
+      {/* ── Главный циферблат / карточка беременности ── */}
+      {pregnant ? (
+        <section className="rounded-card border border-line bg-surface p-5">
+          <div className="flex items-center gap-2">
+            <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-phase" />
+            <span className="font-sans font-bold text-[14px] tracking-[0.01em]">Беременность</span>
+          </div>
+          <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
+            Фазы цикла на паузе — наблюдения (вес, мигрень, препараты, привычки) продолжаются.
+          </p>
+          <div className="mt-3 rounded-[3px] border border-line bg-surface-2 p-3" style={{ borderLeft: "2px solid var(--warn)" }}>
+            <p className="font-sans text-[12px] leading-[1.55] text-ink-2">
+              Сильная или необычная головная боль, особенно с давлением 140/90 и выше,
+              нарушениями зрения или отёками — срочно свяжись с врачом. Впервые
+              возникшая аура — повод показаться неврологу.
+            </p>
+          </div>
+        </section>
+      ) : (
       <Link href="/cycle" className="block">
       <section className="relative overflow-hidden rounded-card border border-line bg-surface px-[18px] pb-5 pt-[22px] active:scale-[0.99] transition">
         <div className="absolute left-4 top-3 font-mono text-[9px] tracking-[0.16em] uppercase text-ink-3">
@@ -220,6 +239,7 @@ export default async function Dashboard() {
         </p>
       </section>
       </Link>
+      )}
 
       {/* ── Полоса готовности ── */}
       <div className="mt-3.5 flex overflow-hidden rounded-card border border-line bg-surface">

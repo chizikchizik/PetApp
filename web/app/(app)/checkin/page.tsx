@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CheckinForm } from "./checkin-form";
 import { getCurrentCycle, PHASE_LABELS } from "@/lib/cycle";
 import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight, getMedMonthlyCounts, getMigraineTriggers, getSportTypes, getQuickPainEntries } from "@/lib/data";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 
 const MONTH_SHORT = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
@@ -37,6 +37,7 @@ export default async function CheckIn({
     getSportTypes(),
     getQuickPainEntries(dayKey, dayKey),
   ]);
+  const pregnant = isPregnant(user);
   const c = getCurrentCycle(starts, targetDate, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
 
   // layout.tsx sets the phase-${phase} CSS class root-wide based on TODAY —
@@ -45,8 +46,9 @@ export default async function CheckIn({
   // matches the phase label shown in the text below (was a real mismatch:
   // text said e.g. "Фолликулярная", but buttons/highlights stayed in today's
   // phase color, since only the root layout class controlled --phase).
+  // При беременности фазовая покраска/подпись не показывается вовсе.
   return (
-    <div className={!isToday ? `phase-${c.phase}` : undefined}>
+    <div className={!isToday && !pregnant ? `phase-${c.phase}` : undefined}>
       <header>
         <Link
           href="/dashboard"
@@ -58,7 +60,7 @@ export default async function CheckIn({
           {isToday ? <>КАК ТЫ<br />СЕГОДНЯ?</> : fmtDateMono(targetDate)}
         </h1>
         <p className="mt-2 font-mono text-[11px] text-phase">
-          {fmtDateMono(isToday ? today : targetDate)} · {PHASE_LABELS[c.phase]} фаза
+          {fmtDateMono(isToday ? today : targetDate)}{!pregnant && ` · ${PHASE_LABELS[c.phase]} фаза`}
         </p>
       </header>
 
@@ -80,6 +82,7 @@ export default async function CheckIn({
         triggers={triggers}
         sportTypes={sportTypes}
         todayQuickPain={todayQuickPain}
+        hidePeriodStart={pregnant}
       />
     </div>
   );

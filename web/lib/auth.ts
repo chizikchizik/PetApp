@@ -90,9 +90,18 @@ export type AppUser = {
   workoutYearGoal: number | null
   calorieBalanceKcal: number | null
   calorieGoalKcal: number | null
+  pregnantSince: string | null
+  pregnantUntil: string | null
 }
 
-const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days, workout_year_goal, calorie_balance_kcal, calorie_goal_kcal"
+// Активный статус беременности: включён и не выключен. pregnant_until
+// хранится, чтобы прошлое окно беременности можно было исключать из
+// корреляций цикла и после выключения статуса.
+export function isPregnant(user: AppUser | null): boolean {
+  return !!user && user.pregnantSince != null && user.pregnantUntil == null
+}
+
+const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days, workout_year_goal, calorie_balance_kcal, calorie_goal_kcal, pregnant_since, pregnant_until"
 
 function rowToUser(data: Record<string, unknown>): AppUser {
   return {
@@ -107,6 +116,8 @@ function rowToUser(data: Record<string, unknown>): AppUser {
     workoutYearGoal: (data.workout_year_goal as number | null) ?? null,
     calorieBalanceKcal: (data.calorie_balance_kcal as number | null) ?? null,
     calorieGoalKcal: (data.calorie_goal_kcal as number | null) ?? null,
+    pregnantSince: (data.pregnant_since as string | null) ?? null,
+    pregnantUntil: (data.pregnant_until as string | null) ?? null,
   }
 }
 
@@ -128,7 +139,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
           .single()
         if (data) return rowToUser(data as Record<string, unknown>)
       }
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null, calorieBalanceKcal: null, calorieGoalKcal: null }
+      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null, calorieBalanceKcal: null, calorieGoalKcal: null, pregnantSince: null, pregnantUntil: null }
     }
     return null
   }

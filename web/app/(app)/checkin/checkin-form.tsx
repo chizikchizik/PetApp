@@ -63,6 +63,7 @@ export function CheckinForm({
   triggers,
   sportTypes,
   todayQuickPain = [],
+  hidePeriodStart = false,
 }: {
   dayKey: string;
   todayISO: string;
@@ -74,6 +75,7 @@ export function CheckinForm({
   triggers: MigraineTrigger[];
   sportTypes?: SportType[];
   todayQuickPain?: QuickPainEntry[];
+  hidePeriodStart?: boolean;
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -351,20 +353,22 @@ export function CheckinForm({
           }}
           className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[15px] text-ink outline-none focus:border-phase"
         />
-        <button
-          type="button"
-          onClick={() => setS({ ...s, periodStart: !s.periodStart })}
-          className="mt-2 flex items-center gap-2.5 text-left"
-        >
-          <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border-2 transition ${s.periodStart ? "border-phase bg-phase text-on-phase" : "border-line bg-surface text-transparent"}`}>
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
-              <path d="M5 12l5 5L20 7" />
-            </svg>
-          </span>
-          <span className={`font-mono text-[11px] tracking-[0.06em] transition ${s.periodStart ? "text-phase" : "text-ink-3"}`}>
-            {s.periodStart ? "День 1 цикла · будет записан" : "Начало цикла"}
-          </span>
-        </button>
+        {!hidePeriodStart && (
+          <button
+            type="button"
+            onClick={() => setS({ ...s, periodStart: !s.periodStart })}
+            className="mt-2 flex items-center gap-2.5 text-left"
+          >
+            <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border-2 transition ${s.periodStart ? "border-phase bg-phase text-on-phase" : "border-line bg-surface text-transparent"}`}>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+                <path d="M5 12l5 5L20 7" />
+              </svg>
+            </span>
+            <span className={`font-mono text-[11px] tracking-[0.06em] transition ${s.periodStart ? "text-phase" : "text-ink-3"}`}>
+              {s.periodStart ? "День 1 цикла · будет записан" : "Начало цикла"}
+            </span>
+          </button>
+        )}
       </div>
 
       {!m.had && (

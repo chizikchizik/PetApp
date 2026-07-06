@@ -27,6 +27,7 @@ export function WeightChart({
   calories,
   calorieBalanceKcal,
   calorieGoalKcal,
+  showTargets = true,
 }: {
   rows: WeightRow[];
   goalKg: number;
@@ -35,6 +36,9 @@ export function WeightChart({
   calories?: CalorieEntry[];
   calorieBalanceKcal?: number | null;
   calorieGoalKcal?: number | null;
+  // false = режим "только наблюдение" (беременность): без линии цели,
+  // плана и оценочной подсветки — голый факт веса и калорий.
+  showTargets?: boolean;
 }) {
   const [pxPerDay, _setPx] = useState(7);
   const pxRef = useRef(7);
@@ -98,18 +102,18 @@ export function WeightChart({
 
   if (!rows.length) return null;
 
-  const plan   = rows.filter((r) => r.plan   != null).map((r) => ({ date: r.date, kg: r.plan   as number }));
+  const plan   = showTargets ? rows.filter((r) => r.plan != null).map((r) => ({ date: r.date, kg: r.plan as number })) : [];
   const actual = rows.filter((r) => r.actual != null).map((r) => ({ date: r.date, kg: r.actual as number }));
 
   const times = rows.map((r) => parseDate(r.date).getTime());
   const minD  = new Date(Math.min(...times));
   const goalD = parseDate(goalDateISO);
-  const maxD  = goalD.getTime() > Math.max(...times) ? goalD : new Date(Math.max(...times));
+  const maxD  = showTargets && goalD.getTime() > Math.max(...times) ? goalD : new Date(Math.max(...times));
   const span  = Math.max(1, daysBetween(minD, maxD));
   const W     = ML + Math.ceil(span * pxPerDay) + MR;
 
   const X = (iso: string) => ML + daysBetween(minD, parseDate(iso)) * pxPerDay;
-  const kgs = [...plan, ...actual].map((p) => p.kg).concat([goalKg]);
+  const kgs = [...plan, ...actual].map((p) => p.kg).concat(showTargets ? [goalKg] : []);
   const minKg = Math.floor(Math.min(...kgs) - 1);
   const maxKg = Math.ceil(Math.max(...kgs) + 1);
   const Y = (kg: number) => Y0 + ((maxKg - kg) / (maxKg - minKg)) * (Y1 - Y0);
@@ -222,11 +226,15 @@ export function WeightChart({
           ))}
 
           {/* Goal line */}
-          <line x1={ML} y1={Y(goalKg)} x2={W - MR} y2={Y(goalKg)}
-            stroke="var(--phase)" strokeDasharray="3 3" opacity="0.65" />
-          <text x={W - MR} y={Y(goalKg) - 4} textAnchor="end" fontSize="9" fill="var(--phase)">
-            цель {goalKg}
-          </text>
+          {showTargets && (
+            <>
+              <line x1={ML} y1={Y(goalKg)} x2={W - MR} y2={Y(goalKg)}
+                stroke="var(--phase)" strokeDasharray="3 3" opacity="0.65" />
+              <text x={W - MR} y={Y(goalKg) - 4} textAnchor="end" fontSize="9" fill="var(--phase)">
+                цель {goalKg}
+              </text>
+            </>
+          )}
 
           {/* Today line */}
           {todayX >= ML && todayX <= W - MR && (

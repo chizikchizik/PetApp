@@ -95,7 +95,13 @@ function PressureChart({
 }
 
 // ── Блок целиком ─────────────────────────────────────────────────────────────
-export async function PressureBlock({ attackDates }: { attackDates: string[] }) {
+export async function PressureBlock({
+  attackDates,
+  pregnant = false,
+}: {
+  attackDates: string[];
+  pregnant?: boolean;
+}) {
   const settings = await getPressureSettings();
 
   if (!settings) {
@@ -184,6 +190,15 @@ export async function PressureBlock({ attackDates }: { attackDates: string[] }) 
             ? `автопоиск закономерностей: мало данных — ${analysis.attacksWithData} из 8 нужных приступов`
             : `автопоиск закономерностей: пока ничего заметного · ${analysis.attacksWithData} приступов за 12 мес`}
         </p>
+      )}
+
+      {pregnant && (
+        <div className="mt-3 rounded-[3px] border border-line bg-surface-2 p-3" style={{ borderLeft: "2px solid var(--warn)" }}>
+          <p className="font-sans text-[12px] leading-[1.55] text-ink-2">
+            При беременности сильная или необычная головная боль — особенно с давлением
+            140/90 и выше, нарушениями зрения или отёками — повод срочно связаться с врачом.
+          </p>
+        </div>
       )}
 
       <p className="mt-2.5 font-sans text-[11.5px] leading-relaxed text-ink-3">

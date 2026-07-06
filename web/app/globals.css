@@ -101,6 +101,20 @@
   --phase-deep: oklch(0.78 0.12 300);
   --on-phase: #0B0B0D;
 }
+/* Беременность: фазовая покраска выключена, спокойный нейтральный акцент
+   (приглушённый серо-синий), одинаково не похожий ни на одну фазу. */
+.phase-pregnant {
+  --phase: oklch(0.48 0.04 250);
+  --phase-soft: color-mix(in oklab, oklch(0.48 0.04 250) 14%, #FBFAF7);
+  --phase-deep: oklch(0.38 0.04 250);
+  --on-phase: #FBFAF7;
+}
+.dark .phase-pregnant {
+  --phase: oklch(0.76 0.04 250);
+  --phase-soft: color-mix(in oklab, oklch(0.76 0.04 250) 14%, #151518);
+  --phase-deep: oklch(0.76 0.04 250);
+  --on-phase: #0B0B0D;
+}
 
 @theme inline {
   --color-bg: var(--bg);

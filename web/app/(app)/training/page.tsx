@@ -15,7 +15,7 @@ import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
 import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -183,6 +183,7 @@ export default async function TrainingPage() {
     getWorkoutCountForYear(year),
     getCurrentUser(),
   ]);
+  const pregnant = isPregnant(user);
   const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
@@ -200,7 +201,7 @@ export default async function TrainingPage() {
         ТРЕНИНГ
       </h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
-        лог активности · {PHASE_LABELS[phase]}
+        лог активности{!pregnant && ` · ${PHASE_LABELS[phase]}`}
       </p>
 
       {/* ── Счётчик года ── */}
@@ -249,21 +250,36 @@ export default async function TrainingPage() {
       {/* ── Паттерны (адаптивные) ── */}
       <PatternsBlock pattern={pattern} />
 
-      {/* ── Директива фазы ── */}
-      <div
-        className="mt-5 rounded-card border border-line bg-surface p-4"
-        style={{ borderLeft: "3px solid var(--phase)" }}
-      >
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">
-          директива фазы
+      {/* ── Директива фазы / нейтральная заглушка при беременности ── */}
+      {pregnant ? (
+        <div
+          className="mt-5 rounded-card border border-line bg-surface p-4"
+          style={{ borderLeft: "3px solid var(--phase)" }}
+        >
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">
+            беременность
+          </div>
+          <p className="mt-2 font-sans text-[12.5px] leading-[1.5] text-ink-2">
+            Фазовые рекомендации скрыты на время беременности. Программу нагрузок
+            согласуй с врачом.
+          </p>
         </div>
-        <div className="mt-2 font-sans font-bold text-[16px] leading-[1.2] text-ink">
-          {tip.title}
+      ) : (
+        <div
+          className="mt-5 rounded-card border border-line bg-surface p-4"
+          style={{ borderLeft: "3px solid var(--phase)" }}
+        >
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">
+            директива фазы
+          </div>
+          <div className="mt-2 font-sans font-bold text-[16px] leading-[1.2] text-ink">
+            {tip.title}
+          </div>
+          <p className="mt-1.5 font-sans text-[12.5px] leading-[1.5] text-ink-2">
+            {tip.text}
+          </p>
         </div>
-        <p className="mt-1.5 font-sans text-[12.5px] leading-[1.5] text-ink-2">
-          {tip.text}
-        </p>
-      </div>
+      )}
 
       {/* ── Ссылка на расписание ── */}
       <Link

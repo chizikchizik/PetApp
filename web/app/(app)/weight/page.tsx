@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getPeriodStarts, getWeightEntries, getCurrentWeight, getCalorieEntries, WEIGHT_GOAL } from "@/lib/data";
 import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightInput } from "./weight-input";
@@ -28,6 +28,10 @@ export default async function Weight() {
     getCalorieEntries(),
     getCurrentUser(),
   ]);
+  // При беременности вес остаётся наблюдением (ценно для врача), но вся
+  // оценочность скрывается: цель похудения, план, дефицит/профицит,
+  // фазовые подсказки (ревью Елены).
+  const pregnant = isPregnant(user);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const goalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
   const startKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
@@ -45,7 +49,7 @@ export default async function Weight() {
       </Link>
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">ВЕС</h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
-        план и факт · цель {goalKg} кг
+        {pregnant ? "наблюдение · цели скрыты на время беременности" : `план и факт · цель ${goalKg} кг`}
       </p>
 
       {/* ── Текущий вес ── */}
@@ -59,7 +63,7 @@ export default async function Weight() {
           </div>
         </div>
         <div className="text-right">
-          {fromStart != null && toGoal != null ? (
+          {pregnant ? null : fromStart != null && toGoal != null ? (
             <>
               <div className="font-mono font-semibold text-[15px] text-phase">
                 {fromStart} кг
@@ -81,10 +85,12 @@ export default async function Weight() {
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-0 w-4 border-t-2 border-phase" /> вес (факт)
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-0 w-4 border-t-2 border-dashed border-ink-3" /> план
-          </span>
-          {calories.length > 0 && (
+          {!pregnant && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-ink-3" /> план
+            </span>
+          )}
+          {calories.length > 0 && !pregnant && (
             <>
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-3 w-4 rounded-[1px]" style={{ background: "var(--deficit)" }} /> дефицит
@@ -94,6 +100,11 @@ export default async function Weight() {
               </span>
             </>
           )}
+          {calories.length > 0 && pregnant && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-3 w-4 rounded-[1px] bg-phase opacity-30" /> ккал
+            </span>
+          )}
         </div>
         <div className="mt-3">
           <WeightChart
@@ -102,11 +113,12 @@ export default async function Weight() {
             goalDateISO={WEIGHT_GOAL.dateISO}
             todayISO={dayKey}
             calories={calories}
-            calorieBalanceKcal={user?.calorieBalanceKcal}
-            calorieGoalKcal={user?.calorieGoalKcal}
+            calorieBalanceKcal={pregnant ? null : user?.calorieBalanceKcal}
+            calorieGoalKcal={pregnant ? null : user?.calorieGoalKcal}
+            showTargets={!pregnant}
           />
         </div>
-        {calories.length > 0 && !user?.calorieBalanceKcal && (
+        {calories.length > 0 && !user?.calorieBalanceKcal && !pregnant && (
           <p className="mt-2 font-mono text-[9px] leading-relaxed text-ink-3">
             Укажи точку баланса калорий в профиле, чтобы столбики окрашивались по дефициту/профициту.
           </p>
@@ -114,9 +126,10 @@ export default async function Weight() {
       </section>
 
       {/* ── План похудения ── */}
-      <PlanEditor rows={rows} todayISO={dayKey} />
+      {!pregnant && <PlanEditor rows={rows} todayISO={dayKey} />}
 
       {/* ── Инсайт фазы ── */}
+      {!pregnant && (
       <section
         className="mt-3.5 rounded-card border border-line bg-surface p-4"
         style={{ borderLeft: "3px solid var(--phase)" }}
@@ -128,6 +141,7 @@ export default async function Weight() {
           {PHASE_NOTE[c.phase]}
         </p>
       </section>
+      )}
 
       {/* ── Записать вес ── */}
       <div className="mt-3.5">

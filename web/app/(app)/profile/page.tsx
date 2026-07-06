@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { ProfileForm } from "./profile-form";
+import { PregnancyToggle } from "./pregnancy-toggle";
 import { logout } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export default async function ProfilePage() {
         calorieBalanceKcal={user?.calorieBalanceKcal ?? null}
         calorieGoalKcal={user?.calorieGoalKcal ?? null}
       />
+
+      <PregnancyToggle active={isPregnant(user)} />
 
       <form action={logout} className="mt-8 border-t border-line pt-5">
         <button
