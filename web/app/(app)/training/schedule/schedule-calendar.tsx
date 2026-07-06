@@ -73,25 +73,29 @@ function EventPill({
     <button
       type="button"
       onClick={() => onTap(ev)}
-      className="flex w-full items-center gap-1.5 rounded-[3px] px-2 py-1 text-left transition active:opacity-70"
+      className="w-full rounded-[3px] px-1.5 py-1 text-left transition active:opacity-70"
       style={{ background: done || skipped ? "var(--surface-2)" : bg }}
     >
-      <span
-        className="mt-[1px] h-2 w-2 shrink-0 rounded-full"
-        style={{ background: done ? "var(--ink-4)" : skipped ? "var(--ink-4)" : color }}
-      />
-      <span
-        className={`flex-1 truncate font-sans text-[12px] leading-snug ${
-          skipped ? "text-ink-4 line-through" : done ? "text-ink-3" : "text-ink"
-        }`}
-      >
-        {ev.title}
+      <span className="flex items-center gap-1.5">
+        <span
+          className="mt-[1px] h-2 w-2 shrink-0 rounded-full"
+          style={{ background: done ? "var(--ink-4)" : skipped ? "var(--ink-4)" : color }}
+        />
+        <span
+          className={`flex-1 truncate font-sans text-[12px] leading-snug ${
+            skipped ? "text-ink-4 line-through" : done ? "text-ink-3" : "text-ink"
+          }`}
+        >
+          {ev.title}
+        </span>
+        {done && (
+          <span className="shrink-0 font-mono text-[10px] text-ink-4">✓</span>
+        )}
       </span>
-      {done && (
-        <span className="shrink-0 font-mono text-[10px] text-ink-4">✓</span>
-      )}
+      {/* Время — отдельной строкой: в месячной сетке ячейка ~48px, на одной
+          строке с названием оно не помещается и обрезалось на мобильной вёрстке */}
       {ev.time_start && !skipped && !done && (
-        <span className="shrink-0 font-mono text-[10px] text-ink-3">{ev.time_start}</span>
+        <span className="block pl-3.5 font-mono text-[10px] leading-tight text-ink-3">{ev.time_start}</span>
       )}
     </button>
   );

@@ -7,6 +7,7 @@ import { WeightChart } from "@/components/weight-chart";
 import { WeightInput } from "./weight-input";
 import { WeightHistory } from "./weight-history";
 import { CalorieInput } from "./calorie-input";
+import { PlanEditor } from "./plan-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,9 @@ export default async function Weight() {
           </p>
         )}
       </section>
+
+      {/* ── План похудения ── */}
+      <PlanEditor rows={rows} todayISO={dayKey} />
 
       {/* ── Инсайт фазы ── */}
       <section

@@ -36,6 +36,43 @@ export async function saveWeight(
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+// План похудения — ломаная линия по точкам "к этой дате хочу весить N кг".
+// Точки живут в том же weight_entry.plan_kg (график уже соединяет их
+// polyline'ом в порядке дат) — отдельная таблица не нужна.
+export async function savePlanPoint(
+  dateISO: string,
+  kg: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "Supabase не настроен" };
+  const uid = await getAppUserId();
+  const { error } = await db
+    .from("weight_entry")
+    .upsert(
+      { entry_date: dateISO, plan_kg: kg, app_user_id: uid },
+      { onConflict: "app_user_id,entry_date" },
+    );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/weight");
+  return { ok: true };
+}
+
+// Не удаляем строку целиком — в ней может жить actual_kg за тот же день.
+export async function deletePlanPoint(
+  dateISO: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "Supabase не настроен" };
+  const uid = await getAppUserId();
+  const { error } = await byUser(
+    db.from("weight_entry").update({ plan_kg: null }).eq("entry_date", dateISO),
+    uid,
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/weight");
+  return { ok: true };
+}
+
 export async function saveCalories(
   dateISO: string,
   kcal: number,
