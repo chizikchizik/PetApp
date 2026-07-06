@@ -130,6 +130,14 @@ export default async function WearablePage() {
         {N > 0 ? `${dates[0]?.slice(5)} – ${dates[N - 1]?.slice(5)} · ${N} дней` : "данные кольца"}
       </p>
 
+      <Link
+        href="/bp"
+        className="mt-3 flex items-center justify-between rounded-card border border-line bg-surface px-3.5 py-3 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
+      >
+        <span>артериальное давление · дневник</span>
+        <span className="text-phase">→</span>
+      </Link>
+
       {/* ── Снапшот ── */}
       <div className="mt-4 flex overflow-hidden rounded-card border border-line bg-surface">
         <div className="flex-1 border-r border-line px-3 py-3.5">

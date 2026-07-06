@@ -189,6 +189,13 @@ export default async function Dashboard() {
               возникшая аура — повод показаться неврологу.
             </p>
           </div>
+          <Link
+            href="/bp"
+            className="mt-3 flex items-center justify-between rounded-[3px] border border-line bg-surface-2 px-3.5 py-3 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
+          >
+            <span>дневник давления · утро и вечер</span>
+            <span className="text-phase">→</span>
+          </Link>
         </section>
       ) : (
       <Link href="/cycle" className="block">

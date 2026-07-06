@@ -597,6 +597,44 @@ export async function getRecentWearableData(days = 28): Promise<WearableDay[]> {
   }));
 }
 
+// ── Артериальное давление (домашний дневник: утро/вечер) ────────────────────
+export type BpSlot = "morning" | "evening";
+export type BpReading = {
+  date: string;
+  slot: BpSlot;
+  systolic: number;
+  diastolic: number;
+  pulse: number | null;
+};
+
+export async function getBpReadings(sinceISO: string): Promise<BpReading[]> {
+  const db = supabaseAdmin();
+  if (!db) return [];
+  const uid = await getAppUserId();
+  const { data, error } = await byUser(
+    db.from("bp_reading")
+      .select("reading_date, slot, systolic, diastolic, pulse")
+      .gte("reading_date", sinceISO)
+      .order("reading_date", { ascending: true })
+      .limit(2000),
+    uid,
+  );
+  if (error || !data) return [];
+  return (data as Array<{
+    reading_date: string;
+    slot: BpSlot;
+    systolic: number;
+    diastolic: number;
+    pulse: number | null;
+  }>).map((r) => ({
+    date: r.reading_date,
+    slot: r.slot,
+    systolic: r.systolic,
+    diastolic: r.diastolic,
+    pulse: r.pulse,
+  }));
+}
+
 export type SleepSession = {
   log_date: string;
   total_min: number | null;
