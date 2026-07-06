@@ -11,6 +11,8 @@ export function ProfileForm({
   weightGoalKg,
   weightStartKg,
   workoutYearGoal,
+  calorieBalanceKcal,
+  calorieGoalKcal,
 }: {
   displayName: string;
   avgCycleLength: number | null;
@@ -18,6 +20,8 @@ export function ProfileForm({
   weightGoalKg: number | null;
   weightStartKg: number | null;
   workoutYearGoal: number | null;
+  calorieBalanceKcal: number | null;
+  calorieGoalKcal: number | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(displayName);
@@ -26,6 +30,8 @@ export function ProfileForm({
   const [goal, setGoal] = useState(weightGoalKg != null ? String(weightGoalKg) : "");
   const [start, setStart] = useState(weightStartKg != null ? String(weightStartKg) : "");
   const [workoutGoal, setWorkoutGoal] = useState(workoutYearGoal != null ? String(workoutYearGoal) : "");
+  const [calBalance, setCalBalance] = useState(calorieBalanceKcal != null ? String(calorieBalanceKcal) : "");
+  const [calGoal, setCalGoal] = useState(calorieGoalKcal != null ? String(calorieGoalKcal) : "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   async function save() {
@@ -35,6 +41,8 @@ export function ProfileForm({
     const goalNum = goal ? Number(goal.replace(",", ".")) : null;
     const startNum = start ? Number(start.replace(",", ".")) : null;
     const workoutGoalNum = workoutGoal ? Number(workoutGoal.replace(",", ".")) : null;
+    const calBalanceNum = calBalance ? Number(calBalance.replace(",", ".")) : null;
+    const calGoalNum = calGoal ? Number(calGoal.replace(",", ".")) : null;
 
     if (cycleNum != null && (cycleNum < 15 || cycleNum > 60)) {
       setStatus("error");
@@ -48,6 +56,14 @@ export function ProfileForm({
       setStatus("error");
       return;
     }
+    if (calBalanceNum != null && (calBalanceNum < 800 || calBalanceNum > 6000)) {
+      setStatus("error");
+      return;
+    }
+    if (calGoalNum != null && (calGoalNum < 800 || calGoalNum > 6000)) {
+      setStatus("error");
+      return;
+    }
 
     const r = await saveProfile({
       displayName: name,
@@ -56,6 +72,8 @@ export function ProfileForm({
       weightGoalKg: goalNum,
       weightStartKg: startNum,
       workoutYearGoal: workoutGoalNum,
+      calorieBalanceKcal: calBalanceNum,
+      calorieGoalKcal: calGoalNum,
     });
     if (r.ok) {
       setStatus("saved");
@@ -150,6 +168,38 @@ export function ProfileForm({
         />
       </label>
 
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            Точка баланса, ккал
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={calBalance}
+            onChange={(e) => setCalBalance(e.target.value)}
+            placeholder="напр. 2000"
+            className="rounded-[3px] border border-line bg-surface px-4 py-3 text-[15px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            Цель по калориям
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={calGoal}
+            onChange={(e) => setCalGoal(e.target.value)}
+            placeholder="напр. 1700"
+            className="rounded-[3px] border border-line bg-surface px-4 py-3 text-[15px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
+          />
+        </label>
+      </div>
+      <p className="-mt-2.5 font-mono text-[9px] leading-relaxed text-ink-3">
+        Точка баланса — сколько нужно есть, чтобы вес держался (примерно твой TDEE). Используется для подсветки дефицита/профицита на графике калорий.
+      </p>
+
       <button
         type="button"
         onClick={save}
@@ -161,7 +211,7 @@ export function ProfileForm({
           : status === "saved"
           ? "✓ Сохранено"
           : status === "error"
-          ? "Ошибка — проверь длину цикла (15–60), критические дни (1–15) и цель тренировок (1–1000)"
+          ? "Ошибка — проверь длину цикла (15–60), критические дни (1–15), цель тренировок (1–1000) и калории (800–6000)"
           : "Сохранить"}
       </button>
     </div>

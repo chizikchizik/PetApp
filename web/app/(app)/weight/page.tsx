@@ -84,9 +84,14 @@ export default async function Weight() {
             <span className="inline-block h-0 w-4 border-t-2 border-dashed border-ink-3" /> план
           </span>
           {calories.length > 0 && (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-3 w-4 rounded-[1px] bg-phase opacity-30" /> ккал
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-3 w-4 rounded-[1px]" style={{ background: "var(--deficit)" }} /> дефицит
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-3 w-4 rounded-[1px]" style={{ background: "var(--warn)" }} /> профицит
+              </span>
+            </>
           )}
         </div>
         <div className="mt-3">
@@ -96,8 +101,15 @@ export default async function Weight() {
             goalDateISO={WEIGHT_GOAL.dateISO}
             todayISO={dayKey}
             calories={calories}
+            calorieBalanceKcal={user?.calorieBalanceKcal}
+            calorieGoalKcal={user?.calorieGoalKcal}
           />
         </div>
+        {calories.length > 0 && !user?.calorieBalanceKcal && (
+          <p className="mt-2 font-mono text-[9px] leading-relaxed text-ink-3">
+            Укажи точку баланса калорий в профиле, чтобы столбики окрашивались по дефициту/профициту.
+          </p>
+        )}
       </section>
 
       {/* ── Инсайт фазы ── */}

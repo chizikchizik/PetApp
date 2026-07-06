@@ -31,6 +31,8 @@ export default async function ProfilePage() {
         weightGoalKg={user?.weightGoalKg ?? null}
         weightStartKg={user?.weightStartKg ?? null}
         workoutYearGoal={user?.workoutYearGoal ?? null}
+        calorieBalanceKcal={user?.calorieBalanceKcal ?? null}
+        calorieGoalKcal={user?.calorieGoalKcal ?? null}
       />
 
       <form action={logout} className="mt-8 border-t border-line pt-5">

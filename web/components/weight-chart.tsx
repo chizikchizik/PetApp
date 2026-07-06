@@ -7,18 +7,34 @@ import type { WeightRow, CalorieEntry } from "@/lib/data";
 const RU_MON = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 const ML = 28, MR = 26, H = 200, Y0 = 12, Y1 = 175;
 
+// Дефицит/профицит калорий: цвет столбика зависит от того, насколько день
+// отклонился от точки баланса (TDEE) — не просто "выше/ниже", а с
+// нарастающей интенсивностью. Отклонение свыше 25% от точки баланса даёт
+// полностью насыщенный цвет; ближе к балансу — нейтральный серый.
+function kcalBarColor(kcal: number, balanceKcal: number | null | undefined): string {
+  if (!balanceKcal) return "var(--phase)";
+  const dev = (kcal - balanceKcal) / balanceKcal;
+  const t = Math.min(Math.abs(dev) / 0.25, 1);
+  const base = dev < 0 ? "var(--deficit)" : "var(--warn)";
+  return `color-mix(in oklab, ${base} ${Math.round(t * 100)}%, var(--surface-3))`;
+}
+
 export function WeightChart({
   rows,
   goalKg,
   goalDateISO,
   todayISO,
   calories,
+  calorieBalanceKcal,
+  calorieGoalKcal,
 }: {
   rows: WeightRow[];
   goalKg: number;
   goalDateISO: string;
   todayISO: string;
   calories?: CalorieEntry[];
+  calorieBalanceKcal?: number | null;
+  calorieGoalKcal?: number | null;
 }) {
   const [pxPerDay, _setPx] = useState(7);
   const pxRef = useRef(7);
@@ -116,7 +132,10 @@ export function WeightChart({
 
   // Calorie bars
   const cal     = calories ?? [];
-  const maxKcal = cal.length ? Math.max(...cal.map((c) => c.kcal), 1800) : 2000;
+  const kcalRefs = [calorieBalanceKcal, calorieGoalKcal].filter((v): v is number => !!v);
+  const maxKcal = cal.length || kcalRefs.length
+    ? Math.max(...cal.map((c) => c.kcal), ...kcalRefs, 1800)
+    : 2000;
   const barW    = Math.max(2.5, pxPerDay * 0.8);
   const Yk      = (kcal: number) => Y1 - (kcal / maxKcal) * (Y1 - Y0);
   const kcalTicks = [500, 1000, 1500, 2000].filter((v) => v <= maxKcal + 200);
@@ -141,15 +160,40 @@ export function WeightChart({
           height={H}
           style={{ color: "var(--ink-3)", display: "block" }}
         >
-          {/* Kcal bars */}
+          {/* Kcal bars — цвет = дефицит (зелёный) / профицит (красный) относительно точки баланса */}
           {cal.map((c) => {
             const bx = X(c.date);
             const top = Yk(c.kcal);
             return (
               <rect key={c.date} x={bx - barW / 2} y={top} width={barW}
-                height={Y1 - top} fill="var(--phase)" opacity="0.15" rx="1" />
+                height={Y1 - top} fill={kcalBarColor(c.kcal, calorieBalanceKcal)}
+                opacity={calorieBalanceKcal ? "0.8" : "0.15"} rx="1">
+                <title>{`${c.date} — ${c.kcal} ккал`}</title>
+              </rect>
             );
           })}
+
+          {/* Calorie balance point (TDEE) — нейтральный ориентир */}
+          {calorieBalanceKcal != null && (
+            <>
+              <line x1={ML} y1={Yk(calorieBalanceKcal)} x2={W - MR} y2={Yk(calorieBalanceKcal)}
+                stroke="var(--ink-3)" strokeDasharray="2 3" opacity="0.5" />
+              <text x={ML + 2} y={Yk(calorieBalanceKcal) - 3} fontSize="8" fill="var(--ink-3)">
+                баланс {calorieBalanceKcal}
+              </text>
+            </>
+          )}
+
+          {/* Calorie goal — целевой уровень потребления */}
+          {calorieGoalKcal != null && (
+            <>
+              <line x1={ML} y1={Yk(calorieGoalKcal)} x2={W - MR} y2={Yk(calorieGoalKcal)}
+                stroke="var(--deficit)" strokeDasharray="4 2" opacity="0.6" />
+              <text x={ML + 2} y={Yk(calorieGoalKcal) - 3} fontSize="8" fill="var(--deficit)">
+                цель {calorieGoalKcal}
+              </text>
+            </>
+          )}
 
           {/* Weight grid */}
           {ticks.map((k) => (

@@ -17,6 +17,10 @@
   --ink-4: #B4B0A5;
   --warn: oklch(0.57 0.2 20);
   --warn-soft: color-mix(in oklab, oklch(0.57 0.2 20) 14%, #FBFAF7);
+  /* Дефицит/профицит калорий — фиксированный зелёный, НЕ связан с фазой
+     цикла (в отличие от --phase, который меняется по фазам). */
+  --deficit: oklch(0.55 0.14 145);
+  --deficit-soft: color-mix(in oklab, oklch(0.55 0.14 145) 14%, #FBFAF7);
   /* фолликулярная по умолчанию */
   --phase: oklch(0.5 0.15 134);
   --phase-soft: color-mix(in oklab, oklch(0.5 0.15 134) 14%, #FBFAF7);
@@ -39,6 +43,8 @@
   --ink-4: #45454B;
   --warn: oklch(0.64 0.21 18);
   --warn-soft: color-mix(in oklab, oklch(0.64 0.21 18) 14%, #151518);
+  --deficit: oklch(0.75 0.16 145);
+  --deficit-soft: color-mix(in oklab, oklch(0.75 0.16 145) 14%, #151518);
   /* фолликулярная по умолчанию */
   --phase: oklch(0.86 0.19 134);
   --phase-soft: color-mix(in oklab, oklch(0.86 0.19 134) 14%, #151518);
@@ -110,6 +116,8 @@
   --color-line-2: var(--line-2);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
+  --color-deficit: var(--deficit);
+  --color-deficit-soft: var(--deficit-soft);
   --color-phase: var(--phase);
   --color-phase-soft: var(--phase-soft);
   --color-phase-deep: var(--phase-deep);
