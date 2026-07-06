@@ -14,6 +14,7 @@ import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
 import { CycleHistoryChart } from "./cycle-history";
 import { TrainingChart } from "../training/training-chart";
+import { PressureBlock } from "./pressure-block";
 
 export const dynamic = "force-dynamic";
 
@@ -249,6 +250,9 @@ export default async function Insights() {
 
       {/* ── Связь с циклом ── */}
       <CycleCorrelationBlock corr={corr} />
+
+      {/* ── Давление и мигрень ── */}
+      <PressureBlock attackDates={recentEvents.map((e) => e.date)} />
 
       {/* ── Приступы по месяцам ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
