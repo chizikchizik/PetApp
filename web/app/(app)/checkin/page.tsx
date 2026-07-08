@@ -72,6 +72,13 @@ export default async function CheckIn({
       </Link>
 
       <CheckinForm
+        // Remount when the viewed date changes: CheckinForm derives its whole
+        // form state once via useState(() => fromLog(initial)); without a key,
+        // navigating ?date= (soft nav, same route) keeps the old date's mood/
+        // meds/habits/weight in state, and "Сохранить день" would then write
+        // that (effectively today's) data onto the past day. /habits/bulk
+        // already guards its equivalent grid state with key={targetMonth}.
+        key={dayKey}
         dayKey={dayKey}
         todayISO={todayISO}
         initial={initial}

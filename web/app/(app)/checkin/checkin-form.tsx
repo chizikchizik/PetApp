@@ -80,7 +80,14 @@ export function CheckinForm({
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
     const state = fromLog(initial);
-    if (!state.weight && weightPlaceholder) state.weight = String(weightPlaceholder);
+    // Prefill the current weight only for TODAY. On a past date this value
+    // would be saved (saveCheckin writes weight_kg AND upserts a weight_entry
+    // for dayKey) — i.e. today's weight silently backfilled onto a historical
+    // day. Past days start blank; the number still appears as a placeholder
+    // hint on the input, but is only persisted if she actually types it.
+    if (!state.weight && weightPlaceholder && dayKey === todayISO) {
+      state.weight = String(weightPlaceholder);
+    }
     return state;
   });
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");

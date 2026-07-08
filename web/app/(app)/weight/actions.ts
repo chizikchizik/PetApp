@@ -33,7 +33,14 @@ export async function saveWeight(
       { entry_date: dateISO, actual_kg: kg, app_user_id: uid },
       { onConflict: "app_user_id,entry_date" },
     );
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (error) return { ok: false, error: error.message };
+  // Was the only weight action with no revalidation (saveCalories/savePlanPoint
+  // both revalidate). WeightHistory/WeightInput call router.refresh() for the
+  // /weight page itself, but the dashboard's "current weight" card kept a stale
+  // value from Router Cache after editing a past weight until it re-fetched.
+  revalidatePath("/weight");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 // План похудения — ломаная линия по точкам "к этой дате хочу весить N кг".
