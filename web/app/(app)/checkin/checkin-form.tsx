@@ -97,6 +97,7 @@ export function CheckinForm({
   const [newMedWhen, setNewMedWhen] = useState("");
   const [newMedAsNeeded, setNewMedAsNeeded] = useState(false);
   const [addMedStatus, setAddMedStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [addMedError, setAddMedError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
   const [quickLogStatus, setQuickLogStatus] = useState<"idle" | "saving" | "done">("idle");
@@ -179,6 +180,7 @@ export function CheckinForm({
   async function handleAddMed() {
     if (!newMedName.trim()) return;
     setAddMedStatus("saving");
+    setAddMedError(null);
     const res = await createMed(newMedName, newMedAsNeeded ? null : (newMedWhen || null), newMedAsNeeded);
     if (res.ok) {
       setNewMedName("");
@@ -189,7 +191,8 @@ export function CheckinForm({
       router.refresh();
     } else {
       setAddMedStatus("error");
-      setTimeout(() => setAddMedStatus("idle"), 2000);
+      setAddMedError(res.error ?? "Не удалось добавить");
+      setTimeout(() => setAddMedStatus("idle"), 2500);
     }
   }
 
@@ -638,6 +641,9 @@ export function CheckinForm({
                 {addMedStatus === "saving" ? "…" : addMedStatus === "error" ? "!" : "OK"}
               </button>
             </div>
+            {addMedError && (
+              <p className="mt-1.5 font-mono text-[10px] text-warn">{addMedError}</p>
+            )}
           </div>
         )}
       </div>
@@ -650,7 +656,7 @@ export function CheckinForm({
             inputMode="decimal"
             step="0.1"
             value={s.weight}
-            placeholder={weightPlaceholder != null ? String(weightPlaceholder) : "кг"}
+            placeholder={weightPlaceholder != null && dayKey === todayISO ? String(weightPlaceholder) : "кг"}
             onChange={(e) => setS({ ...s, weight: e.target.value })}
             className="mt-2 w-full rounded-[3px] border border-line bg-surface px-4 py-3 text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-3 outline-none focus:border-phase"
           />

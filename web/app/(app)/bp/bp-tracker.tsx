@@ -68,6 +68,7 @@ export function BpTracker({
     setDia(String(r.diastolic));
     setPulse(r.pulse != null ? String(r.pulse) : "");
     setError(null);
+    setSavedFlag(0); // баннер порога относился к прошлому сохранению — сбрасываем
   }
 
   function doSave() {
@@ -110,7 +111,7 @@ export function BpTracker({
             type="date"
             max={todayISO}
             value={date}
-            onChange={(e) => { if (e.target.value) { setDate(e.target.value); setError(null); } }}
+            onChange={(e) => { if (e.target.value) { setDate(e.target.value); setError(null); setSavedFlag(0); } }}
             className="min-w-0 flex-1 rounded-[3px] border border-line bg-surface px-2.5 py-2 font-mono text-[12px] text-ink-2 outline-none focus:border-phase"
           />
           <div className="flex shrink-0 overflow-hidden rounded-[3px] border border-line">
@@ -118,7 +119,7 @@ export function BpTracker({
               <button
                 key={s}
                 type="button"
-                onClick={() => { setSlot(s); setError(null); }}
+                onClick={() => { setSlot(s); setError(null); setSavedFlag(0); }}
                 className={`px-3 py-2 font-mono text-[11px] transition ${
                   slot === s ? "bg-phase font-semibold text-on-phase" : "bg-surface text-ink-3"
                 }`}

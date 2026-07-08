@@ -43,15 +43,13 @@ async function autoRegisterDetectedMeds(
 
   const toCreate = detectedLabels.filter((label) => !existingNames.has(label));
   for (let i = 0; i < toCreate.length; i++) {
-    // id includes both the timestamp and the loop index specifically to stay
-    // unique within this one call; across two different users importing in
-    // the same millisecond with the same detected-med index, `id` (primary
-    // key) could theoretically still collide. onConflict-ignore means that
-    // extremely rare case just skips this insert instead of throwing an
-    // unhandled error that would otherwise silently abort the rest of the
-    // import loop.
+    // Суффикс — случайный UUID, а не timestamp_index: два разных пользователя,
+    // импортирующих в одну миллисекунду с одинаковым индексом, раньше могли
+    // словить коллизию PRIMARY KEY. randomUUID глобально уникален; ошибку
+    // insert всё равно логируем, чтобы редкий сбой не оборвал остальной цикл
+    // импорта незаметно.
     const { error } = await db.from("medication").insert({
-      id: `custom_${Date.now()}_${i}`,
+      id: `custom_${crypto.randomUUID()}`,
       name: toCreate[i],
       is_as_needed: true,
       kind: "as_needed",

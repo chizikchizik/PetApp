@@ -77,7 +77,7 @@ function HistoryRow({ entry }: { entry: CalorieEntry }) {
           </span>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => { setV(String(entry.kcal)); setEditing(true); }}
             className="shrink-0 font-mono text-[11px] text-phase"
           >
             изм

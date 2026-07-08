@@ -78,7 +78,7 @@ function HistoryRow({ date, actual }: { date: string; actual: number }) {
           </span>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => { setV(String(actual)); setEditing(true); }}
             className="shrink-0 font-mono text-[11px] text-phase"
           >
             изм

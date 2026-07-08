@@ -103,7 +103,7 @@ export async function getDailyPressure(from: string, to: string): Promise<Pressu
     : to;
   if (clampTo < from) return [];
 
-  const expected = Math.round(
+  const expectedRows = Math.round(
     (new Date(clampTo + "T12:00:00").getTime() - new Date(from + "T12:00:00").getTime()) / 86400000,
   ) + 1;
 
@@ -114,14 +114,21 @@ export async function getDailyPressure(from: string, to: string): Promise<Pressu
     .gte("pressure_date", from)
     .lte("pressure_date", clampTo)
     .order("pressure_date", { ascending: true })
-    .limit(Math.max(expected + 10, 100));
+    .limit(Math.max(expectedRows + 10, 100));
 
   const byDate = new Map<string, number>();
   for (const r of (cached ?? []) as { pressure_date: string; pressure_hpa: number }[]) {
     byDate.set(r.pressure_date, Number(r.pressure_hpa));
   }
 
-  if (byDate.size < expected) {
+  // Рефетчим только если кэш ещё НЕ дотягивается до конца диапазона (появились
+  // новые дни в архиве). Раньше условие было `byDate.size < expected` — любой
+  // пропущенный день в архиве (fetchArchive отбрасывает null) держал размер
+  // ниже ожидаемого навсегда, и внешний запрос к Open-Meteo повторялся на
+  // каждый рендер. Проверка по самой свежей закэшированной дате устойчива к
+  // внутренним пропускам: interior-дыра больше не форсит вечный рефетч.
+  const newestCached = byDate.size > 0 ? [...byDate.keys()].sort().at(-1)! : "";
+  if (newestCached < clampTo) {
     const fetched = await fetchArchive(settings.lat, settings.lon, from, clampTo);
     const missing = fetched.filter((p) => !byDate.has(p.date));
     for (let i = 0; i < missing.length; i += 500) {

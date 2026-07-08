@@ -27,7 +27,8 @@ export function PainQuickLogSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4"
+      style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-[430px] rounded-card border border-line bg-surface p-5 shadow-2xl">

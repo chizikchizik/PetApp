@@ -20,10 +20,17 @@ function byUser(q: any, uid: string | null): any {
   return q.eq("app_user_id", uid);
 }
 
+// Границы веса — защита от опечаток; server action публичный, дублируем
+// клиентскую валидацию на сервере (defense-in-depth).
+function badWeight(kg: number): boolean {
+  return !Number.isFinite(kg) || kg < 30 || kg > 250;
+}
+
 export async function saveWeight(
   dateISO: string,
   kg: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (badWeight(kg)) return { ok: false, error: "Вес вне диапазона 30–250 кг" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();
@@ -50,6 +57,7 @@ export async function savePlanPoint(
   dateISO: string,
   kg: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (badWeight(kg)) return { ok: false, error: "Вес вне диапазона 30–250 кг" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();

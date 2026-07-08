@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { deleteWorkout, updateWorkout, bulkDeleteWorkouts } from "./actions";
 import type { WorkoutRow } from "./actions";
 import { isoLocal } from "@/lib/format";
@@ -32,6 +33,7 @@ type EditState = {
 const PAGE_SIZE = 30;
 
 export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
+  const router = useRouter();
   const [items, setItems] = useState(workouts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState>({ type: "", workout_date: "", duration: "", fatigue: 50, note: "" });
@@ -75,6 +77,10 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
           : w
         ).sort((a, b) => b.workout_date.localeCompare(a.workout_date)));
         setEditingId(null);
+        // Список ведёт оптимистичное локальное состояние, но связанные
+        // серверные представления (авто-привычка «Спорт»/«Бег» на чек-ине
+        // за тот день, сводки /training) обновляем через refresh.
+        router.refresh();
       }
     });
   }
@@ -85,6 +91,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
       if (res.ok) {
         setItems(prev => prev.filter(w => w.id !== id));
         setConfirmId(null);
+        router.refresh();
       }
     });
   }
@@ -97,6 +104,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
         setItems(prev => prev.filter(w => !selected.has(w.id)));
         setSelected(new Set());
         setBulkMode(false);
+        router.refresh();
       }
     });
   }

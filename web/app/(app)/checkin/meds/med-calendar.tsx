@@ -94,6 +94,7 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
   const [, startT] = useTransition();
 
   const pending = meds.filter((m) => m.isAsNeeded && m.drugClass === "unclassified" && !m.archived);
+  // (archived исключены: не предлагаем классифицировать удалённый препарат)
   if (pending.length === 0) return null;
 
   function apply(medId: string, drugClass: string) {
@@ -805,9 +806,23 @@ export function MedCalendar({
     );
   }
 
+  // Все секции скрыты фильтром 0-приёмов И нет исторических/разовых записей —
+  // иначе виден только «принято/нет данных» без объяснения, почему пусто.
+  const nothingToShow =
+    regularMeds.length + supplementMeds.length + asNeededMeds.length === 0 &&
+    migreBotEntries.length === 0 &&
+    quickPainEntries.length === 0;
+
   return (
     <div className="space-y-4">
       <DrugClassPrompt meds={meds} />
+
+      {nothingToShow && (
+        <div className="rounded-card border border-dashed border-line bg-surface p-5 text-center">
+          <p className="font-mono text-[12px] text-ink-3">За период приёмов не отмечено</p>
+          <p className="mt-1 font-mono text-[11px] text-ink-4">Отмечай приём на чек-ине — здесь появится история</p>
+        </div>
+      )}
 
       {regularMeds.length > 0 && (
         <div>
