@@ -363,6 +363,110 @@ function EventModal({
   );
 }
 
+// ── Event row (общая строка для DaySheet и списка) ──────────────────────────
+// Марка формой повторяет сетку: круг — тренировка/событие, квадрат —
+// напоминание (см. DayMark: цвет один и тот же раз в месяц, форма — нет).
+function EventRow({ ev, onTap }: { ev: CalendarEventRow; onTap: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      className="flex w-full items-center gap-3 rounded-[3px] border border-line bg-surface-2 px-3 py-2.5 text-left transition active:opacity-70"
+    >
+      <span
+        className={`h-2.5 w-2.5 shrink-0 ${ev.type === "reminder" ? "rounded-[1.5px]" : "rounded-full"}`}
+        style={{ background: TYPE_COLORS[ev.type] ?? "var(--ink-3)" }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className={`font-sans text-[13px] leading-snug ${ev.status === "skipped" ? "line-through text-ink-3" : ev.status === "done" ? "text-ink-3" : "text-ink"}`}>
+          {ev.title}
+          {ev.status === "done" && <span className="ml-1.5 text-ink-4">✓</span>}
+        </p>
+        {(ev.time_start || ev.duration_min) && (
+          <p className="font-mono text-[10px] text-ink-3">
+            {[ev.time_start, ev.duration_min ? `${ev.duration_min} мин` : null].filter(Boolean).join(" · ")}
+          </p>
+        )}
+      </div>
+      <span className="font-mono text-[10px] text-ink-4">{TYPE_LABELS[ev.type]}</span>
+    </button>
+  );
+}
+
+// ── Agenda / список «что дальше» ────────────────────────────────────────────
+
+function agendaDateLabel(iso: string, todayISO: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const dow = DAYS_SHORT[(d.getDay() + 6) % 7];
+  const mon = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"][d.getMonth()];
+  const base = `${dow}, ${d.getDate()} ${mon}`;
+  const tomorrow = addDays(todayISO, 1);
+  if (iso === todayISO) return `Сегодня · ${base}`;
+  if (iso === tomorrow) return `Завтра · ${base}`;
+  return base;
+}
+
+function AgendaList({
+  events,
+  todayISO,
+  onEdit,
+  onAdd,
+}: {
+  events: CalendarEventRow[];
+  todayISO: string;
+  onEdit: (ev: CalendarEventRow) => void;
+  onAdd: (iso: string) => void;
+}) {
+  // Только предстоящее (сегодня и позже), хронологически, время — вторичный
+  // ключ (без времени — в конец дня).
+  const upcoming = events
+    .filter((e) => e.event_date >= todayISO)
+    .sort((a, b) =>
+      a.event_date !== b.event_date
+        ? a.event_date.localeCompare(b.event_date)
+        : (a.time_start ?? "99:99").localeCompare(b.time_start ?? "99:99"),
+    );
+
+  if (upcoming.length === 0) {
+    return (
+      <div className="mt-3 rounded-card border border-dashed border-line bg-surface p-5 text-center">
+        <p className="font-mono text-[12px] text-ink-3">Впереди событий нет</p>
+        <button
+          type="button"
+          onClick={() => onAdd(todayISO)}
+          className="mt-2 font-mono text-[11px] tracking-[0.06em] text-phase underline underline-offset-2"
+        >
+          + добавить
+        </button>
+      </div>
+    );
+  }
+
+  const byDate = new Map<string, CalendarEventRow[]>();
+  for (const ev of upcoming) {
+    const list = byDate.get(ev.event_date) ?? [];
+    list.push(ev);
+    byDate.set(ev.event_date, list);
+  }
+
+  return (
+    <div className="mt-3 space-y-4">
+      {[...byDate.entries()].map(([iso, list]) => (
+        <div key={iso}>
+          <p className="mb-1.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">
+            {agendaDateLabel(iso, todayISO)}
+          </p>
+          <div className="space-y-1.5">
+            {list.map((ev) => (
+              <EventRow key={ev.id} ev={ev} onTap={() => onEdit(ev)} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Day detail sheet (list of events for a day) ────────────────────────────
 
 function DaySheet({
@@ -398,29 +502,7 @@ function DaySheet({
         ) : (
           <div className="mb-3 space-y-1.5">
             {events.map((ev) => (
-              <button
-                key={ev.id}
-                type="button"
-                onClick={() => { onClose(); onEditEvent(ev); }}
-                className="flex w-full items-center gap-3 rounded-[3px] border border-line bg-surface-2 px-3 py-2.5 text-left transition active:opacity-70"
-              >
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ background: TYPE_COLORS[ev.type] ?? "var(--ink-3)" }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className={`font-sans text-[13px] leading-snug ${ev.status === "skipped" ? "line-through text-ink-3" : ev.status === "done" ? "text-ink-3" : "text-ink"}`}>
-                    {ev.title}
-                    {ev.status === "done" && <span className="ml-1.5 text-ink-4">✓</span>}
-                  </p>
-                  {(ev.time_start || ev.duration_min) && (
-                    <p className="font-mono text-[10px] text-ink-3">
-                      {[ev.time_start, ev.duration_min ? `${ev.duration_min} мин` : null].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
-                <span className="font-mono text-[10px] text-ink-4">{TYPE_LABELS[ev.type]}</span>
-              </button>
+              <EventRow key={ev.id} ev={ev} onTap={() => { onClose(); onEditEvent(ev); }} />
             ))}
           </div>
         )}
@@ -459,6 +541,11 @@ export function ScheduleCalendar({
   const [addModal, setAddModal] = useState<string | null>(null); // ISO date
   const [editModal, setEditModal] = useState<CalendarEventRow | null>(null);
 
+  const [view, setView] = useState<"month" | "list">("month");
+  const [listEvents, setListEvents] = useState<CalendarEventRow[]>([]);
+  const listFrom = todayISO;
+  const listTo = addDays(todayISO, 60);
+
   // Navigate months
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
@@ -494,12 +581,18 @@ export function ScheduleCalendar({
     eventsByDate.set(ev.event_date, list);
   }
 
+  async function refreshList() {
+    const res = await fetch(`/api/calendar-events?from=${listFrom}&to=${listTo}`);
+    if (res.ok) setListEvents(await res.json());
+  }
+
   async function refreshEvents() {
     const res = await fetch(`/api/calendar-events?from=${firstISO}&to=${lastISO}`);
     if (res.ok) {
       const data = await res.json();
       setEvents(data);
     }
+    if (view === "list") await refreshList();
     router.refresh();
   }
 
@@ -515,6 +608,18 @@ export function ScheduleCalendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
 
+  // Список «что дальше» тянет свой forward-window (сегодня…+60 дней),
+  // независимо от того, какой месяц открыт в сетке.
+  useEffect(() => {
+    if (view !== "list") return;
+    let cancelled = false;
+    fetch(`/api/calendar-events?from=${listFrom}&to=${listTo}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data && !cancelled) setListEvents(data); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   function onDayTap(iso: string) {
     const dayEvents = eventsByDate.get(iso) ?? [];
     setDaySheet(iso);
@@ -527,62 +632,89 @@ export function ScheduleCalendar({
 
   return (
     <div>
-      {/* Month navigation */}
-      <div className="mb-2 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
-        >
-          ←
-        </button>
-        <span className="font-sans text-[15px] font-semibold text-ink">
-          {MONTHS_RU[month]} {year}
-        </span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
-        >
-          →
-        </button>
+      {/* Вид: месяц / список */}
+      <div className="mb-3 flex gap-1.5">
+        {(["month", "list"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`flex-1 rounded-[3px] border py-2 font-mono text-[11px] tracking-[0.08em] uppercase transition ${
+              view === v ? "border-phase bg-phase-soft text-phase-deep" : "border-line text-ink-3"
+            }`}
+          >
+            {v === "month" ? "месяц" : "список"}
+          </button>
+        ))}
       </div>
 
-      {/* Day-of-week header */}
-      <div className="grid grid-cols-7 gap-px border-b border-line mb-px">
-        {DAYS_SHORT.map((d) => (
-          <div key={d} className="py-1 text-center font-mono text-[9px] uppercase text-ink-3">
-            {d}
+      {view === "month" ? (
+        <>
+          {/* Month navigation */}
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+            >
+              ←
+            </button>
+            <span className="font-sans text-[15px] font-semibold text-ink">
+              {MONTHS_RU[month]} {year}
+            </span>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+            >
+              →
+            </button>
           </div>
-        ))}
-      </div>
 
-      {/* Calendar grid */}
-      <div className="rounded-[6px] border border-line overflow-hidden">
-        {weeks.map((week, wi) => (
-          <WeekRow
-            key={wi}
-            dates={week}
-            todayISO={todayISO}
-            month={month}
-            eventsByDate={eventsByDate}
-            onDayTap={onDayTap}
-          />
-        ))}
-      </div>
-
-      {/* Legend — свотч напоминания квадратный, обучает форме, а не только цвету */}
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {(["workout", "event", "reminder"] as const).map((t) => (
-          <div key={t} className="flex items-center gap-1.5">
-            <span
-              className={`inline-block h-2 w-2 ${t === "reminder" ? "rounded-[1.5px]" : "rounded-full"}`}
-              style={{ background: TYPE_COLORS[t] }}
-            />
-            <span className="font-mono text-[10px] text-ink-3">{TYPE_LABELS[t].toLowerCase()}</span>
+          {/* Day-of-week header */}
+          <div className="grid grid-cols-7 gap-px border-b border-line mb-px">
+            {DAYS_SHORT.map((d) => (
+              <div key={d} className="py-1 text-center font-mono text-[9px] uppercase text-ink-3">
+                {d}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          {/* Calendar grid */}
+          <div className="rounded-[6px] border border-line overflow-hidden">
+            {weeks.map((week, wi) => (
+              <WeekRow
+                key={wi}
+                dates={week}
+                todayISO={todayISO}
+                month={month}
+                eventsByDate={eventsByDate}
+                onDayTap={onDayTap}
+              />
+            ))}
+          </div>
+
+          {/* Legend — свотч напоминания квадратный, обучает форме, а не только цвету */}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {(["workout", "event", "reminder"] as const).map((t) => (
+              <div key={t} className="flex items-center gap-1.5">
+                <span
+                  className={`inline-block h-2 w-2 ${t === "reminder" ? "rounded-[1.5px]" : "rounded-full"}`}
+                  style={{ background: TYPE_COLORS[t] }}
+                />
+                <span className="font-mono text-[10px] text-ink-3">{TYPE_LABELS[t].toLowerCase()}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <AgendaList
+          events={listEvents}
+          todayISO={todayISO}
+          onEdit={(ev) => setEditModal(ev)}
+          onAdd={(iso) => setAddModal(iso)}
+        />
+      )}
 
       {/* Add event button */}
       <button
