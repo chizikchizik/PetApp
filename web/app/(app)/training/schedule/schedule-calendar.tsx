@@ -24,12 +24,6 @@ const TYPE_COLORS: Record<string, string> = {
   reminder: "var(--warn, #e8a23a)",
 };
 
-const TYPE_BG: Record<string, string> = {
-  workout:  "var(--phase-soft)",
-  event:    "var(--surface-3)",
-  reminder: "rgba(232,162,58,0.12)",
-};
-
 const MONTHS_RU = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const DAYS_SHORT = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 const DAYS_FULL  = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
@@ -55,49 +49,24 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-// ── Event pill ─────────────────────────────────────────────────────────────
-
-function EventPill({
-  ev,
-  onTap,
-}: {
-  ev: CalendarEventRow;
-  onTap: (ev: CalendarEventRow) => void;
-}) {
-  const done    = ev.status === "done";
-  const skipped = ev.status === "skipped";
-  const color   = TYPE_COLORS[ev.type] ?? "var(--ink-2)";
-  const bg      = TYPE_BG[ev.type] ?? "var(--surface-3)";
-
+// ── Day mark ────────────────────────────────────────────────────────────────
+// В месячной сетке (ячейка ~40px на мобильном) текст события физически не
+// вмещается — усечение до одной буквы это мусор, а не информация. Полный
+// список живёт в DaySheet по тапу на день; в сетке — только марки-индикаторы.
+// ВАЖНО: тип кодируем ФОРМОЙ, а не только цветом. В менструальной фазе
+// --phase (тренировка) и --warn (напоминание) — идентичный пиксель, так что
+// одним цветом типы неразличимы раз в месяц. Круг (тренировка/событие) vs
+// скруглённый квадрат (напоминание) разбивает эту коллизию силуэтом; цвет —
+// подкрепление. done/skipped гаснут в --ink-4.
+function DayMark({ ev }: { ev: CalendarEventRow }) {
+  const muted  = ev.status === "done" || ev.status === "skipped";
+  const color  = muted ? "var(--ink-4)" : (TYPE_COLORS[ev.type] ?? "var(--ink-2)");
+  const square = ev.type === "reminder";
   return (
-    <button
-      type="button"
-      onClick={() => onTap(ev)}
-      className="w-full rounded-[3px] px-1.5 py-1 text-left transition active:opacity-70"
-      style={{ background: done || skipped ? "var(--surface-2)" : bg }}
-    >
-      <span className="flex items-center gap-1.5">
-        <span
-          className="mt-[1px] h-2 w-2 shrink-0 rounded-full"
-          style={{ background: done ? "var(--ink-4)" : skipped ? "var(--ink-4)" : color }}
-        />
-        <span
-          className={`flex-1 truncate font-sans text-[12px] leading-snug ${
-            skipped ? "text-ink-4 line-through" : done ? "text-ink-3" : "text-ink"
-          }`}
-        >
-          {ev.title}
-        </span>
-        {done && (
-          <span className="shrink-0 font-mono text-[10px] text-ink-4">✓</span>
-        )}
-      </span>
-      {/* Время — отдельной строкой: в месячной сетке ячейка ~48px, на одной
-          строке с названием оно не помещается и обрезалось на мобильной вёрстке */}
-      {ev.time_start && !skipped && !done && (
-        <span className="block pl-3.5 font-mono text-[10px] leading-tight text-ink-3">{ev.time_start}</span>
-      )}
-    </button>
+    <span
+      className={`h-[6px] w-[6px] shrink-0 ${square ? "rounded-[1.5px]" : "rounded-full"}`}
+      style={{ background: color }}
+    />
   );
 }
 
@@ -109,14 +78,12 @@ function WeekRow({
   month,
   eventsByDate,
   onDayTap,
-  onEventTap,
 }: {
   dates: string[];
   todayISO: string;
   month: number;
   eventsByDate: Map<string, CalendarEventRow[]>;
   onDayTap: (iso: string) => void;
-  onEventTap: (ev: CalendarEventRow) => void;
 }) {
   return (
     <div className="grid grid-cols-7 gap-px border-b border-line">
@@ -125,36 +92,42 @@ function WeekRow({
         const thisMonth = parseInt(iso.slice(5, 7)) - 1 === month;
         const isToday = iso === todayISO;
         const events = eventsByDate.get(iso) ?? [];
+        // Марки: до 4 в ряд (4×6 + 3×3 = 33px влезает в ~40px); при ≥5 —
+        // 3 марки + "+N", где N считается от 3.
+        const shown = events.length > 4 ? events.slice(0, 3) : events;
 
         return (
-          <div
+          <button
             key={iso}
-            className={`min-h-[64px] p-1 ${thisMonth ? "bg-surface" : "bg-surface-2"}`}
+            type="button"
+            onClick={() => onDayTap(iso)}
+            aria-label={`${dayNum}, событий: ${events.length}`}
+            className={`flex min-h-[48px] w-full flex-col items-start gap-1 p-1 text-left transition active:bg-surface-3 ${thisMonth ? "bg-surface" : "bg-surface-2"}`}
           >
-            <button
-              type="button"
-              onClick={() => onDayTap(iso)}
-              className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] transition ${
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] ${
                 isToday
                   ? "bg-phase text-on-phase font-semibold"
                   : thisMonth
-                  ? "text-ink hover:bg-surface-3"
+                  ? "text-ink"
                   : "text-ink-4"
               }`}
             >
               {dayNum}
-            </button>
-            <div className="space-y-0.5">
-              {events.slice(0, 3).map((ev) => (
-                <EventPill key={ev.id} ev={ev} onTap={onEventTap} />
-              ))}
-              {events.length > 3 && (
-                <span className="block pl-1 font-mono text-[10px] text-ink-3">
-                  +{events.length - 3}
-                </span>
-              )}
-            </div>
-          </div>
+            </span>
+            {events.length > 0 && (
+              <span className="flex items-center gap-[3px] pl-[3px]">
+                {shown.map((ev) => (
+                  <DayMark key={ev.id} ev={ev} />
+                ))}
+                {events.length > 4 && (
+                  <span className="font-mono text-[9px] leading-none text-ink-3">
+                    +{events.length - 3}
+                  </span>
+                )}
+              </span>
+            )}
+          </button>
         );
       })}
     </div>
@@ -594,16 +567,18 @@ export function ScheduleCalendar({
             month={month}
             eventsByDate={eventsByDate}
             onDayTap={onDayTap}
-            onEventTap={(ev) => setEditModal(ev)}
           />
         ))}
       </div>
 
-      {/* Legend */}
+      {/* Legend — свотч напоминания квадратный, обучает форме, а не только цвету */}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {(["workout", "event", "reminder"] as const).map((t) => (
           <div key={t} className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: TYPE_COLORS[t] }} />
+            <span
+              className={`inline-block h-2 w-2 ${t === "reminder" ? "rounded-[1.5px]" : "rounded-full"}`}
+              style={{ background: TYPE_COLORS[t] }}
+            />
             <span className="font-mono text-[10px] text-ink-3">{TYPE_LABELS[t].toLowerCase()}</span>
           </div>
         ))}
