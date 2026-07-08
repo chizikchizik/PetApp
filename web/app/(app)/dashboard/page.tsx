@@ -290,7 +290,7 @@ export default async function Dashboard() {
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
             риск МИГБ · {leadLabel}
           </div>
-          {c.inMigraineWindow ? (
+          {!pregnant && c.inMigraineWindow ? (
             <span className="animate-pulse font-mono text-[9px] tracking-[0.08em] uppercase bg-phase px-[7px] py-[3px] text-on-phase">
               окно риска
             </span>
