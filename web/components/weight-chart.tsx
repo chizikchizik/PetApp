@@ -7,6 +7,24 @@ import type { WeightRow, CalorieEntry } from "@/lib/data";
 const RU_MON = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 const ML = 28, MR = 26, H = 200, Y0 = 12, Y1 = 175;
 
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Скользящее среднее ккал за 7 календарных дней (trailing): для каждой даты
+// с записью — среднее по всем записям в окне [дата−6; дата]. Сглаживает
+// шумные дневные столбики в тренд. Возвращает точку на каждый день с данными.
+function calorieMovingAvg(cal: CalorieEntry[]): { date: string; avg: number }[] {
+  const sorted = [...cal].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.map((c) => {
+    const from = addDaysISO(c.date, -6);
+    const win = sorted.filter((x) => x.date >= from && x.date <= c.date);
+    return { date: c.date, avg: win.reduce((s, x) => s + x.kcal, 0) / win.length };
+  });
+}
+
 // Дефицит/профицит калорий: цвет столбика зависит от того, насколько день
 // отклонился от точки баланса (TDEE) — не просто "выше/ниже", а с
 // нарастающей интенсивностью. Отклонение свыше 25% от точки баланса даёт
@@ -144,6 +162,10 @@ export function WeightChart({
   const Yk      = (kcal: number) => Y1 - (kcal / maxKcal) * (Y1 - Y0);
   const kcalTicks = [500, 1000, 1500, 2000].filter((v) => v <= maxKcal + 200);
 
+  // Линия скользящего среднего ккал (7 дней) — нужна минимум пара точек.
+  const calMA = calorieMovingAvg(cal);
+  const maPts = calMA.map((p) => `${X(p.date).toFixed(1)},${Yk(p.avg).toFixed(1)}`).join(" ");
+
   const btnCls = "flex h-6 w-6 items-center justify-center rounded-[3px] border border-line bg-surface font-mono text-[13px] leading-none text-ink-2 transition active:scale-90";
 
   return (
@@ -240,6 +262,12 @@ export function WeightChart({
           {todayX >= ML && todayX <= W - MR && (
             <line x1={todayX} y1={Y0} x2={todayX} y2={Y1}
               stroke="currentColor" strokeDasharray="2 3" opacity="0.4" />
+          )}
+
+          {/* Скользящее среднее ккал (7 дней) — сплошная линия в шкале калорий */}
+          {calMA.length >= 2 && (
+            <polyline points={maPts} fill="none" stroke="var(--ink-2)"
+              strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
           )}
 
           {/* Weight lines */}
