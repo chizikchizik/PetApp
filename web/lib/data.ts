@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { parseDate } from "@/lib/cycle";
 import { getCurrentUser } from "@/lib/auth";
 import { isoDaysFromTodayMoscow } from "@/lib/format";
+import { detectMedLabels } from "@/lib/migrebot-meds";
 import * as seed from "@/lib/seed-data";
 
 // Returns the current user's UUID, "__legacy__", or null if not authenticated.
@@ -973,4 +974,93 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
   }
 
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ── Дневник за месяц (в стиле MigreBot) ─────────────────────────────────────
+// Один календарный месяц: какие дни отмечены (есть чек-ин / запись), в какие
+// был приступ, в какие принимались купирующие препараты (и какие именно).
+// Считается за один месяц — payload крошечный, навигация через /api/migre-diary.
+export type MigreDiaryMonth = {
+  ym: string;
+  loggedDates: string[];                       // дни с любой записью (для ✓)
+  migraineDates: string[];                     // дни с приступом
+  medDays: { date: string; meds: string[] }[]; // дни приёма купирующих + препараты
+};
+
+export async function getMigreDiaryMonth(ym: string): Promise<MigreDiaryMonth> {
+  const empty: MigreDiaryMonth = { ym, loggedDates: [], migraineDates: [], medDays: [] };
+  const db = supabaseAdmin();
+  if (!db) return empty;
+  if (!/^\d{4}-\d{2}$/.test(ym)) return empty;
+  const uid = await getAppUserId();
+
+  const [y, m] = ym.split("-").map(Number);
+  const from = `${ym}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${ym}-${String(lastDay).padStart(2, "0")}`;
+
+  // Купирующие препараты — для резолва id/habit_key → название (включая архивные).
+  const meds = await getAllMeds();
+  const asNeededById = new Map<string, string>();
+  const asNeededByHabit = new Map<string, string>();
+  for (const md of meds) {
+    if (!md.isAsNeeded) continue;
+    asNeededById.set(md.id, md.name);
+    asNeededByHabit.set(md.habit_key, md.name);
+  }
+
+  const { data: logData } = await byUser(
+    db.from("daily_log")
+      .select("log_date, meds_taken, habits_done, migraine, migrebot_meds_text")
+      .gte("log_date", from)
+      .lte("log_date", to),
+    uid,
+  );
+  const { data: migData } = await byUser(
+    db.from("migraine_event")
+      .select("event_date, meds")
+      .gte("event_date", from)
+      .lte("event_date", to),
+    uid,
+  );
+
+  const logged = new Set<string>();
+  const migraine = new Set<string>();
+  const medsByDate = new Map<string, Set<string>>();
+  const addMed = (date: string, name: string) => {
+    if (!medsByDate.has(date)) medsByDate.set(date, new Set());
+    medsByDate.get(date)!.add(name);
+  };
+
+  for (const r of (logData ?? []) as {
+    log_date: string; meds_taken: string[] | null; habits_done: string[] | null;
+    migraine: boolean; migrebot_meds_text: string | null;
+  }[]) {
+    logged.add(r.log_date);
+    if (r.migraine) migraine.add(r.log_date);
+    for (const id of r.meds_taken ?? []) {
+      const n = asNeededById.get(id);
+      if (n) addMed(r.log_date, n);
+    }
+    for (const hk of r.habits_done ?? []) {
+      const n = asNeededByHabit.get(hk);
+      if (n) addMed(r.log_date, n);
+    }
+    if (r.migrebot_meds_text) for (const label of detectMedLabels(r.migrebot_meds_text)) addMed(r.log_date, label);
+  }
+
+  for (const e of (migData ?? []) as { event_date: string; meds: string | null }[]) {
+    logged.add(e.event_date);
+    migraine.add(e.event_date);
+    if (e.meds) for (const label of detectMedLabels(e.meds)) addMed(e.event_date, label);
+  }
+
+  return {
+    ym,
+    loggedDates: [...logged].sort(),
+    migraineDates: [...migraine].sort(),
+    medDays: [...medsByDate.entries()]
+      .map(([date, s]) => ({ date, meds: [...s].sort() }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  };
 }

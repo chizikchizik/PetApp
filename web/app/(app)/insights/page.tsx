@@ -7,12 +7,13 @@ import {
   getWorkoutHistory,
   getSportActivityDays,
   getSportTypes,
+  getMigreDiaryMonth,
 } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
-import { MonthBreakdown } from "./month-breakdown";
+import { MigreDiary } from "./migre-diary";
 import { CycleHistoryChart } from "./cycle-history";
 import { TrainingChart } from "../training/training-chart";
 import { PressureBlock } from "./pressure-block";
@@ -205,9 +206,10 @@ const MENS = "rgba(177,74,99,0.22)";
 
 export default async function Insights() {
   const today = new Date(todayISOMoscow() + "T12:00:00");
+  const todayYM = todayISOMoscow().slice(0, 7);
   const since = isoDaysFromTodayMoscow(-365);
   const sinceTraining = isoDaysFromTodayMoscow(-26 * 7);
-  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user] = await Promise.all([
+  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user, diaryMonth] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getAllMigraineEvents(),
@@ -216,6 +218,7 @@ export default async function Insights() {
     getSportActivityDays(sinceTraining),
     getSportTypes(),
     getCurrentUser(),
+    getMigreDiaryMonth(todayYM),
   ]);
 
   const pregnant = isPregnant(user);
@@ -292,9 +295,9 @@ export default async function Insights() {
 
         <div className="mt-4 border-t border-line pt-3">
           <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            разбивка по месяцам
+            дневник по месяцам
           </p>
-          <MonthBreakdown bars={chartBars} />
+          <MigreDiary initial={diaryMonth} todayYM={todayYM} />
         </div>
       </section>
 
