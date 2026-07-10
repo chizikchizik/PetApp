@@ -12,6 +12,7 @@ import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
 import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
 import { MigraineChart } from "./migraine-chart";
+import { MonthBreakdown } from "./month-breakdown";
 import { CycleHistoryChart } from "./cycle-history";
 import { TrainingChart } from "../training/training-chart";
 import { PressureBlock } from "./pressure-block";
@@ -288,6 +289,13 @@ export default async function Insights() {
           Держишься ниже, но часто близко. Регулярный приём — повод обсудить{" "}
           <b className="font-semibold text-ink">профилактику</b>.
         </p>
+
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            разбивка по месяцам
+          </p>
+          <MonthBreakdown bars={chartBars} />
+        </div>
       </section>
 
       {/* ── Мигрень × цикл ── (на паузе при беременности: "текущий цикл"
