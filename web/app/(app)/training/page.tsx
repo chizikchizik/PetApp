@@ -172,17 +172,27 @@ export default async function TrainingPage() {
   const sinceISO = isoDaysFromTodayMoscow(-26 * 7);
   const year = nowMoscow().getUTCFullYear();
   const today = new Date(todayISOMoscow() + "T12:00:00");
-  const [starts, workouts, templates, sportTypes, workoutHistory, sportDays, migraines, yearCount, user] = await Promise.all([
+  // История-хитмап показывает весь календарный год, а анализ паттернов —
+  // скользящее полугодие (26 нед). Грузим с более ранней из двух дат и
+  // режем на месте: в начале года 26 недель уходят в прошлый год.
+  const yearStartISO = `${year}-01-01`;
+  const fetchFrom = yearStartISO < sinceISO ? yearStartISO : sinceISO;
+  const [starts, workouts, templates, sportTypes, workoutHistoryAll, sportDaysAll, migrainesAll, yearCount, user] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
     getWorkoutTemplates(),
     getSportTypes(),
-    getWorkoutHistory(sinceISO),
-    getSportActivityDays(sinceISO),
-    getMigraineEventsSince(sinceISO),
+    getWorkoutHistory(fetchFrom),
+    getSportActivityDays(fetchFrom),
+    getMigraineEventsSince(fetchFrom),
     getWorkoutCountForYear(year),
     getCurrentUser(),
   ]);
+  const workoutHistory = workoutHistoryAll.filter((w) => w.date >= sinceISO);
+  const migraines = migrainesAll.filter((m) => m.date >= sinceISO);
+  const yearWorkouts = workoutHistoryAll.filter((w) => w.date >= yearStartISO);
+  const yearSports = sportDaysAll.filter((s) => s.date >= yearStartISO);
+  const yearMigraines = migrainesAll.filter((m) => m.date >= yearStartISO);
   const pregnant = isPregnant(user);
   const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const tip = PHASE_TIP[phase];
@@ -241,10 +251,11 @@ export default async function TrainingPage() {
 
       {/* ── Инфографика ── */}
       <TrainingChart
-        workouts={workoutHistory}
-        sports={sportDays}
-        migraines={migraines}
+        workouts={yearWorkouts}
+        sports={yearSports}
+        migraines={yearMigraines}
         sportTypes={sportTypes}
+        range="year"
       />
 
       {/* ── Паттерны (адаптивные) ── */}

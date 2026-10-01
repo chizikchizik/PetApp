@@ -55,19 +55,18 @@ export function TrainingChart({
   sports,
   migraines,
   sportTypes,
+  range = "26w",
 }: {
   workouts: WorkoutLogEntry[];
   sports: SportDay[];
   migraines: MigraineEvent[];
   sportTypes: SportType[];
+  // "26w" — скользящие 26 недель до сегодня; "year" — весь календарный год
+  // (янв–дек текущего года, будущие недели видны пустыми клетками).
+  range?: "26w" | "year";
 }) {
   const heatmapScrollRef = useRef<HTMLDivElement>(null);
-
-  // Показывать сразу самые свежие недели, а не начало 26-недельной истории.
-  useEffect(() => {
-    const el = heatmapScrollRef.current;
-    if (el) el.scrollLeft = el.scrollWidth;
-  }, []);
+  const isYear = range === "year";
 
   const colorMap = buildColorMap(sportTypes);
 
@@ -83,17 +82,20 @@ export function TrainingChart({
   const migraineSet = new Set<string>();
   for (const m of migraines) migraineSet.add(m.date);
 
-  // Calendar grid: 26 weeks, starting on the Monday before 26w ago
+  // Calendar grid. 26w: с понедельника ~26 недель назад до сегодня.
+  // year: с понедельника на/до 1 января до воскресенья на/после 31 декабря.
   const todayISO = todayISOMoscow();
   const today = new Date(todayISO + "T12:00:00");
-  const start = new Date(today);
-  start.setDate(today.getDate() - 26 * 7);
+  const yearStr = todayISO.slice(0, 4);
+  const start = isYear ? new Date(`${yearStr}-01-01T12:00:00`) : new Date(today);
+  if (!isYear) start.setDate(today.getDate() - 26 * 7);
   const startDow = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - startDow);
+  const endISO = isYear ? `${yearStr}-12-31` : todayISO;
 
   const weeks: string[][] = [];
   const cur = new Date(start);
-  while (cur.toISOString().slice(0, 10) <= todayISO) {
+  while (cur.toISOString().slice(0, 10) <= endISO) {
     const week: string[] = [];
     for (let d = 0; d < 7; d++) {
       week.push(cur.toISOString().slice(0, 10));
@@ -101,6 +103,17 @@ export function TrainingChart({
     }
     weeks.push(week);
   }
+  // Колонка текущей недели — к ней прокручиваем при открытии.
+  const todayCol = weeks.findIndex((w) => w.includes(todayISO));
+
+  useEffect(() => {
+    const el = heatmapScrollRef.current;
+    if (!el) return;
+    if (!isYear || todayCol < 0) { el.scrollLeft = el.scrollWidth; return; }
+    // Текущая неделя ~в 3/4 ширины видимой области: видно недавнее и чуть будущего.
+    const x = DAY_LABEL_W + todayCol * STEP;
+    el.scrollLeft = Math.max(0, x - el.clientWidth * 0.75);
+  }, [isYear, todayCol]);
 
   const N = weeks.length;
   const SVG_W = DAY_LABEL_W + N * STEP - GAP + 4;
@@ -109,7 +122,10 @@ export function TrainingChart({
   const monthLabels: { wi: number; month: number }[] = [];
   let lastM = -1;
   weeks.forEach((week, wi) => {
-    const m = parseInt(week[0].slice(5, 7)) - 1;
+    // В режиме года первая неделя может начинаться в декабре прошлого года —
+    // подписываем по первому дню, попадающему в год.
+    const ref = isYear ? (week.find((d) => d.startsWith(yearStr)) ?? week[0]) : week[0];
+    const m = parseInt(ref.slice(5, 7)) - 1;
     if (m !== lastM) { monthLabels.push({ wi, month: m }); lastM = m; }
   });
 
@@ -161,7 +177,7 @@ export function TrainingChart({
       {/* ── Heatmap ── */}
       <div>
         <p className="mb-1.5 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          история · {weeks[0]?.[0]?.slice(0, 7)} — {todayISO.slice(0, 7)}
+          история · {isYear ? `${yearStr} год` : `${weeks[0]?.[0]?.slice(0, 7)} — ${todayISO.slice(0, 7)}`}
         </p>
         <div ref={heatmapScrollRef} className="rounded-[6px] border border-line" style={{ overflowX: "auto" }}>
           <svg width={SVG_W} height={SVG_H} style={{ display: "block", minWidth: SVG_W, padding: "4px 4px 0 0" }}>
@@ -185,6 +201,8 @@ export function TrainingChart({
                 const hasW = !!types;
                 const hasS = sportSet.has(date);
                 const hasM = migraineSet.has(date);
+                // Дни соседнего года в крайних неделях режима «год» не рисуем.
+                if (isYear && !date.startsWith(yearStr)) return null;
                 const future = date > todayISO;
                 const fill = future ? "none"
                   : hasW ? resolveTypeColor(colorMap, types!)
@@ -194,7 +212,13 @@ export function TrainingChart({
                 const y = MONTH_H + di * STEP;
                 return (
                   <g key={date}>
-                    <rect x={x} y={y} width={CELL} height={CELL} rx={2} fill={fill} />
+                    <rect x={x} y={y} width={CELL} height={CELL} rx={2} fill={fill}
+                      stroke={future && isYear ? "rgba(130,130,130,0.18)" : undefined}
+                      strokeWidth={future && isYear ? 1 : undefined} />
+                    {date === todayISO && (
+                      <rect x={x - 0.5} y={y - 0.5} width={CELL + 1} height={CELL + 1} rx={2.5}
+                        fill="none" stroke="var(--ink-2)" strokeWidth={1} />
+                    )}
                     {hasM && !future && (
                       <circle cx={x + CELL - 2.5} cy={y + 2.5} r={2.5} fill={C_MIG} />
                     )}
