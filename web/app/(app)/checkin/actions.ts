@@ -21,63 +21,6 @@ function byUser(q: any, uid: string | null): any {
   return q.eq("app_user_id", uid);
 }
 
-export type CheckinPayload = {
-  mood: number | null;
-  energy: number | null;
-  symptoms: string[];
-  migraine: { had: boolean; intensity: number; aura: boolean; triggers: string[] };
-  weight: string;
-  kcal: string;
-  meds: Record<string, boolean>;
-  habits: string[];
-  note: string;
-};
-
-export async function saveCheckin(
-  dayKey: string,
-  p: CheckinPayload,
-): Promise<{ ok: boolean; error?: string }> {
-  const db = supabaseAdmin();
-  if (!db) return { ok: false, error: "Supabase не настроен" };
-
-  const uid = await getAppUserId();
-
-  const row = {
-    app_user_id: uid,
-    log_date: dayKey,
-    mood: p.mood,
-    energy: p.energy,
-    symptoms: p.symptoms,
-    migraine: p.migraine.had,
-    migraine_intensity: p.migraine.had ? p.migraine.intensity : null,
-    migraine_aura: p.migraine.had ? p.migraine.aura : false,
-    migraine_triggers: p.migraine.had ? p.migraine.triggers : [],
-    weight_kg: p.weight ? Number(p.weight.replace(",", ".")) : null,
-    calorie_kcal: p.kcal ? Math.round(Number(p.kcal.replace(",", "."))) : null,
-    meds_taken: Object.entries(p.meds)
-      .filter(([, v]) => v)
-      .map(([k]) => k),
-    habits_done: p.habits,
-    note: p.note || null,
-    updated_at: new Date().toISOString(),
-  };
-
-  const { error } = await db
-    .from("daily_log")
-    .upsert(row, { onConflict: "app_user_id,log_date" });
-  if (error) return { ok: false, error: error.message };
-
-  if (row.weight_kg != null) {
-    await db.from("weight_entry").upsert(
-      { entry_date: dayKey, actual_kg: row.weight_kg, app_user_id: uid },
-      { onConflict: "app_user_id,entry_date" },
-    );
-  }
-
-  revalidatePath("/weight");
-  return { ok: true };
-}
-
 export async function createMed(
   name: string,
   whenLabel: string | null,
@@ -103,9 +46,8 @@ export async function createMed(
       uid,
     );
     if (restoreErr) return { ok: false, error: restoreErr.message };
-    revalidatePath("/checkin");
-    revalidatePath("/checkin/meds");
     revalidatePath("/dashboard");
+    revalidatePath("/checkin/meds");
     return { ok: true };
   }
 
@@ -132,7 +74,6 @@ export async function createMed(
     app_user_id: uid,
   });
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/checkin");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -177,7 +118,6 @@ export async function changeMedDose(
   });
   if (insertErr) return { ok: false, error: insertErr.message };
 
-  revalidatePath("/checkin");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -197,9 +137,8 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   ).select("id");
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: "Препарат не найден" };
-  revalidatePath("/checkin");
-  revalidatePath("/checkin/meds");
   revalidatePath("/dashboard");
+  revalidatePath("/checkin/meds");
   revalidatePath("/insights/report");
   return { ok: true };
 }
@@ -213,9 +152,8 @@ export async function setMedDrugClass(medId: string, drugClass: string): Promise
   const uid = await getAppUserId();
   const { error } = await byUser(db.from("medication").update({ drug_class: drugClass }).eq("id", medId), uid);
   if (error) return { ok: false };
-  revalidatePath("/checkin");
-  revalidatePath("/checkin/meds");
   revalidatePath("/dashboard");
+  revalidatePath("/checkin/meds");
   return { ok: true };
 }
 
@@ -245,7 +183,6 @@ export async function quickLogMigraine(dayKey: string): Promise<{ ok: boolean; e
   const { error } = await db.from("daily_log").upsert(row, { onConflict: "app_user_id,log_date" });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/checkin");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -284,7 +221,7 @@ export async function logQuickPain(
     pain_location: painLocation,
   });
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
   revalidatePath("/checkin/meds");
   return { ok: true };
 }
@@ -298,7 +235,6 @@ export async function savePeriodStart(dateISO: string): Promise<{ ok: boolean }>
     .upsert({ start_date: dateISO, app_user_id: uid }, { onConflict: "app_user_id,start_date" });
   if (error) return { ok: false };
   revalidatePath("/dashboard");
-  revalidatePath("/checkin");
   return { ok: true };
 }
 
@@ -322,7 +258,7 @@ export async function addMigraineTrigger(name: string): Promise<{ ok: boolean }>
     db.from("migraine_trigger").insert({ name: trimmed, sort: nextSort, app_user_id: uid }),
     uid,
   );
-  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 
@@ -332,6 +268,141 @@ export async function deleteMigraineTrigger(id: number): Promise<{ ok: boolean }
   const uid = await getAppUserId();
   const { error } = await byUser(db.from("migraine_trigger").delete().eq("id", id), uid);
   if (error) return { ok: false };
-  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+// ── Точечные правки дня для экрана «Сегодня» ──
+// Каждое действие перечитывает строку daily_log и меняет только свои поля.
+// Сохранять всю форму целиком на каждое касание нельзя: устаревшее
+// состояние клиента затёрло бы то, что параллельно пишут другие действия
+// (например, «Спорт»/«Бег» в habits_done от записи тренировки).
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function validDay(dayKey: string): boolean {
+  return DAY_RE.test(dayKey) && dayKey <= todayISOMoscow();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function patchDay(db: any, uid: string | null, dayKey: string, patch: (row: Record<string, unknown>) => Record<string, unknown>) {
+  const { data: existing, error: readErr } = await byUser(
+    db.from("daily_log").select("*").eq("log_date", dayKey),
+    uid,
+  ).maybeSingle();
+  if (readErr) return { ok: false, error: readErr.message as string };
+  const { id: _id, ...base } = (existing ?? {}) as Record<string, unknown>;
+  const row = {
+    ...base,
+    ...patch(base),
+    app_user_id: uid,
+    log_date: dayKey,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await db.from("daily_log").upsert(row, { onConflict: "app_user_id,log_date" });
+  if (error) return { ok: false, error: error.message as string };
+  return { ok: true };
+}
+
+function revalidateDay() {
+  revalidatePath("/dashboard");
+  revalidatePath("/checkin/meds");
+  revalidatePath("/insights");
+}
+
+// Отметка приёма препарата: id в meds_taken и habit_key в habits_done
+// (на втором держится история регулярных препаратов и витаминов).
+export async function setMedTaken(
+  dayKey: string,
+  medId: string,
+  on: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+
+  // medId приходит с клиента — проверяем, что препарат принадлежит ей.
+  const { data: med } = await byUser(
+    db.from("medication").select("id, name, habit_key").eq("id", medId),
+    uid,
+  ).maybeSingle();
+  if (!med) return { ok: false, error: "Препарат не найден" };
+  const habitKey: string = med.habit_key ?? med.name;
+
+  const res = await patchDay(db, uid, dayKey, (row) => {
+    const meds = new Set((row.meds_taken as string[] | null) ?? []);
+    const habits = new Set((row.habits_done as string[] | null) ?? []);
+    if (on) { meds.add(medId); habits.add(habitKey); }
+    else { meds.delete(medId); habits.delete(habitKey); }
+    return { meds_taken: [...meds], habits_done: [...habits] };
+  });
+  if (res.ok) revalidateDay();
+  return res;
+}
+
+export async function saveMigraineDetails(
+  dayKey: string,
+  m: { had: boolean; intensity: number; aura: boolean; triggers: string[] },
+): Promise<{ ok: boolean; error?: string }> {
+  if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+  const intensity = Math.round(Number(m.intensity));
+  if (!Number.isFinite(intensity) || intensity < 0 || intensity > 10) return { ok: false, error: "Сила — от 0 до 10" };
+  const triggers = Array.isArray(m.triggers) ? m.triggers.filter((t) => typeof t === "string").slice(0, 30) : [];
+
+  const res = await patchDay(db, uid, dayKey, () => ({
+    migraine: m.had === true,
+    migraine_intensity: m.had ? intensity : null,
+    migraine_aura: m.had ? m.aura === true : false,
+    migraine_triggers: m.had ? triggers : [],
+  }));
+  if (res.ok) revalidateDay();
+  return res;
+}
+
+// Вес и калории за день. Пустое значение очищает поле; для веса заодно
+// снимаем фактический вес в weight_entry (план на эту дату не трогаем),
+// чтобы «Сегодня» и «Вес» показывали одно и то же.
+export async function saveDayNumber(
+  dayKey: string,
+  field: "weight" | "kcal",
+  raw: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
+  const db = supabaseAdmin();
+  if (!db) return { ok: false, error: "БД недоступна" };
+  const uid = await getAppUserId();
+
+  const trimmed = raw.trim().replace(",", ".");
+  const value = trimmed === "" ? null : Number(trimmed);
+  if (value != null) {
+    if (!Number.isFinite(value)) return { ok: false, error: "Нужно число" };
+    if (field === "weight" && (value < 25 || value > 300)) return { ok: false, error: "Вес — от 25 до 300 кг" };
+    if (field === "kcal" && (value < 0 || value > 15000)) return { ok: false, error: "Калории — от 0 до 15 000" };
+  }
+
+  const column = field === "weight" ? "weight_kg" : "calorie_kcal";
+  const stored = value == null ? null : field === "kcal" ? Math.round(value) : Math.round(value * 10) / 10;
+  const res = await patchDay(db, uid, dayKey, () => ({ [column]: stored }));
+  if (!res.ok) return res;
+
+  if (field === "weight") {
+    if (stored != null) {
+      await db.from("weight_entry").upsert(
+        { entry_date: dayKey, actual_kg: stored, app_user_id: uid },
+        { onConflict: "app_user_id,entry_date" },
+      );
+    } else {
+      await byUser(
+        db.from("weight_entry").update({ actual_kg: null }).eq("entry_date", dayKey),
+        uid,
+      );
+    }
+  }
+  revalidatePath("/dashboard");
+  revalidatePath("/weight");
   return { ok: true };
 }

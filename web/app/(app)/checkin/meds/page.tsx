@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { getAllMeds, getMedIntakeDays, getQuickPainEntries } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
@@ -40,9 +41,7 @@ export default async function MedsPage({
 
   return (
     <>
-      <Link href="/checkin" className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        ← чек-ин
-      </Link>
+      <BackLink href="/insights" label="← назад" />
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">
         ПРЕПАРАТЫ
       </h1>
@@ -92,7 +91,7 @@ export default async function MedsPage({
 
       <div className="mt-6">
         <Link
-          href="/checkin"
+          href="/dashboard"
           className="block text-center font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3 underline underline-offset-2"
         >
           + отметить приём сегодня →

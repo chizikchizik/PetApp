@@ -3,73 +3,76 @@ import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
 import { MIGRAINE } from "@/lib/seed-data";
 import {
   getPeriodStarts,
-  getRecentActualWeights,
-  getCurrentWeight,
+  getDailyLog,
+  getMeds,
+  getMedMonthlyCounts,
+  getMigraineTriggers,
+  getSportTypes,
+  getQuickPainEntries,
   getMigraineMedStats,
+  getRecentActualWeights,
   getWorkoutHistory,
-  WEIGHT_GOAL,
+  getMigraineEventsSince,
 } from "@/lib/data";
 import { getCurrentUser, isPregnant, ALL_TRACKED } from "@/lib/auth";
 import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
 import { getCalendarEvents } from "../training/schedule/actions";
+import { TodayDay } from "./today-day";
+import { DayNav, PeriodStartButton } from "./day-controls";
+
+export const dynamic = "force-dynamic";
+
+// «Сегодня» — бывшие дашборд и чек-ин на одном экране. Наверху кнопка
+// приступа и три цифры, ниже то, что отмечается за день; каждое касание
+// сохраняется сразу. ?date=YYYY-MM-DD открывает прошлый день для дозаполнения.
 
 const WEEK_TYPE_COLORS: Record<string, string> = {
-  workout:  "var(--phase)",
-  event:    "var(--ink-2)",
+  workout: "var(--phase)",
+  event: "var(--ink-2)",
   reminder: "var(--warn, #e8a23a)",
 };
-const DOW_SHORT = ["ПН","ВТ","СР","ЧТ","ПТ","СБ","ВС"];
+const DOW_SHORT = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+const MONTH_SHORT = ["ЯНВ", "ФЕВ", "МАР", "АПР", "МАЙ", "ИЮН", "ИЮЛ", "АВГ", "СЕН", "ОКТ", "НОЯ", "ДЕК"];
+const MONTH_IN = ["январе", "феврале", "марте", "апреле", "мае", "июне", "июле", "августе", "сентябре", "октябре", "ноябре", "декабре"];
+const WEEKDAY_SHORT = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
 
 const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
-  menstrual: {
-    title: "Бережный режим",
-    text: "Лёгкое движение и мобильность. Помним про железо.",
-  },
-  follicular: {
-    title: "Окно силы",
-    text: "Лучшее время для силовых и прогрессий. Бери новые веса.",
-  },
-  ovulatory: {
-    title: "Пик — связки слабее",
-    text: "Сила максимальна, но коллаген мягче. Контролируй технику.",
-  },
-  luteal: {
-    title: "Снижаем обороты",
-    text: "Объём, техника, восстановление. Задержка воды — норма.",
-  },
+  menstrual: { title: "Бережный режим", text: "Лёгкое движение и мобильность. Помним про железо." },
+  follicular: { title: "Окно силы", text: "Лучшее время для силовых и прогрессий. Бери новые веса." },
+  ovulatory: { title: "Пик — связки слабее", text: "Сила максимальна, но коллаген мягче. Контролируй технику." },
+  luteal: { title: "Снижаем обороты", text: "Объём, техника, восстановление. Задержка воды — норма." },
 };
 
-const MONTH_SHORT = ["ЯНВ","ФЕВ","МАР","АПР","МАЙ","ИЮН","ИЮЛ","АВГ","СЕН","ОКТ","НОЯ","ДЕК"];
-const WEEKDAY_SHORT = ["ВС","ПН","ВТ","СР","ЧТ","ПТ","СБ"];
-
-function formatDateHeader(d: Date): string {
-  return `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
-function buildTicks(day: number, length: number) {
-  const ticks = [];
-  for (let i = 0; i < length; i++) {
-    const a = (i / length) * 2 * Math.PI - Math.PI / 2;
-    const inr = 72, outr = 86;
-    ticks.push({
-      x1: (100 + Math.cos(a) * inr).toFixed(1),
-      y1: (100 + Math.sin(a) * inr).toFixed(1),
-      x2: (100 + Math.cos(a) * outr).toFixed(1),
-      y2: (100 + Math.sin(a) * outr).toFixed(1),
-      active: i < day,
-    });
-  }
-  return ticks;
+function daysBetweenISO(a: string, b: string): number {
+  return Math.round((new Date(b + "T12:00:00Z").getTime() - new Date(a + "T12:00:00Z").getTime()) / 86400000);
 }
 
-export default async function Dashboard() {
+function fmtSigned(n: number): string {
+  const v = Math.round(n * 10) / 10;
+  return `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toString().replace(".", ",")}`;
+}
+
+export default async function Today({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date } = await searchParams;
   const todayISO = todayISOMoscow();
+  const dayKey = date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayISO ? date : todayISO;
+  const isToday = dayKey === todayISO;
+  const target = new Date(dayKey + "T12:00:00");
   const today = new Date(todayISO + "T12:00:00");
-  const starts = await getPeriodStarts();
-  const ym = todayISO.slice(0, 7);
-  const todayStr = todayISO;
+  const todayYM = todayISO.slice(0, 7);
+  const dayYM = dayKey.slice(0, 7);
 
-  const dow = (today.getDay() + 6) % 7; // Mon=0
+  const dow = (today.getDay() + 6) % 7; // Пн=0
   const monday = new Date(today);
   monday.setDate(today.getDate() - dow);
   const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -77,94 +80,174 @@ export default async function Dashboard() {
     d.setDate(monday.getDate() + i);
     return isoLocal(d);
   });
+  const weekStart = weekDates[0];
+  const dayInWeek = dayKey >= weekStart && dayKey <= weekDates[6];
 
-  const [user, medStats, weights, currentWeight, weekWorkouts, weekEvents] = await Promise.all([
+  const [
+    user, starts, log, meds, medCounts, triggers, sportTypes, quickPain,
+    monthStats, dayMonthStats, weights, workoutsSince, weekEvents, dayEvents, attacks,
+  ] = await Promise.all([
     getCurrentUser(),
-    getMigraineMedStats(ym),
-    getRecentActualWeights(8),
-    getCurrentWeight(),
-    getWorkoutHistory(weekDates[0]),
-    getCalendarEvents(weekDates[0], weekDates[6]),
+    getPeriodStarts(),
+    getDailyLog(dayKey),
+    getMeds(),
+    getMedMonthlyCounts(dayYM),
+    getMigraineTriggers(),
+    getSportTypes(),
+    getQuickPainEntries(dayKey, dayKey),
+    getMigraineMedStats(todayYM),
+    dayYM === todayYM ? Promise.resolve(null) : getMigraineMedStats(dayYM),
+    getRecentActualWeights(30),
+    getWorkoutHistory(dayKey < weekStart ? dayKey : weekStart),
+    getCalendarEvents(weekStart, weekDates[6]),
+    dayInWeek ? Promise.resolve(null) : getCalendarEvents(dayKey, dayKey),
+    getMigraineEventsSince(addDaysISO(dayKey, -365)),
   ]);
+
+  const tracks = user?.tracks ?? ALL_TRACKED;
+  const pregnant = isPregnant(user);
+  // Для прошлого дня берём только старты не позже него, иначе getCurrentCycle
+  // отсчитает «день цикла» от более позднего старта и уйдёт в минус.
+  const startsUpToDay = isToday ? starts : starts.filter((d) => isoLocal(d) <= dayKey);
+  const c = getCurrentCycle(startsUpToDay, target, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
+  const displayName = user?.displayName || "VERTA";
+  const isPeriodStart = starts.some((d) => isoLocal(d) === dayKey);
+
+  // ── Мигрень: счётчик МИГБ (ICHD-3 8.2). Триптаны/эрготамины/опиоиды/комб.
+  // анальгетики — одна цифра с порогом 10, НПВС — отдельно с порогом 15
+  // (не два независимых лимита по 10, см. рецензию Елены).
+  const highRiskPct = Math.round((monthStats.highRisk / MIGRAINE.triptanThreshold) * 100);
+  const nsaidPct = Math.round((monthStats.nsaid / MIGRAINE.nsaidThreshold) * 100);
+  const nsaidLeads = nsaidPct > highRiskPct;
+  const leadCount = nsaidLeads ? monthStats.nsaid : monthStats.highRisk;
+  const leadThreshold = nsaidLeads ? MIGRAINE.nsaidThreshold : MIGRAINE.triptanThreshold;
+  const leadHigh = Math.max(highRiskPct, nsaidPct) >= 70;
+  const ds = dayMonthStats ?? monthStats;
+  const medNote =
+    `В ${MONTH_IN[target.getMonth()]}: дней с триптанами и комб. анальгетиками — ${ds.highRisk} из ${MIGRAINE.triptanThreshold}, ` +
+    `с НПВС — ${ds.nsaid} из ${MIGRAINE.nsaidThreshold}. Считаем дни приёма, а не дни боли.`;
+
+  const lastAttack = attacks.filter((a) => a.date < dayKey).map((a) => a.date).sort().pop() ?? null;
+  const lastAttackLabel = lastAttack
+    ? (() => {
+        const n = daysBetweenISO(lastAttack, dayKey);
+        return `${formatDay(new Date(lastAttack + "T12:00:00"))} · ${n === 1 ? "вчера" : `${pluralDays(n)} назад`}`;
+      })()
+    : null;
+
+  // ── Тренировки ──
+  const weekWorkoutCount = workoutsSince.filter((w) => w.date >= weekStart && w.date <= todayISO).length;
+  const dayWorkouts = workoutsSince.filter((w) => w.date === dayKey);
+  const planned = (dayEvents ?? weekEvents).filter((ev) => ev.event_date === dayKey && ev.type === "workout");
   const eventsByDate = new Map<string, typeof weekEvents>();
   for (const ev of weekEvents) {
     const list = eventsByDate.get(ev.event_date) ?? [];
     list.push(ev);
     eventsByDate.set(ev.event_date, list);
   }
-  const pregnant = isPregnant(user);
-  const tracks = user?.tracks ?? ALL_TRACKED;
-  const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
-  const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
-  const tip = PHASE_TIP[c.phase];
 
-  const displayName = user?.displayName || "VERTA";
-  const weightGoalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
-  const weightStartKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
+  // ── Вес: изменение за неделю, если есть запись недельной давности ──
+  const current = weights.length ? weights[weights.length - 1] : null;
+  const weekAgo = [...weights].reverse().find((w) => w.date <= addDaysISO(todayISO, -7)) ?? null;
+  const weightSub = !current
+    ? "нет записей"
+    : weekAgo
+      ? `${fmtSigned(current.actual - weekAgo.actual)} за нед`
+      : user?.weightStartKg
+        ? `${fmtSigned(current.actual - user.weightStartKg)} от старта`
+        : "первая запись";
 
-  // Риск МИГБ (ICHD-3 8.2): триптаны/эрготамины/опиоиды/комб. анальгетики
-  // считаются вместе (порог 10 дней/мес — не два независимых лимита по 10),
-  // НПВС/парацетамол-моно — отдельно (порог 15). См. рецензию Елены в памяти.
-  const highRiskPct = Math.min(100, Math.round((medStats.highRisk / MIGRAINE.triptanThreshold) * 100));
-  const nsaidPct = Math.min(100, Math.round((medStats.nsaid / MIGRAINE.nsaidThreshold) * 100));
-  const nsaidLeads = nsaidPct > highRiskPct;
-  const leadCount = nsaidLeads ? medStats.nsaid : medStats.highRisk;
-  const leadThreshold = nsaidLeads ? MIGRAINE.nsaidThreshold : MIGRAINE.triptanThreshold;
-  const leadPct = nsaidLeads ? nsaidPct : highRiskPct;
-  const leadLabel = nsaidLeads ? "НПВС" : "триптаны/анальгетики";
-  const otherLabel = nsaidLeads ? "триптаны/анальгетики" : "НПВС";
-  const otherCount = nsaidLeads ? medStats.highRisk : medStats.nsaid;
-  const otherThreshold = nsaidLeads ? MIGRAINE.triptanThreshold : MIGRAINE.nsaidThreshold;
-  const leadHigh = leadPct >= 70;
-  const weightDelta = currentWeight != null ? +(currentWeight - weightStartKg).toFixed(1) : null;
-  const ws = weights.map((w) => w.actual);
-  const wMin = ws.length ? Math.min(...ws) : 0;
-  const wMax = ws.length ? Math.max(...ws) : 0;
-  const spark = weights.length
-    ? weights
-        .map((w, i) => {
-          const x = (i / (weights.length - 1 || 1)) * 100;
-          const y = 26 - ((w.actual - wMin) / (wMax - wMin || 1)) * 22 - 2;
-          return `${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(" ")
-    : "";
+  const dateHeader = `${WEEKDAY_SHORT[target.getDay()]} ${target.getDate()} ${MONTH_SHORT[target.getMonth()]}`;
+  const title = isToday ? "Сегодня" : dayKey === addDaysISO(todayISO, -1) ? "Вчера" : formatDay(target);
 
-  // Тренировки текущей недели (пн–сегодня); будущих записей в логе нет.
-  const weekWorkoutCount = weekWorkouts.filter((w) => w.date >= weekDates[0] && w.date <= todayStr).length;
-  const ticks = buildTicks(c.day, length);
+  const kpiTile = "flex-1 min-w-0 px-3 py-3 active:bg-surface-2";
+  const kpis = (
+    <div className="mt-4 flex divide-x divide-line overflow-hidden rounded-card border border-line bg-surface">
+      {tracks.migraine && (
+        <Link href="/insights" className={kpiTile}>
+          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">{nsaidLeads ? "НПВС" : "триптаны"}</div>
+          <div className={`mt-1.5 font-mono text-[21px] font-semibold leading-none ${leadHigh ? "text-warn" : "text-ink"}`}>
+            {leadCount}<span className="text-[12px] font-normal text-ink-2">/{leadThreshold}</span>
+          </div>
+          <div className={`mt-1 font-mono text-[11px] ${leadHigh ? "text-warn" : "text-ink-2"}`}>{leadHigh ? "близко к порогу" : "дней в месяце"}</div>
+        </Link>
+      )}
+      {tracks.training && (
+        <Link href="/training" className={kpiTile}>
+          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">тренировки</div>
+          <div className="mt-1.5 font-mono text-[21px] font-semibold leading-none text-ink">{weekWorkoutCount}</div>
+          <div className="mt-1 font-mono text-[11px] text-ink-2">за неделю</div>
+        </Link>
+      )}
+      {tracks.weight && (
+        <Link href="/weight" className={kpiTile}>
+          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">вес</div>
+          <div className="mt-1.5 font-mono text-[21px] font-semibold leading-none text-ink">
+            {current ? current.actual.toString().replace(".", ",") : "—"}
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-ink-2">{weightSub}</div>
+        </Link>
+      )}
+    </div>
+  );
+  const kpiBlock = (
+    <>
+      {kpis}
+      {tracks.migraine && monthStats.unclassified > 0 && (
+        <Link href="/checkin/meds" className="mt-1.5 flex min-h-[36px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
+          {monthStats.unclassified === 1 ? "1 препарат без типа" : `${monthStats.unclassified} препарата без типа`} — не попадает в счётчик. Указать тип →
+        </Link>
+      )}
+    </>
+  );
 
   return (
-    <>
+    <div className={!isToday && !pregnant ? `phase-${c.phase}` : undefined}>
       {/* ── Шапка ── */}
-      <header className="flex items-start justify-between pb-4">
-        <div>
-          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-phase">
-            // {pregnant ? "БЕРЕМЕННОСТЬ" : PHASE_LABELS[c.phase]}
-          </div>
-          <div className="mt-1.5 font-serif font-bold text-[23px] leading-[1.05] uppercase">
-            {displayName.toUpperCase()}
-          </div>
-          <div className="mt-1.5 font-mono text-[11px] text-ink-3">
-            {pregnant ? formatDateHeader(today) : `ДЕНЬ ${c.day} · ${formatDateHeader(today)}`}
-          </div>
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-phase">{dateHeader}</div>
+          <h1 className="mt-1 font-serif text-[23px] font-bold uppercase leading-[1.05]">{title}</h1>
         </div>
-        <div className="flex items-center gap-2 pt-1">
-          <Link
-            href="/profile"
-            className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full border border-line font-serif font-bold text-[13px] text-ink-2 transition active:scale-[0.95]"
-          >
-            {displayName[0]?.toUpperCase() ?? "?"}
-          </Link>
-        </div>
+        <Link
+          href="/profile"
+          aria-label="Профиль"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line font-serif text-[14px] font-bold text-ink-2 transition active:scale-[0.95]"
+        >
+          {displayName[0]?.toUpperCase() ?? "?"}
+        </Link>
       </header>
 
-      {/* ── Главный циферблат / карточка беременности ── */}
-      {pregnant ? (
-        <section className="rounded-card border border-line bg-surface p-5">
+      <DayNav dayKey={dayKey} todayISO={todayISO} />
+
+      {/* ── Цикл: контекст одной строкой ── */}
+      {!pregnant && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            href="/cycle"
+            className="inline-flex min-h-[36px] items-center gap-2 rounded-[3px] bg-phase-soft px-2.5 font-mono text-[12px] text-phase-deep"
+          >
+            <span className="h-[7px] w-[7px] rounded-full bg-phase" />
+            день {c.day} · {PHASE_LABELS[c.phase].toLowerCase()}
+          </Link>
+          {isToday && tracks.migraine && c.inMigraineWindow && (
+            <span className="rounded-[3px] border border-warn px-2 py-1 font-mono text-[11px] text-warn">окно риска мигрени</span>
+          )}
+          {isToday && !c.inMigraineWindow && c.daysUntilNextPeriod.likely > 0 && (
+            <span className="font-mono text-[12px] text-ink-2">месячные ≈ через {pluralDays(c.daysUntilNextPeriod.likely)}</span>
+          )}
+          <span className="ml-auto">
+            <PeriodStartButton key={dayKey} dayKey={dayKey} isStart={isPeriodStart} />
+          </span>
+        </div>
+      )}
+
+      {/* ── Беременность ── */}
+      {pregnant && (
+        <section className="mt-4 rounded-card border border-line bg-surface p-4">
           <div className="flex items-center gap-2">
             <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-phase" />
-            <span className="font-sans font-bold text-[14px] tracking-[0.01em]">Беременность</span>
+            <span className="font-sans text-[14px] font-bold">Беременность</span>
           </div>
           <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
             Фазы цикла на паузе — наблюдения (вес, мигрень, препараты, тренировки) продолжаются.
@@ -178,245 +261,71 @@ export default async function Dashboard() {
           </div>
           <Link
             href="/bp"
-            className="mt-3 flex items-center justify-between rounded-[3px] border border-line bg-surface-2 px-3.5 py-3 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
+            className="mt-3 flex min-h-[44px] items-center justify-between rounded-[3px] border border-line bg-surface-2 px-3.5 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
           >
             <span>дневник давления · утро и вечер</span>
             <span className="text-phase">→</span>
           </Link>
         </section>
-      ) : (
-      <Link href="/cycle" className="block">
-      <section className="relative overflow-hidden rounded-card border border-line bg-surface px-[18px] pb-5 pt-[22px] active:scale-[0.99] transition">
-        <div className="absolute left-4 top-3 font-mono text-[9px] tracking-[0.16em] uppercase text-ink-3">
-          цикл · {length} дн
-        </div>
-        <div className="absolute right-4 top-3 font-mono text-[9px] tracking-[0.12em] uppercase text-phase">
-          ● live
-        </div>
-
-        <div className="relative mx-auto mt-1.5" style={{ width: 212, height: 212 }}>
-          <svg viewBox="0 0 200 200" style={{ width: "100%", height: "100%" }}>
-            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--line)" strokeWidth="1" />
-            {ticks.map((t, i) => (
-              <line
-                key={i}
-                x1={t.x1}
-                y1={t.y1}
-                x2={t.x2}
-                y2={t.y2}
-                stroke={t.active ? "var(--phase)" : "var(--line-2)"}
-                strokeWidth={t.active ? 3 : 2}
-                strokeLinecap="round"
-              />
-            ))}
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div
-              className="font-mono font-semibold leading-[0.9] tracking-[-0.02em] text-ink"
-              style={{ fontSize: 64 }}
-            >
-              {c.day}
-            </div>
-            <div className="mt-1.5 font-mono text-[9px] tracking-[0.2em] uppercase text-ink-3">
-              день цикла
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3.5 flex items-center justify-center gap-2">
-          <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-phase" />
-          <span className="font-sans font-bold text-[14px] tracking-[0.01em]">{tip.title}</span>
-        </div>
-        <p className="mt-2 text-center font-mono text-[11px] text-ink-2">
-          ≈ {pluralDays(c.daysUntilNextPeriod.likely)} до месячных ·{" "}
-          {formatDay(c.nextPeriod.earliest)} – {formatDay(c.nextPeriod.latest)}
-        </p>
-      </section>
-      </Link>
       )}
 
-      {/* ── Полоса готовности ── */}
-      <div className="mt-3.5 flex divide-x divide-line overflow-hidden rounded-card border border-line bg-surface">
-        {tracks.weight && (
-        <Link href="/weight" className="flex-1 px-3 py-3.5 active:bg-surface-2">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">вес</div>
-          <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {currentWeight ?? "—"}
-          </div>
-          <div className="mt-1 font-mono text-[10px] text-phase">
-            {weightDelta == null ? "нет данных" : `${weightDelta < 0 ? "" : "+"}${weightDelta} кг`}
-          </div>
-        </Link>
-        )}
-        {tracks.migraine && (
-        <Link href="/insights" className="flex-1 px-3 py-3.5 active:bg-surface-2">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">мигрень</div>
-          <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {leadCount}
-            <span className="text-[12px] font-normal text-ink-3">/{leadThreshold}</span>
-          </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
-            {leadHigh ? "близко к порогу" : "в норме"}
-          </div>
-        </Link>
-        )}
-        {tracks.training && (
-        <Link href="/training" className="flex-1 px-3 py-3.5 active:bg-surface-2">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">тренировки</div>
-          <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {weekWorkoutCount}
-          </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">за неделю</div>
-        </Link>
-        )}
-      </div>
+      <TodayDay
+        key={dayKey}
+        dayKey={dayKey}
+        dateLabel={isToday ? "сегодня" : formatDay(target)}
+        initial={log}
+        meds={meds}
+        medCounts={medCounts}
+        triggers={triggers}
+        sportTypes={sportTypes}
+        quickPain={quickPain}
+        planned={planned}
+        workouts={dayWorkouts}
+        dayWeight={log?.weight_kg ?? weights.find((w) => w.date === dayKey)?.actual ?? null}
+        weightPlaceholder={isToday ? current?.actual ?? null : null}
+        lastAttackLabel={lastAttackLabel}
+        medNote={medNote}
+        phaseTip={pregnant ? null : PHASE_TIP[c.phase]}
+        tracks={tracks}
+        kpis={kpiBlock}
+      />
 
-      {/* ── Карточка мигрени ── */}
-      {tracks.migraine && (
-      <Link
-        href="/insights"
-        className="mt-3.5 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            риск МИГБ · {leadLabel}
-          </div>
-          {!pregnant && c.inMigraineWindow ? (
-            <span className="animate-pulse font-mono text-[9px] tracking-[0.08em] uppercase bg-phase px-[7px] py-[3px] text-on-phase">
-              окно риска
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-2.5 flex items-baseline justify-between">
-          <div className={`font-mono font-semibold text-[30px] leading-none ${leadHigh ? "text-warn" : "text-ink"}`}>
-            {leadCount}
-            <span className="text-[13px] font-normal text-ink-2"> / {leadThreshold} дней</span>
-          </div>
-          <div className={`font-mono text-[10px] ${leadHigh ? "text-warn" : "text-ink-3"}`}>
-            {leadHigh ? "близко к порогу" : "риск ниже порога"}
-          </div>
-        </div>
-        <div className="mt-2.5 h-1.5 overflow-hidden rounded-[1px] bg-surface-3">
-          <div className={`h-full ${leadHigh ? "bg-warn" : "bg-phase"}`} style={{ width: `${leadPct}%` }} />
-        </div>
-        <div className="mt-2 flex items-center justify-between border-t border-line pt-2 font-mono text-[10px] text-ink-3">
-          <span>{otherLabel}: {otherCount}/{otherThreshold}</span>
-          {medStats.unclassified > 0 && (
-            <span className="text-ink-4">{medStats.unclassified} без типа →</span>
-          )}
-        </div>
-        <p className="mt-2.5 text-[12px] leading-[1.5] text-ink-2">
-          {c.inMigraineWindow
-            ? "Перименструальное окно — следи за сном и не пропускай еду."
-            : leadHigh
-            ? "Приём обезболивающих участился. Стоит обсудить профилактику с неврологом."
-            : "Считаем дни приёма, не дни боли — точный диагноз МИГБ за неврологом."}{" "}
-          <span className="font-semibold text-phase-deep">инсайты →</span>
-        </p>
-      </Link>
-      )}
-
-      {/* ── Вес + Директива ── */}
-      {(tracks.weight || tracks.training) && (
-      <div className={`mt-3.5 grid gap-3 ${tracks.weight && tracks.training ? "grid-cols-2" : "grid-cols-1"}`}>
-        {tracks.weight && (
-        <Link
-          href="/weight"
-          className="block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
-        >
-          <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">вес</div>
-          <div className="mt-1.5 font-mono font-semibold leading-none text-[26px] text-ink">
-            {currentWeight ?? "—"}
-            <span className="text-[12px] font-normal text-ink-2"> кг</span>
-          </div>
-          <svg
-            viewBox="0 0 100 28"
-            preserveAspectRatio="none"
-            className="mt-2 h-[28px] w-full"
-          >
-            <polyline
-              points={spark}
-              fill="none"
-              stroke="var(--phase)"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <div className="mt-1.5 font-mono text-[10px] text-phase-deep">
-            {weightDelta == null ? "введи вес →" : `${weightDelta < 0 ? "" : "+"}${weightDelta} · цель ${weightGoalKg}`}
-          </div>
-        </Link>
-        )}
-
-        {tracks.training && (
-        <Link
-          href="/training"
-          className="block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
-          style={{ borderLeft: "3px solid var(--phase)" }}
-        >
-          <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
-            тренинг · фаза
-          </div>
-          <div className="mt-2 font-sans font-bold text-[14px] leading-[1.2] text-ink">
-            {tip.title}
-          </div>
-          <p className="mt-1.5 font-sans text-[11.5px] leading-[1.5] text-ink-2">{tip.text}</p>
-        </Link>
-        )}
-      </div>
-      )}
-
-      {/* ── Расписание недели ── */}
+      {/* ── Неделя из расписания ── */}
       {tracks.training && (
-      <Link
-        href="/training/schedule"
-        className="mt-3.5 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            расписание недели
+        <Link href="/training/schedule" className="mt-6 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]">
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">расписание недели</div>
+            <span className="font-mono text-[13px] text-phase">→</span>
           </div>
-          <span className="font-mono text-[13px] text-phase">→</span>
-        </div>
-        <div className="mt-3 grid grid-cols-7 gap-1">
-          {weekDates.map((iso, i) => {
-            const dayEvents = eventsByDate.get(iso) ?? [];
-            const dayNum = parseInt(iso.slice(8), 10);
-            const isToday = iso === todayStr;
-            return (
-              <div key={iso} className="flex flex-col items-center gap-1">
-                <span className="font-mono text-[9px] uppercase text-ink-3">{DOW_SHORT[i]}</span>
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] ${
-                    isToday ? "bg-phase font-semibold text-on-phase" : "text-ink-2"
-                  }`}
-                >
-                  {dayNum}
-                </span>
-                <div className="flex h-[4px] gap-[2px]">
-                  {dayEvents.slice(0, 3).map((ev) => (
-                    <span
-                      key={ev.id}
-                      className="h-[4px] w-[4px] shrink-0 rounded-full"
-                      style={{ background: WEEK_TYPE_COLORS[ev.type] ?? "var(--ink-3)" }}
-                    />
-                  ))}
+          <div className="mt-3 grid grid-cols-7 gap-1">
+            {weekDates.map((iso, i) => {
+              const dayEvs = eventsByDate.get(iso) ?? [];
+              const isTodayCell = iso === todayISO;
+              return (
+                <div key={iso} className="flex flex-col items-center gap-1">
+                  <span className="font-mono text-[11px] uppercase text-ink-3">{DOW_SHORT[i]}</span>
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-full font-mono text-[12px] ${
+                      isTodayCell ? "bg-phase font-semibold text-on-phase" : "text-ink-2"
+                    }`}
+                  >
+                    {parseInt(iso.slice(8), 10)}
+                  </span>
+                  <div className="flex h-[5px] gap-[2px]">
+                    {dayEvs.slice(0, 3).map((ev) => (
+                      <span
+                        key={ev.id}
+                        className="h-[5px] w-[5px] shrink-0 rounded-full"
+                        style={{ background: WEEK_TYPE_COLORS[ev.type] ?? "var(--ink-3)" }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </Link>
+              );
+            })}
+          </div>
+        </Link>
       )}
-
-      {/* ── ЧЕК-ИН ── */}
-      <Link
-        href="/checkin"
-        className="mt-3.5 block w-full rounded-card bg-phase py-4 text-center font-mono font-semibold text-[13px] tracking-[0.12em] uppercase text-on-phase active:scale-[0.99]"
-      >
-        заполнить чек-ин →
-      </Link>
-    </>
+    </div>
   );
 }

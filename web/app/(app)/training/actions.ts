@@ -71,7 +71,7 @@ export async function saveWorkout(dateISO: string, payload: WorkoutPayload): Pro
   }
 
   revalidatePath("/training");
-  revalidatePath("/checkin");
+  revalidatePath("/dashboard");
   return { ok: true, id: data?.[0]?.id };
 }
 

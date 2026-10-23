@@ -54,7 +54,7 @@ function corrConfig(c: CycleCorrelation): CorrConfig {
         body: (
           <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
             Когда добавишь приступы через{" "}
-            <Link href="/checkin" className="text-phase underline underline-offset-2">Чек-ин →</Link>{" "}
+            <Link href="/dashboard" className="text-phase underline underline-offset-2">«Сегодня» →</Link>{" "}
             или импорт, здесь появится анализ связи с циклом.
           </p>
         ),

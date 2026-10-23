@@ -27,7 +27,6 @@ export async function addCycleStart(dateISO: string): Promise<{ ok: boolean }> {
   if (error) return { ok: false };
   revalidatePath("/cycle");
   revalidatePath("/dashboard");
-  revalidatePath("/checkin");
   return { ok: true };
 }
 
@@ -42,6 +41,5 @@ export async function removeCycleStart(dateISO: string): Promise<{ ok: boolean }
   if (error) return { ok: false };
   revalidatePath("/cycle");
   revalidatePath("/dashboard");
-  revalidatePath("/checkin");
   return { ok: true };
 }

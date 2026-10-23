@@ -209,7 +209,6 @@ export async function importCSV(
   revalidatePath("/import/migrebot");
   revalidatePath("/insights");
   revalidatePath("/dashboard");
-  revalidatePath("/checkin");
   revalidatePath("/checkin/meds");
 
   return {
