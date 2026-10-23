@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { getPeriodStarts } from "@/lib/data";
 import { isoLocal, todayISOMoscow } from "@/lib/format";
 import { CycleCalendar } from "./cycle-calendar";
@@ -50,12 +51,7 @@ export default async function CyclePage({
   return (
     <>
       <header>
-        <Link
-          href="/dashboard"
-          className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
-        >
-          ← дашборд
-        </Link>
+        <BackLink href="/dashboard" label="← назад" />
         <h1 className="mt-3 font-serif font-bold text-[24px] uppercase">ЦИКЛ</h1>
         <p className="mt-2 font-mono text-[11px] text-ink-2">
           отметь первые дни менструации

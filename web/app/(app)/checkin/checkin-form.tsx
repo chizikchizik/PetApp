@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quickLogMigraine, logQuickPain, addMigraineTrigger, deleteMigraineTrigger, type CheckinPayload } from "./actions";
 import { TrainingQuickAdd } from "./training-quick-add";
 import { PainQuickLogSheet } from "./pain-quick-log-sheet";
-import { SPORT_HABIT_NAMES } from "@/lib/habits-shared";
 import type { DailyLog, Med, MigraineTrigger, QuickPainEntry, SportType } from "@/lib/data";
 
 type State = CheckinPayload & { periodStart: boolean };
@@ -39,6 +38,9 @@ function fromLog(l: DailyLog | null): State {
     weight: l.weight_kg != null ? String(l.weight_kg) : "",
     kcal: l.calorie_kcal != null ? String(l.calorie_kcal) : "",
     meds: Object.fromEntries((l.meds_taken ?? []).map((id) => [id, true])),
+    // Экрана привычек больше нет, но habits_done по-прежнему хранит отметки
+    // регулярных препаратов/витаминов (по habit_key) и «Спорт»/«Бег» от
+    // тренировок, на них держится история приёма. Значения проходят насквозь.
     habits: l.habits_done ?? [],
     note: l.note ?? "",
     periodStart: false,
@@ -56,7 +58,6 @@ export function CheckinForm({
   dayKey,
   todayISO,
   initial,
-  habits,
   meds,
   weightPlaceholder,
   medCounts,
@@ -68,7 +69,6 @@ export function CheckinForm({
   dayKey: string;
   todayISO: string;
   initial: DailyLog | null;
-  habits: string[];
   meds: Med[];
   weightPlaceholder: number | null;
   medCounts: Record<string, number>;
@@ -222,7 +222,6 @@ export function CheckinForm({
   }
 
   const m = s.migraine;
-  const medHabitKeys = new Set([...meds.map((med) => med.habit_key), ...SPORT_HABIT_NAMES]);
 
   // Регулярные препараты нужно отмечать каждый день — всегда видны.
   // "По факту мигрени" может разрастись до 10+ (MigreBot-импорт) — показываем
@@ -676,27 +675,6 @@ export function CheckinForm({
       </div>
 
       <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />
-
-      <div>
-        <span className={labelCls}>Привычки</span>
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {habits.filter((h) => !medHabitKeys.has(h)).map((h) => {
-            const on = s.habits.includes(h);
-            return (
-              <button
-                key={h}
-                type="button"
-                onClick={() => setS({ ...s, habits: toggle(s.habits, h) })}
-                className={`${chipBase} ${
-                  on ? "border-phase bg-phase-soft font-semibold text-phase-deep" : "border-line bg-surface text-ink-2"
-                }`}
-              >
-                {h}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       <button
         type="button"

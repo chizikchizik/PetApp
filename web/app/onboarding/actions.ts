@@ -1,7 +1,7 @@
 "use server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
-import { todayISOMoscow, nowMoscow } from "@/lib/format";
+import { todayISOMoscow } from "@/lib/format";
 
 async function getUid(): Promise<string> {
   const user = await getCurrentUser();
@@ -21,25 +21,6 @@ export async function saveCycle(lastPeriodDate: string, cycleLength: number) {
   // Store the self-reported average length as a fallback for getCurrentCycle()
   // until 2+ real cycle_start entries let it compute a real average.
   await db.from("app_user").update({ avg_cycle_length: cycleLength }).eq("id", uid);
-}
-
-export async function saveHabits(habits: string[]) {
-  const uid = await getUid();
-  const db = supabaseAdmin();
-  if (!db) throw new Error("DB unavailable");
-  // Insert selected habits (active from current month)
-  const now = nowMoscow();
-  const startedMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const rows = habits.map((name, i) => ({
-    app_user_id: uid,
-    name,
-    active: true,
-    sort: i,
-    started_month: startedMonth,
-  }));
-  if (rows.length > 0) {
-    await db.from("habit").insert(rows);
-  }
 }
 
 export async function saveWeight(currentKg: number | null, goalKg: number | null) {

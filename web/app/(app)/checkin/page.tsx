@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CheckinForm } from "./checkin-form";
 import { getCurrentCycle, PHASE_LABELS } from "@/lib/cycle";
-import { getPeriodStarts, getDailyLog, getHabits, getMeds, getCurrentWeight, getMedMonthlyCounts, getMigraineTriggers, getSportTypes, getQuickPainEntries } from "@/lib/data";
+import { getPeriodStarts, getDailyLog, getMeds, getCurrentWeight, getMedMonthlyCounts, getMigraineTriggers, getSportTypes, getQuickPainEntries } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 
@@ -25,10 +25,9 @@ export default async function CheckIn({
   const isToday = dayKey === todayISO;
   const targetDate = new Date(dayKey + "T12:00:00");
 
-  const [starts, initial, habits, meds, weight, user, medCounts, triggers, sportTypes, todayQuickPain] = await Promise.all([
+  const [starts, initial, meds, weight, user, medCounts, triggers, sportTypes, todayQuickPain] = await Promise.all([
     getPeriodStarts(),
     getDailyLog(dayKey),
-    getHabits(todayISO.slice(0, 7)),
     getMeds(),
     getCurrentWeight(),
     getCurrentUser(),
@@ -54,7 +53,7 @@ export default async function CheckIn({
           href="/dashboard"
           className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
         >
-          ← дашборд
+          ← сегодня
         </Link>
         <h1 className="mt-3 font-serif font-bold text-[23px] uppercase leading-[1.05]">
           {isToday ? <>КАК ТЫ<br />СЕГОДНЯ?</> : fmtDateMono(targetDate)}
@@ -76,13 +75,11 @@ export default async function CheckIn({
         // form state once via useState(() => fromLog(initial)); without a key,
         // navigating ?date= (soft nav, same route) keeps the old date's mood/
         // meds/habits/weight in state, and "Сохранить день" would then write
-        // that (effectively today's) data onto the past day. /habits/bulk
-        // already guards its equivalent grid state with key={targetMonth}.
+        // that (effectively today's) data onto the past day.
         key={dayKey}
         dayKey={dayKey}
         todayISO={todayISO}
         initial={initial}
-        habits={habits}
         meds={meds}
         weightPlaceholder={weight}
         medCounts={medCounts}

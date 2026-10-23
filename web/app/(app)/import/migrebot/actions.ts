@@ -211,7 +211,6 @@ export async function importCSV(
   revalidatePath("/dashboard");
   revalidatePath("/checkin");
   revalidatePath("/checkin/meds");
-  revalidatePath("/habits");
 
   return {
     ok: true,

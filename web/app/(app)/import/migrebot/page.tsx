@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { MigreBotImportForm } from "./import-form";
 import { getImportLog } from "./actions";
 
@@ -22,12 +22,7 @@ export default async function MigrebotImportPage() {
 
   return (
     <>
-      <Link
-        href="/medical"
-        className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
-      >
-        ← медкнижка
-      </Link>
+      <BackLink href="/profile" label="← профиль" />
       <h1 className="mt-3 font-serif font-bold text-[23px] uppercase leading-[1.05]">
         Импорт<br />из Migrebot
       </h1>
@@ -42,7 +37,7 @@ export default async function MigrebotImportPage() {
           <li>• Нажми кнопку <span className="font-mono text-ink">файл.xlsx</span></li>
           <li>• Выбери <span className="font-mono text-ink">Скачать CSV</span></li>
           <li>• Загрузи файл ниже — ВЕРТА распарсит и сохранит историю</li>
-          <li>• Не затронет вес, привычки и другие данные</li>
+          <li>• Не затронет вес, тренировки и другие данные</li>
         </ul>
       </div>
 

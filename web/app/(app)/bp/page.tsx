@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { getBpReadings, type BpReading } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow, isoDaysFromTodayMoscow } from "@/lib/format";
@@ -84,9 +84,7 @@ export default async function BpPage() {
 
   return (
     <>
-      <Link href="/dashboard" className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        ← дашборд
-      </Link>
+      <BackLink href="/profile" label="← назад" />
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">ДАВЛЕНИЕ</h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
         артериальное · утро и вечер · дневник для врача

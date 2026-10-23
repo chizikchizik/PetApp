@@ -106,8 +106,6 @@ export async function createMed(
     revalidatePath("/checkin");
     revalidatePath("/checkin/meds");
     revalidatePath("/dashboard");
-    revalidatePath("/habits");
-    revalidatePath("/habits/bulk");
     return { ok: true };
   }
 
@@ -136,14 +134,12 @@ export async function createMed(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/checkin");
   revalidatePath("/dashboard");
-  revalidatePath("/habits");
-  revalidatePath("/habits/bulk");
   return { ok: true };
 }
 
 // Dose change = new version, not an in-place edit — old record is closed
 // (ended_at = today) and a new one opens (started_at = today), so history
-// of "what dose since when" stays intact for the /medical report.
+// of "what dose since when" stays intact for the neurologist report (/insights/report).
 export async function changeMedDose(
   oldId: string,
   newName: string,
@@ -204,8 +200,6 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   revalidatePath("/checkin");
   revalidatePath("/checkin/meds");
   revalidatePath("/dashboard");
-  revalidatePath("/habits");
-  revalidatePath("/habits/bulk");
   revalidatePath("/insights/report");
   return { ok: true };
 }

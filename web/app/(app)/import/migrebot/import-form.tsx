@@ -120,7 +120,7 @@ export function MigreBotImportForm() {
             Период: {fmtDate(preview.dateFrom)} — {fmtDate(preview.dateTo)}
           </p>
           <p className="font-mono text-[10px] text-ink-3">
-            Импортируем все записи (мигрень + чистые дни). Не затронем твои вес/привычки/настроение.
+            Импортируем все записи (мигрень + чистые дни). Не затронем твои вес, тренировки и настроение.
           </p>
           <button
             type="button"

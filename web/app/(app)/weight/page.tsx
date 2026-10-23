@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getPeriodStarts, getWeightEntries, getCurrentWeight, getCalorieEntries, WEIGHT_GOAL } from "@/lib/data";
 import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
@@ -53,13 +52,7 @@ export default async function Weight() {
   return (
     <>
       {/* ── Шапка ── */}
-      <Link
-        href="/dashboard"
-        className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
-      >
-        ← дашборд
-      </Link>
-      <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">ВЕС</h1>
+      <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">ВЕС</h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">
         {pregnant ? "наблюдение · цели скрыты на время беременности" : `план и факт · цель ${goalKg} кг`}
       </p>

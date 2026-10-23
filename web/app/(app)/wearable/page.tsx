@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import {
   getRecentWearableData,
   getRecentSleepData,
@@ -6,6 +7,7 @@ import {
   type SleepSession,
 } from "@/lib/data";
 import { isoDaysFromTodayMoscow } from "@/lib/format";
+import { getCurrentUser, isPregnant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +54,11 @@ function cx(i: number) { return i * DAY_W + DAY_W / 2; }
 export default async function WearablePage() {
   const sinceStr = isoDaysFromTodayMoscow(-40);
 
-  const [wearable, allSleep, migraineEvents] = await Promise.all([
+  const [wearable, allSleep, migraineEvents, user] = await Promise.all([
     getRecentWearableData(40),
     getRecentSleepData(40),
     getMigraineEventsSince(sinceStr),
+    getCurrentUser(),
   ]);
 
   // Night sessions only (>= 3 h)
@@ -122,14 +125,13 @@ export default async function WearablePage() {
 
   return (
     <>
-      <Link href="/dashboard" className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-        ← дашборд
-      </Link>
+      <BackLink href="/profile" label="← профиль" />
       <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">RINGCONN</h1>
       <p className="mt-1.5 font-mono text-[11px] text-ink-3">
         {N > 0 ? `${dates[0]?.slice(5)} – ${dates[N - 1]?.slice(5)} · ${N} дней` : "данные кольца"}
       </p>
 
+      {isPregnant(user) && (
       <Link
         href="/bp"
         className="mt-3 flex items-center justify-between rounded-card border border-line bg-surface px-3.5 py-3 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
@@ -137,6 +139,7 @@ export default async function WearablePage() {
         <span>артериальное давление · дневник</span>
         <span className="text-phase">→</span>
       </Link>
+      )}
 
       {/* ── Снапшот ── */}
       <div className="mt-4 flex overflow-hidden rounded-card border border-line bg-surface">

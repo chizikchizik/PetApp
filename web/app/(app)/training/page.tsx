@@ -201,13 +201,7 @@ export default async function TrainingPage() {
   return (
     <>
       {/* ── Шапка ── */}
-      <Link
-        href="/dashboard"
-        className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
-      >
-        ← дашборд
-      </Link>
-      <h1 className="mt-3 font-serif font-bold text-[24px] uppercase leading-tight">
+      <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">
         ТРЕНИНГ
       </h1>
       <p className="mt-2 font-mono text-[11px] text-ink-2">

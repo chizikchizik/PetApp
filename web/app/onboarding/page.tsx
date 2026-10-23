@@ -1,30 +1,15 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveCycle, saveHabits, saveWeight, completeOnboarding } from "./actions";
+import { saveCycle, saveWeight, completeOnboarding } from "./actions";
 import { isoLocal } from "@/lib/format";
-
-const SUGGESTED_HABITS = [
-  "Сон до 00:00",
-  "Вода 1.5л+",
-  "Шаги 10 000",
-  "Витамины",
-  "Без сахара",
-  "Без алкоголя",
-  "Растяжка",
-  "Медитация",
-  "Дефицит ккал",
-  "Зарядка",
-  "Ранний подъём",
-  "Чтение",
-];
 
 function today() {
   return isoLocal(new Date());
 }
 
-type Step = "cycle" | "habits" | "weight";
-const STEPS: Step[] = ["cycle", "habits", "weight"];
+type Step = "cycle" | "weight";
+const STEPS: Step[] = ["cycle", "weight"];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -37,31 +22,10 @@ export default function OnboardingPage() {
   const [cycleLen, setCycleLen] = useState(28);
 
   // Step 2
-  const [checkedHabits, setCheckedHabits] = useState<Set<string>>(new Set());
-  const [customHabit, setCustomHabit] = useState("");
-  const [extraHabits, setExtraHabits] = useState<string[]>([]);
-
-  // Step 3
   const [currentWeight, setCurrentWeight] = useState("");
   const [goalWeight, setGoalWeight] = useState("");
 
   const stepIndex = STEPS.indexOf(step);
-
-  function toggleHabit(h: string) {
-    setCheckedHabits((prev) => {
-      const next = new Set(prev);
-      next.has(h) ? next.delete(h) : next.add(h);
-      return next;
-    });
-  }
-
-  function addCustomHabit() {
-    const h = customHabit.trim();
-    if (!h || extraHabits.includes(h) || SUGGESTED_HABITS.includes(h)) return;
-    setExtraHabits((prev) => [...prev, h]);
-    setCheckedHabits((prev) => new Set([...prev, h]));
-    setCustomHabit("");
-  }
 
   function handleNext() {
     setError(null);
@@ -69,9 +33,6 @@ export default function OnboardingPage() {
       try {
         if (step === "cycle") {
           await saveCycle(lastPeriod, cycleLen);
-          setStep("habits");
-        } else if (step === "habits") {
-          await saveHabits([...checkedHabits]);
           setStep("weight");
         } else if (step === "weight") {
           await saveWeight(
@@ -100,8 +61,6 @@ export default function OnboardingPage() {
     });
   }
 
-  const allHabits = [...SUGGESTED_HABITS, ...extraHabits];
-
   return (
     <div className="mx-auto flex min-h-dvh max-w-[430px] flex-col px-5"
       style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
@@ -119,7 +78,7 @@ export default function OnboardingPage() {
         {step === "cycle" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / 3</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / 2</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Твой цикл</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Для отслеживания фаз и прогнозов</p>
             </div>
@@ -149,69 +108,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 2: Habits ── */}
-        {step === "habits" && (
-          <div className="flex flex-col gap-6">
-            <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / 3</div>
-              <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Привычки</h1>
-              <p className="mt-2 font-mono text-[12px] text-ink-3">Выбери что хочешь отслеживать. Можно изменить позже.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {allHabits.map((h) => {
-                const checked = checkedHabits.has(h);
-                return (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => toggleHabit(h)}
-                    className={`flex items-center gap-3 rounded-card border px-4 py-3 text-left transition-colors ${
-                      checked ? "border-phase bg-phase/10 text-ink" : "border-line bg-surface text-ink-2"
-                    }`}
-                  >
-                    <span className={`h-4 w-4 shrink-0 rounded-[3px] border flex items-center justify-center ${
-                      checked ? "border-phase bg-phase" : "border-line"
-                    }`}>
-                      {checked && (
-                        <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-none stroke-on-phase stroke-2">
-                          <path d="M1 4l3 3 5-6" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </span>
-                    <span className="font-mono text-[13px]">{h}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={customHabit}
-                onChange={(e) => setCustomHabit(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addCustomHabit()}
-                placeholder="Своя привычка..."
-                className="flex-1 rounded-card border border-line bg-surface px-4 py-3 font-mono text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
-              />
-              <button
-                type="button"
-                onClick={addCustomHabit}
-                disabled={!customHabit.trim()}
-                className="rounded-card border border-line bg-surface px-4 font-mono text-[13px] text-phase disabled:opacity-40"
-              >
-                +
-              </button>
-            </div>
-            {checkedHabits.size === 0 && (
-              <p className="font-mono text-[11px] text-ink-3">Можно пропустить и добавить позже</p>
-            )}
-          </div>
-        )}
-
-        {/* ── Step 3: Weight ── */}
+        {/* ── Step 2: Weight ── */}
         {step === "weight" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 3 / 3</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / 2</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Вес</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Необязательно — можно заполнить позже в разделе Вес</p>
             </div>
@@ -268,14 +169,6 @@ export default function OnboardingPage() {
           >
             Пропустить
           </button>
-        )}
-        {step === "habits" && (
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={isPending}
-            className="hidden"
-          />
         )}
       </div>
     </div>

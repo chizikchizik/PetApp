@@ -3,60 +3,61 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Item = { href: string; label: string; icon: React.ReactNode; ready: boolean };
+type Item = { href: string; label: string; icon: React.ReactNode; match: (path: string) => boolean };
 
+const iconProps = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  className: "h-[22px] w-[22px]",
+  "aria-hidden": true,
+};
+
+// Четыре вкладки = три фокусных раздела + «Сегодня». Редкие разделы
+// (цикл, кольцо, импорт, давление) открываются из профиля. /checkin/meds —
+// график приёма препаратов, по смыслу это часть «Мигрени».
 const items: Item[] = [
   {
     href: "/dashboard",
-    label: "Дашборд",
-    ready: true,
+    label: "Сегодня",
+    match: (p) => p === "/dashboard" || (p.startsWith("/checkin") && !p.startsWith("/checkin/meds")),
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+      <svg {...iconProps}>
         <path d="M3 11l9-8 9 8M5 10v10h14V10" />
       </svg>
     ),
   },
   {
-    href: "/checkin",
-    label: "Чек-ин",
-    ready: true,
+    href: "/insights",
+    label: "Мигрень",
+    match: (p) => p.startsWith("/insights") || p.startsWith("/checkin/meds"),
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      <svg {...iconProps}>
+        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
       </svg>
     ),
   },
   {
     href: "/training",
     label: "Тренировки",
-    ready: true,
+    match: (p) => p.startsWith("/training"),
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+      <svg {...iconProps}>
         <path d="M6.5 6.5h11M6.5 17.5h11M4 9v6M20 9v6M9 12h6" />
       </svg>
     ),
   },
   {
-    href: "/habits",
-    label: "Привычки",
-    ready: true,
+    href: "/weight",
+    label: "Вес",
+    match: (p) => p.startsWith("/weight"),
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
-        <path d="M9 11l3 3 8-8" />
-        <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" />
-      </svg>
-    ),
-  },
-  {
-    href: "/medical",
-    label: "Медкнижка",
-    ready: true,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <line x1="12" y1="8" x2="12" y2="16" />
-        <line x1="8" y1="12" x2="16" y2="12" />
+      <svg {...iconProps}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M8 9a5 5 0 0 1 8 0M12 9l1.5-2" />
       </svg>
     ),
   },
@@ -67,29 +68,16 @@ export function BottomNav() {
   return (
     <nav className="sticky bottom-0 z-10 flex border-t border-line bg-surface px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
       {items.map((it) => {
-        const activeTab = pathname === it.href;
-        const className =
-          "flex flex-1 flex-col items-center gap-1 py-1.5 text-[11px] font-medium transition";
-        const content = (
-          <>
-            {it.icon}
-            {it.label}
-          </>
-        );
-        if (!it.ready) {
-          return (
-            <span key={it.href} className={`${className} text-ink-3/50`} aria-disabled>
-              {content}
-            </span>
-          );
-        }
+        const active = it.match(pathname);
         return (
           <Link
             key={it.href}
             href={it.href}
-            className={`${className} ${activeTab ? "text-phase" : "text-ink-3"}`}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-[44px] flex-1 flex-col items-center gap-1 py-1.5 text-[11px] font-medium transition ${active ? "text-phase" : "text-ink-3"}`}
           >
-            {content}
+            {it.icon}
+            {it.label}
           </Link>
         );
       })}

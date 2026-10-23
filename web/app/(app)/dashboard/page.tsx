@@ -6,16 +6,11 @@ import {
   getRecentActualWeights,
   getCurrentWeight,
   getMigraineMedStats,
-  getHabits,
-  getDailyLog,
-  getMonthHabitStats,
-  getRecentWearableData,
+  getWorkoutHistory,
   WEIGHT_GOAL,
-  type WearableDay,
 } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { getCalendarEvents } from "../training/schedule/actions";
 
 const WEEK_TYPE_COLORS: Record<string, string> = {
@@ -83,15 +78,12 @@ export default async function Dashboard() {
     return isoLocal(d);
   });
 
-  const [user, medStats, weights, currentWeight, habits, todayLog, habitStats, wearable, weekEvents] = await Promise.all([
+  const [user, medStats, weights, currentWeight, weekWorkouts, weekEvents] = await Promise.all([
     getCurrentUser(),
     getMigraineMedStats(ym),
     getRecentActualWeights(8),
     getCurrentWeight(),
-    getHabits(ym),
-    getDailyLog(todayStr),
-    getMonthHabitStats(ym),
-    getRecentWearableData(7),
+    getWorkoutHistory(weekDates[0]),
     getCalendarEvents(weekDates[0], weekDates[6]),
   ]);
   const eventsByDate = new Map<string, typeof weekEvents>();
@@ -104,7 +96,6 @@ export default async function Dashboard() {
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
-  const latestWearable = (wearable.length ? wearable[wearable.length - 1] : null) as WearableDay | null;
 
   const displayName = user?.displayName || "VERTA";
   const weightGoalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
@@ -138,12 +129,8 @@ export default async function Dashboard() {
         .join(" ")
     : "";
 
-  const habitsSet = new Set(habits);
-  const habitsDoneToday = (todayLog?.habits_done ?? []).filter((h) => habitsSet.has(h)).length;
-  const totalHabits = habits.length;
-  const monthPct = habitStats.daysLogged > 0 && totalHabits > 0
-    ? Math.round((habitStats.done / (totalHabits * habitStats.daysLogged)) * 100)
-    : 0;
+  // Тренировки текущей недели (пн–сегодня); будущих записей в логе нет.
+  const weekWorkoutCount = weekWorkouts.filter((w) => w.date >= weekDates[0] && w.date <= todayStr).length;
   const ticks = buildTicks(c.day, length);
 
   return (
@@ -162,7 +149,6 @@ export default async function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <ThemeToggle />
           <Link
             href="/profile"
             className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full border border-line font-serif font-bold text-[13px] text-ink-2 transition active:scale-[0.95]"
@@ -180,7 +166,7 @@ export default async function Dashboard() {
             <span className="font-sans font-bold text-[14px] tracking-[0.01em]">Беременность</span>
           </div>
           <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
-            Фазы цикла на паузе — наблюдения (вес, мигрень, препараты, привычки) продолжаются.
+            Фазы цикла на паузе — наблюдения (вес, мигрень, препараты, тренировки) продолжаются.
           </p>
           <div className="mt-3 rounded-[3px] border border-line bg-surface-2 p-3" style={{ borderLeft: "2px solid var(--warn)" }}>
             <p className="font-sans text-[12px] leading-[1.55] text-ink-2">
@@ -269,15 +255,12 @@ export default async function Dashboard() {
             {leadHigh ? "близко к порогу" : "в норме"}
           </div>
         </Link>
-        <Link href="/habits" className="flex-1 px-3 py-3.5 active:bg-surface-2">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">привычки</div>
+        <Link href="/training" className="flex-1 px-3 py-3.5 active:bg-surface-2">
+          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">тренировки</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
-            {habitsDoneToday}
-            <span className="text-[12px] font-normal text-ink-3">/{totalHabits}</span>
+            {weekWorkoutCount}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
-            {monthPct > 0 ? `${monthPct}% за мес` : "сегодня"}
-          </div>
+          <div className="mt-1 font-mono text-[10px] text-ink-3">за неделю</div>
         </Link>
       </div>
 
@@ -409,57 +392,6 @@ export default async function Dashboard() {
           })}
         </div>
       </Link>
-
-      {/* ── Колесо баланса ── */}
-      <Link
-        href="/balance"
-        className="mt-3.5 flex items-center justify-between rounded-card border border-line bg-surface px-4 py-3.5 active:scale-[0.99]"
-      >
-        <div>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            колесо баланса
-          </div>
-          <div className="mt-1 font-sans text-[13px] text-ink-2">
-            колесо жизни
-          </div>
-        </div>
-        <span className="font-mono text-[13px] text-phase">→</span>
-      </Link>
-
-      {/* ── RingConn ── */}
-      {latestWearable && (
-        <Link
-          href="/wearable"
-          className="mt-3.5 flex items-center justify-between rounded-card border border-line bg-surface px-4 py-3.5 active:scale-[0.99]"
-        >
-          <div>
-            <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-              ringconn · {latestWearable.date.slice(5)}
-            </div>
-            <div className="mt-1.5 flex items-baseline gap-4">
-              <div>
-                <span className="font-mono text-[11px] text-ink-3">HRV </span>
-                <span className="font-mono font-semibold text-[17px] text-phase">{latestWearable.hrv_avg}</span>
-              </div>
-              <div>
-                <span className="font-mono text-[11px] text-ink-3">ЧСС </span>
-                <span className="font-mono font-semibold text-[17px] text-ink">{latestWearable.hr_resting}</span>
-              </div>
-              <div>
-                <span className="font-mono text-[11px] text-ink-3">шаги </span>
-                <span className="font-mono font-semibold text-[17px] text-ink">
-                  {latestWearable.steps != null
-                    ? latestWearable.steps >= 1000
-                      ? `${(latestWearable.steps / 1000).toFixed(1)}к`
-                      : String(latestWearable.steps)
-                    : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-          <span className="font-mono text-[13px] text-phase">→</span>
-        </Link>
-      )}
 
       {/* ── ЧЕК-ИН ── */}
       <Link

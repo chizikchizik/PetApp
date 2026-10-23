@@ -272,47 +272,6 @@ export async function getMedMonthlyCounts(ym: string): Promise<Record<string, nu
   return counts;
 }
 
-export type HabitRow = {
-  id: number;
-  name: string;
-  active: boolean;
-  started_month: string | null;
-  ended_month: string | null;
-};
-
-export async function getHabits(month?: string): Promise<string[]> {
-  const db = supabaseAdmin();
-  if (db) {
-    const uid = await getAppUserId();
-    let q = db.from("habit").select("name").eq("active", true).order("sort", { ascending: true });
-    if (month) {
-      q = q
-        .or(`started_month.is.null,started_month.lte.${month}`)
-        .or(`ended_month.is.null,ended_month.gte.${month}`);
-    }
-    const { data, error } = await byUser(q, uid);
-    if (!error && data && data.length) {
-      return data.map((r: { name: string }) => r.name);
-    }
-    // Real users with no habits yet get an empty list, not Marina's seed data
-    if (uid && uid !== "__legacy__") return [];
-  }
-  return [...seed.HABITS];
-}
-
-export async function getAllHabits(): Promise<HabitRow[]> {
-  const db = supabaseAdmin();
-  if (!db) return [];
-  const uid = await getAppUserId();
-  const { data } = await byUser(
-    db.from("habit")
-      .select("id, name, active, started_month, ended_month")
-      .order("sort", { ascending: true }),
-    uid,
-  );
-  return (data ?? []) as HabitRow[];
-}
-
 export type DailyLog = {
   mood: number | null;
   energy: number | null;
@@ -442,28 +401,6 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date));
-}
-
-export async function getMonthHabitStats(ym: string): Promise<{ done: number; daysLogged: number }> {
-  const db = supabaseAdmin();
-  if (!db) return { done: 0, daysLogged: 0 };
-  const uid = await getAppUserId();
-  const [y, m] = ym.split("-").map(Number);
-  const start = `${ym}-01`;
-  const nextY = m === 12 ? y + 1 : y;
-  const nextM = m === 12 ? 1 : m + 1;
-  const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
-  const { data, error } = await byUser(
-    db.from("daily_log")
-      .select("habits_done")
-      .gte("log_date", start)
-      .lt("log_date", end),
-    uid,
-  );
-  if (error) return { done: 0, daysLogged: 0 };
-  const rows = (data ?? []) as { habits_done: string[] | null }[];
-  const done = rows.reduce((s, r) => s + (r.habits_done?.length ?? 0), 0);
-  return { done, daysLogged: rows.length };
 }
 
 export type CalorieEntry = { date: string; kcal: number };
