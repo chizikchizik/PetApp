@@ -1,15 +1,17 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveCycle, saveWeight, completeOnboarding } from "./actions";
+import { saveCycle, saveModules, saveWeight, completeOnboarding } from "./actions";
 import { isoLocal } from "@/lib/format";
+import { ALL_TRACKED, MODULE_LABELS, type TrackedModules } from "@/lib/tracked-modules";
+
+const MODULE_KEYS: (keyof TrackedModules)[] = ["migraine", "training", "weight"];
 
 function today() {
   return isoLocal(new Date());
 }
 
-type Step = "cycle" | "weight";
-const STEPS: Step[] = ["cycle", "weight"];
+type Step = "cycle" | "modules" | "weight";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -21,11 +23,23 @@ export default function OnboardingPage() {
   const [lastPeriod, setLastPeriod] = useState(today());
   const [cycleLen, setCycleLen] = useState(28);
 
-  // Step 2
+  // Step 2 — что отслеживать (хотя бы один раздел)
+  const [tracks, setTracks] = useState<TrackedModules>(ALL_TRACKED);
+
+  // Step 3 — только если вес включён
   const [currentWeight, setCurrentWeight] = useState("");
   const [goalWeight, setGoalWeight] = useState("");
 
-  const stepIndex = STEPS.indexOf(step);
+  const steps: Step[] = tracks.weight ? ["cycle", "modules", "weight"] : ["cycle", "modules"];
+  const stepIndex = steps.indexOf(step);
+  const isLast = stepIndex === steps.length - 1;
+
+  function toggleModule(key: keyof TrackedModules) {
+    setTracks((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      return next.migraine || next.training || next.weight ? next : prev;
+    });
+  }
 
   function handleNext() {
     setError(null);
@@ -33,7 +47,16 @@ export default function OnboardingPage() {
       try {
         if (step === "cycle") {
           await saveCycle(lastPeriod, cycleLen);
-          setStep("weight");
+          setStep("modules");
+        } else if (step === "modules") {
+          await saveModules(tracks);
+          if (tracks.weight) {
+            setStep("weight");
+          } else {
+            await completeOnboarding();
+            router.push("/");
+            return;
+          }
         } else if (step === "weight") {
           await saveWeight(
             currentWeight ? parseFloat(currentWeight) : null,
@@ -67,7 +90,7 @@ export default function OnboardingPage() {
 
       {/* Progress */}
       <div className="flex gap-1.5 mb-8">
-        {STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <div key={s} className={`h-[3px] flex-1 rounded-full transition-colors ${i <= stepIndex ? "bg-phase" : "bg-line"}`} />
         ))}
       </div>
@@ -78,7 +101,7 @@ export default function OnboardingPage() {
         {step === "cycle" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / 2</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / {steps.length}</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Твой цикл</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Для отслеживания фаз и прогнозов</p>
             </div>
@@ -108,11 +131,51 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 2: Weight ── */}
+        {/* ── Step 2: Modules ── */}
+        {step === "modules" && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / {steps.length}</div>
+              <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Что отслеживаешь?</h1>
+              <p className="mt-2 font-sans text-[13px] text-ink-2">Лишнее можно выключить — оно пропадёт из меню. Изменить можно в профиле.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {MODULE_KEYS.map((key) => {
+                const on = tracks[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="switch"
+                    aria-checked={on}
+                    onClick={() => toggleModule(key)}
+                    className={`flex min-h-[56px] items-center gap-3 rounded-card border px-4 py-3 text-left transition-colors ${
+                      on ? "border-phase bg-phase-soft" : "border-line bg-surface"
+                    }`}
+                  >
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] border-2 ${
+                      on ? "border-phase bg-phase text-on-phase" : "border-line text-transparent"
+                    }`}>
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" aria-hidden>
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-sans text-[15px] font-semibold text-ink">{MODULE_LABELS[key].title}</span>
+                      <span className="mt-0.5 block font-sans text-[12px] text-ink-2">{MODULE_LABELS[key].hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Weight ── */}
         {step === "weight" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / 2</div>
+              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг {steps.length} / {steps.length}</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Вес</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Необязательно — можно заполнить позже в разделе Вес</p>
             </div>
@@ -158,7 +221,7 @@ export default function OnboardingPage() {
           disabled={isPending}
           className="w-full rounded-card bg-phase py-4 font-mono font-semibold text-[13px] tracking-[0.12em] uppercase text-on-phase disabled:opacity-60"
         >
-          {isPending ? "..." : step === "weight" ? "Завершить" : "Далее →"}
+          {isPending ? "..." : isLast ? "Завершить" : "Далее →"}
         </button>
         {step === "weight" && (
           <button

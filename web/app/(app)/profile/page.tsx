@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getCurrentUser, isPregnant } from "@/lib/auth";
+import { getCurrentUser, isPregnant, ALL_TRACKED } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileForm } from "./profile-form";
 import { PregnancyToggle } from "./pregnancy-toggle";
+import { TrackedModulesForm } from "./tracked-modules-form";
 import { logout } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +45,10 @@ export default async function ProfilePage() {
         <div className="mt-1.5 font-mono text-[11px] text-ink-3">{user.email}</div>
       )}
 
+      <TrackedModulesForm initial={user?.tracks ?? ALL_TRACKED} />
+
       {/* ── Разделы ── */}
-      <nav aria-label="Разделы" className="mt-5 overflow-hidden rounded-card border border-line bg-surface">
+      <nav aria-label="Разделы" className="mt-4 overflow-hidden rounded-card border border-line bg-surface">
         <SectionLink href="/cycle" title="Цикл и месячные" hint="календарь, отметки начала цикла" />
         <SectionLink href="/checkin/meds" title="Препараты" hint="график приёма, типы препаратов" />
         {pregnant && (

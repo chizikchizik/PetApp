@@ -87,6 +87,7 @@ export default async function CheckIn({
         sportTypes={sportTypes}
         todayQuickPain={todayQuickPain}
         hidePeriodStart={pregnant}
+        tracks={user?.tracks}
       />
     </div>
   );

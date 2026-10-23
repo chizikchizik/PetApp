@@ -43,3 +43,17 @@ export async function completeOnboarding() {
   if (!db) throw new Error("DB unavailable");
   await db.from("app_user").update({ onboarding_done: true }).eq("id", uid);
 }
+
+// Шаг «Что отслеживаешь» (миграция 060). Хотя бы один раздел обязателен.
+export async function saveModules(tracks: { migraine: boolean; training: boolean; weight: boolean }) {
+  const uid = await getUid();
+  const db = supabaseAdmin();
+  if (!db) throw new Error("DB unavailable");
+  const t = { migraine: tracks.migraine === true, training: tracks.training === true, weight: tracks.weight === true };
+  if (!t.migraine && !t.training && !t.weight) throw new Error("Выбери хотя бы один раздел");
+  const { error } = await db
+    .from("app_user")
+    .update({ track_migraine: t.migraine, track_training: t.training, track_weight: t.weight })
+    .eq("id", uid);
+  if (error) throw new Error(error.message);
+}

@@ -9,7 +9,7 @@ import {
   getWorkoutHistory,
   WEIGHT_GOAL,
 } from "@/lib/data";
-import { getCurrentUser, isPregnant } from "@/lib/auth";
+import { getCurrentUser, isPregnant, ALL_TRACKED } from "@/lib/auth";
 import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
 import { getCalendarEvents } from "../training/schedule/actions";
 
@@ -93,6 +93,7 @@ export default async function Dashboard() {
     eventsByDate.set(ev.event_date, list);
   }
   const pregnant = isPregnant(user);
+  const tracks = user?.tracks ?? ALL_TRACKED;
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const length = Math.round(c.stats.avgLength) || (user?.avgCycleLength ?? 28);
   const tip = PHASE_TIP[c.phase];
@@ -235,8 +236,9 @@ export default async function Dashboard() {
       )}
 
       {/* ── Полоса готовности ── */}
-      <div className="mt-3.5 flex overflow-hidden rounded-card border border-line bg-surface">
-        <Link href="/weight" className="flex-1 border-r border-line px-3 py-3.5 active:bg-surface-2">
+      <div className="mt-3.5 flex divide-x divide-line overflow-hidden rounded-card border border-line bg-surface">
+        {tracks.weight && (
+        <Link href="/weight" className="flex-1 px-3 py-3.5 active:bg-surface-2">
           <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">вес</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
             {currentWeight ?? "—"}
@@ -245,7 +247,9 @@ export default async function Dashboard() {
             {weightDelta == null ? "нет данных" : `${weightDelta < 0 ? "" : "+"}${weightDelta} кг`}
           </div>
         </Link>
-        <Link href="/insights" className="flex-1 border-r border-line px-3 py-3.5 active:bg-surface-2">
+        )}
+        {tracks.migraine && (
+        <Link href="/insights" className="flex-1 px-3 py-3.5 active:bg-surface-2">
           <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">мигрень</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
             {leadCount}
@@ -255,6 +259,8 @@ export default async function Dashboard() {
             {leadHigh ? "близко к порогу" : "в норме"}
           </div>
         </Link>
+        )}
+        {tracks.training && (
         <Link href="/training" className="flex-1 px-3 py-3.5 active:bg-surface-2">
           <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">тренировки</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
@@ -262,9 +268,11 @@ export default async function Dashboard() {
           </div>
           <div className="mt-1 font-mono text-[10px] text-ink-3">за неделю</div>
         </Link>
+        )}
       </div>
 
       {/* ── Карточка мигрени ── */}
+      {tracks.migraine && (
       <Link
         href="/insights"
         className="mt-3.5 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
@@ -306,9 +314,12 @@ export default async function Dashboard() {
           <span className="font-semibold text-phase-deep">инсайты →</span>
         </p>
       </Link>
+      )}
 
       {/* ── Вес + Директива ── */}
-      <div className="mt-3.5 grid grid-cols-2 gap-3">
+      {(tracks.weight || tracks.training) && (
+      <div className={`mt-3.5 grid gap-3 ${tracks.weight && tracks.training ? "grid-cols-2" : "grid-cols-1"}`}>
+        {tracks.weight && (
         <Link
           href="/weight"
           className="block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
@@ -336,7 +347,9 @@ export default async function Dashboard() {
             {weightDelta == null ? "введи вес →" : `${weightDelta < 0 ? "" : "+"}${weightDelta} · цель ${weightGoalKg}`}
           </div>
         </Link>
+        )}
 
+        {tracks.training && (
         <Link
           href="/training"
           className="block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
@@ -350,9 +363,12 @@ export default async function Dashboard() {
           </div>
           <p className="mt-1.5 font-sans text-[11.5px] leading-[1.5] text-ink-2">{tip.text}</p>
         </Link>
+        )}
       </div>
+      )}
 
       {/* ── Расписание недели ── */}
+      {tracks.training && (
       <Link
         href="/training/schedule"
         className="mt-3.5 block rounded-card border border-line bg-surface p-4 active:scale-[0.99]"
@@ -392,6 +408,7 @@ export default async function Dashboard() {
           })}
         </div>
       </Link>
+      )}
 
       {/* ── ЧЕК-ИН ── */}
       <Link

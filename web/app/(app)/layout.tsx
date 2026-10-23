@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MaintenanceBanner />
         {children}
       </div>
-      <BottomNav />
+      <BottomNav tracks={user.tracks} />
     </div>
   );
 }

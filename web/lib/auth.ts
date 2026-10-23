@@ -2,6 +2,9 @@ import "server-only"
 import { supabaseAdmin } from "@/lib/supabase/server"
 import crypto from "crypto"
 import { cookies } from "next/headers"
+import { ALL_TRACKED, type TrackedModules } from "@/lib/tracked-modules"
+
+export { ALL_TRACKED, type TrackedModules }
 
 const COOKIE_NAME = "verta_auth"
 
@@ -92,7 +95,9 @@ export type AppUser = {
   calorieGoalKcal: number | null
   pregnantSince: string | null
   pregnantUntil: string | null
+  tracks: TrackedModules
 }
+
 
 // Активный статус беременности: включён и не выключен. pregnant_until
 // хранится, чтобы прошлое окно беременности можно было исключать из
@@ -101,7 +106,7 @@ export function isPregnant(user: AppUser | null): boolean {
   return !!user && user.pregnantSince != null && user.pregnantUntil == null
 }
 
-const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days, workout_year_goal, calorie_balance_kcal, calorie_goal_kcal, pregnant_since, pregnant_until"
+const USER_SELECT = "id, email, display_name, weight_goal_kg, weight_start_kg, onboarding_done, avg_cycle_length, menstrual_days, workout_year_goal, calorie_balance_kcal, calorie_goal_kcal, pregnant_since, pregnant_until, track_migraine, track_training, track_weight"
 
 function rowToUser(data: Record<string, unknown>): AppUser {
   return {
@@ -118,6 +123,11 @@ function rowToUser(data: Record<string, unknown>): AppUser {
     calorieGoalKcal: (data.calorie_goal_kcal as number | null) ?? null,
     pregnantSince: (data.pregnant_since as string | null) ?? null,
     pregnantUntil: (data.pregnant_until as string | null) ?? null,
+    tracks: {
+      migraine: data.track_migraine !== false,
+      training: data.track_training !== false,
+      weight: data.track_weight !== false,
+    },
   }
 }
 
@@ -139,7 +149,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
           .single()
         if (data) return rowToUser(data as Record<string, unknown>)
       }
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null, calorieBalanceKcal: null, calorieGoalKcal: null, pregnantSince: null, pregnantUntil: null }
+      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null, calorieBalanceKcal: null, calorieGoalKcal: null, pregnantSince: null, pregnantUntil: null, tracks: ALL_TRACKED }
     }
     return null
   }

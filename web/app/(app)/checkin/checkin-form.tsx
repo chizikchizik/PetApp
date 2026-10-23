@@ -7,6 +7,7 @@ import { saveCheckin, savePeriodStart, createMed, deleteMed, changeMedDose, quic
 import { TrainingQuickAdd } from "./training-quick-add";
 import { PainQuickLogSheet } from "./pain-quick-log-sheet";
 import type { DailyLog, Med, MigraineTrigger, QuickPainEntry, SportType } from "@/lib/data";
+import { ALL_TRACKED, type TrackedModules } from "@/lib/tracked-modules";
 
 type State = CheckinPayload & { periodStart: boolean };
 
@@ -65,6 +66,7 @@ export function CheckinForm({
   sportTypes,
   todayQuickPain = [],
   hidePeriodStart = false,
+  tracks = ALL_TRACKED,
 }: {
   dayKey: string;
   todayISO: string;
@@ -76,6 +78,9 @@ export function CheckinForm({
   sportTypes?: SportType[];
   todayQuickPain?: QuickPainEntry[];
   hidePeriodStart?: boolean;
+  // Выключенные в профиле разделы («Что отслеживаю») в чек-ине не показываем.
+  // Их значения в state проходят насквозь, поэтому сохранение их не затирает.
+  tracks?: TrackedModules;
 }) {
   const router = useRouter();
   const [s, setS] = useState<State>(() => {
@@ -380,6 +385,8 @@ export function CheckinForm({
         )}
       </div>
 
+      {tracks.migraine && (
+      <>
       {!m.had && (
         <div className="flex gap-2">
           <button
@@ -540,6 +547,8 @@ export function CheckinForm({
           </div>
         )}
       </div>
+      </>
+      )}
 
       <div>
         <div className="flex items-center justify-between">
@@ -647,6 +656,7 @@ export function CheckinForm({
         )}
       </div>
 
+      {tracks.weight && (
       <div className="flex gap-3">
         <div className="flex-1">
           <span className={labelCls}>Вес, кг</span>
@@ -673,8 +683,9 @@ export function CheckinForm({
           />
         </div>
       </div>
+      )}
 
-      <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />
+      {tracks.training && <TrainingQuickAdd dayKey={dayKey} sportTypes={sportTypes} />}
 
       <button
         type="button"

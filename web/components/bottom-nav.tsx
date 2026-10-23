@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { TrackedModules } from "@/lib/tracked-modules";
 
-type Item = { href: string; label: string; icon: React.ReactNode; match: (path: string) => boolean };
+type Item = {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  match: (path: string) => boolean;
+  module?: keyof TrackedModules;
+};
 
 const iconProps = {
   viewBox: "0 0 24 24",
@@ -33,6 +40,7 @@ const items: Item[] = [
   {
     href: "/insights",
     label: "Мигрень",
+    module: "migraine",
     match: (p) => p.startsWith("/insights") || p.startsWith("/checkin/meds"),
     icon: (
       <svg {...iconProps}>
@@ -43,6 +51,7 @@ const items: Item[] = [
   {
     href: "/training",
     label: "Тренировки",
+    module: "training",
     match: (p) => p.startsWith("/training"),
     icon: (
       <svg {...iconProps}>
@@ -53,6 +62,7 @@ const items: Item[] = [
   {
     href: "/weight",
     label: "Вес",
+    module: "weight",
     match: (p) => p.startsWith("/weight"),
     icon: (
       <svg {...iconProps}>
@@ -63,11 +73,12 @@ const items: Item[] = [
   },
 ];
 
-export function BottomNav() {
+// Разделы, выключенные в профиле («Что отслеживаю»), из меню пропадают.
+export function BottomNav({ tracks }: { tracks: TrackedModules }) {
   const pathname = usePathname();
   return (
     <nav className="sticky bottom-0 z-10 flex border-t border-line bg-surface px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-      {items.map((it) => {
+      {items.filter((it) => !it.module || tracks[it.module]).map((it) => {
         const active = it.match(pathname);
         return (
           <Link

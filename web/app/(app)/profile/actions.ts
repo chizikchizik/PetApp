@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser, clearAuthCookie } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
@@ -96,4 +97,28 @@ export async function setPregnancy(on: boolean): Promise<{ ok: boolean }> {
 export async function logout() {
   await clearAuthCookie();
   redirect("/login");
+}
+
+// «Что отслеживаю» (миграция 060). Хотя бы один раздел должен остаться
+// включённым, иначе в приложении нечего показывать. Данные выключенного
+// раздела не трогаем — он просто скрывается из меню, «Сегодня» и чек-ина.
+export async function saveTrackedModules(input: {
+  migraine: boolean;
+  training: boolean;
+  weight: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  const uid = await getUid();
+  const db = supabaseAdmin();
+  if (!db) return { ok: false };
+  const tracks = { migraine: input.migraine === true, training: input.training === true, weight: input.weight === true };
+  if (!tracks.migraine && !tracks.training && !tracks.weight) {
+    return { ok: false, error: "Оставь хотя бы один раздел" };
+  }
+  const { error } = await db
+    .from("app_user")
+    .update({ track_migraine: tracks.migraine, track_training: tracks.training, track_weight: tracks.weight })
+    .eq("id", uid);
+  if (error) return { ok: false };
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
