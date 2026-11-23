@@ -3,10 +3,11 @@ import { supabaseAdmin } from "@/lib/supabase/server"
 import crypto from "crypto"
 import { cookies } from "next/headers"
 import { ALL_TRACKED, type TrackedModules } from "@/lib/tracked-modules"
+import { SESSION_COOKIE, SESSION_MAX_AGE, signSession, verifySession } from "@/lib/session"
 
 export { ALL_TRACKED, type TrackedModules }
 
-const COOKIE_NAME = "verta_auth"
+const COOKIE_NAME = SESSION_COOKIE
 
 function generateSalt(): string {
   return crypto.randomBytes(16).toString("hex")
@@ -66,13 +67,15 @@ export async function deleteUnfinishedUser(email: string): Promise<void> {
 }
 
 export async function setAuthCookie(userId: string) {
+  const value = await signSession(userId)
+  if (!value) throw new Error("session key is not configured")
   const cookieStore = await cookies()
-  cookieStore.set(COOKIE_NAME, userId, {
+  cookieStore.set(COOKIE_NAME, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 60, // 60 days
+    maxAge: SESSION_MAX_AGE,
   })
 }
 
@@ -136,13 +139,14 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const cookie = cookieStore.get(COOKIE_NAME)
   if (!cookie?.value) return null
 
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie.value)
-  // Cookie с мастер-паролем больше не даёт входа (убран 2026-11-23).
-  if (!isUUID) return null
+  // Только подписанная cookie с неистёкшим сроком (lib/session.ts). Голый id
+  // аккаунта и мастер-пароль больше не дают входа (2026-11-23).
+  const uid = await verifySession(cookie.value)
+  if (!uid) return null
 
   const db = supabaseAdmin()
   if (!db) return null
-  const { data } = await db.from("app_user").select(USER_SELECT).eq("id", cookie.value).single()
+  const { data } = await db.from("app_user").select(USER_SELECT).eq("id", uid).single()
   if (!data) return null
   return rowToUser(data as Record<string, unknown>)
 }

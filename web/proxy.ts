@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-// Гейт всего сайта: без cookie сессии (id аккаунта) — на /login. Включается,
+// Гейт всего сайта: без подписанной cookie сессии — на /login. Включается,
 // только если задан PETAPP_PASSWORD (на Vercel); сам пароль больше не даёт
 // входа (2026-11-23). Локально без него — гейта нет.
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const expected = process.env.PETAPP_PASSWORD;
   if (!expected) return NextResponse.next();
 
@@ -13,9 +14,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const cookie = request.cookies.get("verta_auth")?.value;
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie ?? "");
-  if (isUUID) return NextResponse.next();
+  // Старые cookie (голый id) не проходят: один раз войти заново.
+  if (await verifySession(request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
 
   const url = request.nextUrl.clone();
   url.pathname = "/login";
