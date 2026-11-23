@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { isLoggableDay } from "@/lib/format";
+import { DEFAULT_SPORT_TYPES } from "@/lib/data";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
 // никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
@@ -200,27 +201,37 @@ export async function updateWorkout(
 }
 
 export async function addSportType(name: string): Promise<{ ok: boolean }> {
-  const trimmed = name.trim();
+  const trimmed = name.trim().slice(0, 40);
   if (!trimmed) return { ok: false };
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
   if (!uid) return { ok: false };
-  const { data: existing } = await byUser(
-    db.from("sport_type").select("id").ilike("name", trimmed).limit(1),
+  const { data: rows, error: readErr } = await byUser(
+    db.from("sport_type").select("name, sort").order("sort", { ascending: false }),
     uid,
   );
-  if (existing && existing.length > 0) return { ok: true };
-  const { data: maxSort } = await byUser(
-    db.from("sport_type").select("sort").order("sort", { ascending: false }).limit(1),
-    uid,
-  );
-  const nextSort = (maxSort?.[0]?.sort ?? 0) + 1;
-  await byUser(
-    db.from("sport_type").insert({ name: trimmed, sort: nextSort, app_user_id: uid }),
-    uid,
-  );
+  if (readErr) return { ok: false };
+  const list = (rows ?? []) as { name: string; sort: number }[];
+  const same = (a: string) => a.toLowerCase() === trimmed.toLowerCase();
+  if (list.some((r) => same(r.name))) return { ok: true };
+
+  const toInsert: { name: string; sort: number; app_user_id: string }[] = [];
+  let nextSort: number;
+  if (list.length === 0) {
+    // Пока своих строк нет, форма показывает стандартный список. Первое
+    // добавление сохраняет его целиком: раньше вставлялся только новый вид,
+    // и стандартные пропадали из формы (QA раунд 8).
+    DEFAULT_SPORT_TYPES.forEach((n, i) => toInsert.push({ name: n, sort: i, app_user_id: uid }));
+    nextSort = DEFAULT_SPORT_TYPES.length;
+  } else {
+    nextSort = list[0].sort + 1;
+  }
+  if (!toInsert.some((r) => same(r.name))) toInsert.push({ name: trimmed, sort: nextSort, app_user_id: uid });
+  const { error } = await db.from("sport_type").insert(toInsert);
+  if (error) return { ok: false };
   revalidatePath("/training");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

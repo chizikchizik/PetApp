@@ -792,7 +792,7 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
 
 export type SportType = { name: string; color: string };
 
-const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
+export const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
 const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
 
 function toSportTypes(names: string[]): SportType[] {
