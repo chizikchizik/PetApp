@@ -8,12 +8,17 @@ import {
   getSportActivityDays,
   getSportTypes,
   getMigreDiaryMonth,
+  getMigraineMedStatsByMonth,
+  getMeds,
+  type MigraineMedStats,
 } from "@/lib/data";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { allMonthlyBars, cycleCorrelation, buildCycleCalendar, type CycleCorrelation } from "@/lib/insights";
-import { isoDaysFromTodayMoscow, todayISOMoscow } from "@/lib/format";
+import { isoDaysFromTodayMoscow, todayISOMoscow, isoLocal } from "@/lib/format";
+import { getCurrentCycle } from "@/lib/cycle";
+import { MIGRAINE } from "@/lib/seed-data";
 import { MigraineChart } from "./migraine-chart";
-import { MigreDiary } from "./migre-diary";
+import { MigreDiary, type CycleOverlay } from "./migre-diary";
 import { CycleHistoryChart } from "./cycle-history";
 import { TrainingChart } from "../training/training-chart";
 import { PressureBlock } from "./pressure-block";
@@ -188,7 +193,7 @@ function ConfidenceBadge({ corr }: { corr: CycleCorrelation }) {
 function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
   const cfg = corrConfig(corr);
   return (
-    <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
+    <section className="mt-2 rounded-card border border-line bg-surface p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
           связь с циклом
@@ -201,15 +206,70 @@ function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
   );
 }
 
+// Вывод под графиком «приступы по месяцам» — по данным, а не общей фразой,
+// и по той же метрике, что плитки дневника: дни приёма за месяц. Формулировки
+// по ревью Елены: один месяц выше ориентира — ещё не паттерн (ICHD-3 требует
+// регулярного приёма >3 мес.), смешанный приём учитывается (8.2.6), без
+// «лимитов», «злоупотребления» и призывов сократить приём самостоятельно.
+function monthlyVerdict(
+  months: MigraineMedStats[],
+  t: { highRisk: number; nsaid: number },
+  hasProphylaxis: boolean,
+): React.ReactNode {
+  if (months.length === 0) return null;
+  const period = months.length >= 12 ? "12 мес." : `${months.length} мес.`;
+  const over = (m: MigraineMedStats) => m.highRisk >= t.highRisk || m.nsaid >= t.nsaid || m.total >= t.highRisk;
+  const near = (m: MigraineMedStats) =>
+    m.highRisk >= Math.ceil(t.highRisk * 0.7) || m.nsaid >= Math.ceil(t.nsaid * 0.7) || m.total >= Math.ceil(t.highRisk * 0.7);
+  let run = 0, maxRun = 0;
+  for (const m of months) { run = over(m) ? run + 1 : 0; maxRun = Math.max(maxRun, run); }
+  const overCount = months.filter(over).length;
+  const nearCount = months.filter((m) => near(m) && !over(m)).length;
+
+  if (maxRun >= 3) {
+    return (
+      <>
+        <b className="font-semibold text-ink">{maxRun} мес. подряд</b> — {t.highRisk} и больше дней с обезболивающими
+        (для НПВС — {t.nsaid} и больше). При таком приёме растёт риск головной боли от избытка лекарств.
+        Обсуди с неврологом и не меняй схему сама.
+      </>
+    );
+  }
+  if (overCount > 0) {
+    return (
+      <>
+        В <b className="font-semibold text-ink">{overCount} мес. из {months.length}</b> было {t.highRisk} и больше дней
+        с обезболивающими (для НПВС — {t.nsaid} и больше). Покажи это неврологу — это повод вместе пересмотреть лечение.
+      </>
+    );
+  }
+  if (nearCount > 0) {
+    return (
+      <>
+        Ниже ориентира в {t.highRisk} дней, но в <b className="font-semibold text-ink">{nearCount} мес.</b> было 7–9 дней
+        с триптанами и др. или с обезболивающими в целом. Частый приём — повод обсудить с неврологом{" "}
+        {hasProphylaxis ? "хватает ли текущей профилактики" : "профилактику"}.
+      </>
+    );
+  }
+  const max = Math.max(...months.map((m) => m.total));
+  if (max === 0) return null;
+  return <>По записям за {period} — не больше {max} {max === 1 ? "дня" : "дней"} с обезболивающими в месяц, ниже ориентиров.</>;
+}
+
 const MIG = "#d85a30";
 const MENS = "rgba(177,74,99,0.22)";
 
 export default async function Insights() {
-  const today = new Date(todayISOMoscow() + "T12:00:00");
-  const todayYM = todayISOMoscow().slice(0, 7);
+  const todayISO = todayISOMoscow();
+  const today = new Date(todayISO + "T12:00:00");
+  const todayYM = todayISO.slice(0, 7);
   const since = isoDaysFromTodayMoscow(-365);
   const sinceTraining = isoDaysFromTodayMoscow(-26 * 7);
-  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user, diaryMonth] = await Promise.all([
+  // 12 последних месяцев для вывода под графиком (включая текущий).
+  const [ty, tm] = todayYM.split("-").map(Number);
+  const fromYM = tm === 12 ? `${ty}-01` : `${ty - 1}-${String(tm + 1).padStart(2, "0")}`;
+  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user, diaryMonth, statsByMonth, meds] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getAllMigraineEvents(),
@@ -219,6 +279,8 @@ export default async function Insights() {
     getSportTypes(),
     getCurrentUser(),
     getMigreDiaryMonth(todayYM),
+    getMigraineMedStatsByMonth(fromYM, todayYM),
+    getMeds(),
   ]);
 
   const pregnant = isPregnant(user);
@@ -234,30 +296,72 @@ export default async function Insights() {
   const chartBars = allMonthlyBars(allEvents);
   const cycles = buildCycleCalendar(starts, recentEvents, today, 6, user?.menstrualDays ?? 5);
   const trainingMigraines = recentEvents.filter((e) => e.date >= sinceTraining);
+  // Месяцы до первой записи в счёт «за N мес.» не берём.
+  const firstRecordYM = allEvents[0]?.date.slice(0, 7) ?? todayYM;
+  const verdictMonths = Object.entries(statsByMonth)
+    .filter(([ym]) => ym >= firstRecordYM)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, st]) => st);
+  const hasProphylaxis = meds.some((m) => !m.isAsNeeded && !m.isSupplement);
+  const verdict = monthlyVerdict(
+    verdictMonths,
+    { highRisk: MIGRAINE.triptanThreshold, nsaid: MIGRAINE.nsaidThreshold },
+    hasProphylaxis,
+  );
+
+  // Месячные и прогноз в календаре дневника. При беременности не показываем.
+  const menstrualDays = user?.menstrualDays ?? 5;
+  const cycleOverlay: CycleOverlay | null = !pregnant && starts.length > 0
+    ? {
+        periodStarts: starts.map((d) => isoLocal(d)),
+        menstrualDays,
+        forecastStart: isoLocal(getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, menstrualDays).nextPeriod.likely),
+      }
+    : null;
+
+  const historyYears = cycleHistory.length
+    ? `${cycleHistory[0].start.slice(0, 4)}–${cycleHistory[cycleHistory.length - 1].start.slice(0, 4)}`
+    : "";
 
   return (
     <>
       {/* ── Шапка ── */}
       <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">МИГРЕНЬ</h1>
-      <p className="mt-2 font-mono text-[11px] text-ink-2">наблюдения по твоим записям</p>
+      <p className="mt-1.5 font-sans text-[12.5px] leading-snug text-ink-2">
+        Наблюдения по твоим записям, а не диагноз. Решения — с лечащим неврологом.
+      </p>
+      <a href="#urgent" className="mt-0.5 inline-flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+        Когда срочно к врачу →
+      </a>
 
-      {/* ── Дисклеймер ── */}
-      <div className="mt-4 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 font-sans text-[11.5px] leading-relaxed text-ink-2">
-        Это наблюдения по твоим логам, а не диагноз. Решения — с лечащим неврологом.
-      </div>
+      {/* ── Дневник месяца ── */}
+      <section className="mt-4 rounded-card border border-line bg-surface p-4">
+        <MigreDiary
+          initial={diaryMonth}
+          todayYM={todayYM}
+          todayISO={todayISO}
+          thresholds={{ highRisk: MIGRAINE.triptanThreshold, nsaid: MIGRAINE.nsaidThreshold }}
+          cycle={cycleOverlay}
+        />
+      </section>
 
-      {/* ── Поделиться с неврологом ── */}
+      {/* ── Отчёт для невролога ── */}
       <Link
         href="/insights/report"
-        className="mt-3 flex items-center justify-between rounded-card border border-line bg-surface px-3.5 py-3 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-2 active:scale-[0.99]"
+        className="mt-3 flex min-h-[52px] items-center justify-between gap-3 rounded-card border border-line-2 bg-surface px-4 py-3 active:scale-[0.99]"
       >
-        <span>печать / для невролога</span>
-        <span className="text-phase">→</span>
+        <span className="min-w-0">
+          <span className="block font-sans text-[15px] font-bold text-ink">Отчёт для невролога</span>
+          <span className="mt-0.5 block font-sans text-[12px] text-ink-2">приступы, препараты и терапия на одной странице — распечатать или сохранить PDF</span>
+        </span>
+        <span className="shrink-0 font-mono text-[14px] text-phase">→</span>
       </Link>
 
-      {/* ── Связь с циклом ── */}
+      {/* ── Связи ── */}
+      <h2 className="mt-7 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">связи</h2>
+
       {pregnant ? (
-        <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
+        <section className="mt-2 rounded-card border border-line bg-surface p-5">
           <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
             связь с циклом
           </p>
@@ -273,26 +377,38 @@ export default async function Insights() {
       {/* ── Давление и мигрень ── */}
       <PressureBlock attackDates={recentEvents.map((e) => e.date)} pregnant={pregnant} />
 
-      {/* ── Приступы по месяцам ── */}
+      {/* ── Мигрень × тренировки ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            мигрень × тренировки
+          </p>
+          <Link href="/training" className="font-mono text-[10px] text-ink-3 underline underline-offset-2">
+            анализ паттернов →
+          </Link>
+        </div>
+        <TrainingChart
+          workouts={workoutHistory}
+          sports={sportDays}
+          migraines={trainingMigraines}
+          sportTypes={sportTypes}
+        />
+      </section>
+
+      {/* ── История ── */}
+      <h2 className="mt-7 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">история</h2>
+
+      {/* ── Приступы по месяцам ── */}
+      <section className="mt-2 rounded-card border border-line bg-surface p-4">
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
           приступы по месяцам
         </p>
         <div className="mt-4">
           <MigraineChart bars={chartBars} />
         </div>
-        <p className="mt-3 font-sans text-[12px] leading-[1.55] text-ink-2">
-          Порог медикаментозной ГБ — <b className="font-semibold text-ink">10 дней/мес</b>.
-          Держишься ниже, но часто близко. Регулярный приём — повод обсудить{" "}
-          <b className="font-semibold text-ink">профилактику</b>.
-        </p>
-
-        <div className="mt-4 border-t border-line pt-3">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            дневник по месяцам
-          </p>
-          <MigreDiary initial={diaryMonth} todayYM={todayYM} />
-        </div>
+        {verdict && (
+          <p className="mt-3 font-sans text-[12px] leading-[1.55] text-ink-2">{verdict}</p>
+        )}
       </section>
 
       {/* ── Мигрень × цикл ── (на паузе при беременности: "текущий цикл"
@@ -344,28 +460,10 @@ export default async function Insights() {
       </section>
       )}
 
-      {/* ── Мигрень × тренировки ── */}
-      <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-            мигрень × тренировки
-          </p>
-          <Link href="/training" className="font-mono text-[10px] text-ink-3 underline underline-offset-2">
-            анализ паттернов →
-          </Link>
-        </div>
-        <TrainingChart
-          workouts={workoutHistory}
-          sports={sportDays}
-          migraines={trainingMigraines}
-          sportTypes={sportTypes}
-        />
-      </section>
-
       {/* ── Вся история: цикл × мигрень ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          история 2018–2026
+          все циклы{historyYears ? ` · ${historyYears}` : ""}
         </p>
         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-ink-2">
           <span className="inline-flex items-center gap-1.5">
@@ -386,21 +484,19 @@ export default async function Insights() {
       </section>
 
       {/* ── Когда к врачу ── */}
-      <details className="mt-3.5 rounded-card border border-line bg-surface p-4">
-        <summary className="cursor-pointer font-sans text-[14px] font-semibold text-ink">
-          Когда срочно к врачу
-        </summary>
-        <ul className="mt-2.5 space-y-1.5 font-sans text-[12.5px] leading-relaxed text-ink-2">
+      <section id="urgent" className="mt-3.5 scroll-mt-6 rounded-card border border-line bg-surface p-4" style={{ borderLeft: "3px solid var(--warn)" }}>
+        <h2 className="font-sans text-[15px] font-bold text-ink">Когда срочно к врачу</h2>
+        <ul className="mt-2.5 space-y-1.5 font-sans text-[13px] leading-relaxed text-ink-2">
           <li>Внезапная очень сильная «громоподобная» боль — худшая в жизни.</li>
           <li>Впервые возникшая аура, либо необычно долгая / со слабостью или речью.</li>
           <li>Онемение, слабость в руке или ноге, асимметрия лица.</li>
           <li>Боль после травмы головы; температура с ригидностью шеи.</li>
           <li>Резкое учащение или смена характера приступов.</li>
         </ul>
-        <p className="mt-2.5 font-mono text-[11px] text-ink-3">
+        <p className="mt-2.5 font-sans text-[12px] text-ink-2">
           Приложение не ставит диагнозов — это сигналы обратиться к врачу или в неотложку.
         </p>
-      </details>
+      </section>
     </>
   );
 }

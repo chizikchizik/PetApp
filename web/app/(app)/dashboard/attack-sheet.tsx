@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Med, MigraineTrigger } from "@/lib/data";
 
@@ -96,7 +97,12 @@ export function AttackSheet({
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4">
-          <p className="font-sans text-[13px] text-ink-2">Всё здесь необязательно — можно закрыть и вернуться позже.</p>
+          <div>
+            <p className="font-sans text-[13px] text-ink-2">Всё здесь необязательно — можно закрыть и вернуться позже.</p>
+            <Link href="/insights#urgent" className="mt-0.5 inline-flex min-h-[36px] items-center font-sans text-[13px] text-ink-2 underline underline-offset-2">
+              Боль не как обычно? Когда срочно к врачу →
+            </Link>
+          </div>
 
           {/* Сила */}
           <div>

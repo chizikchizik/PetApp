@@ -43,6 +43,24 @@ const PHASE_TIP: Record<Phase, { title: string; text: string }> = {
   luteal: { title: "Снижаем обороты", text: "Объём, техника, восстановление. Задержка воды — норма." },
 };
 
+type MedStatsLike = { highRisk: number; nsaid: number; total: number };
+
+function medLoad(st: MedStatsLike) {
+  const T = MIGRAINE.triptanThreshold, N = MIGRAINE.nsaidThreshold;
+  const mixed = st.highRisk > 0 && st.nsaid > 0;
+  const options = [
+    { kind: "highRisk" as const, label: "триптаны и др.", count: st.highRisk, threshold: T, phrase: `${st.highRisk} из ${T} дней с триптанами и др.` },
+    { kind: "nsaid" as const, label: "НПВС", count: st.nsaid, threshold: N, phrase: `${st.nsaid} из ${N} дней с НПВС` },
+    ...(mixed
+      ? [{ kind: "mixed" as const, label: "обезболивающие", count: st.total, threshold: T, phrase: `${st.total} дней с обезболивающими, при смешанном приёме ориентир ${T}` }]
+      : []),
+  ];
+  const lead = options.reduce((a, b) => (b.count / b.threshold > a.count / a.threshold ? b : a));
+  const near = lead.count >= Math.ceil(lead.threshold * 0.7);
+  const atLimit = lead.count >= lead.threshold;
+  return { ...lead, near, atLimit };
+}
+
 function addDaysISO(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
@@ -113,19 +131,17 @@ export default async function Today({
   const displayName = user?.displayName || "VERTA";
   const isPeriodStart = starts.some((d) => isoLocal(d) === dayKey);
 
-  // ── Мигрень: счётчик МИГБ (ICHD-3 8.2). Триптаны/эрготамины/опиоиды/комб.
-  // анальгетики — одна цифра с порогом 10, НПВС — отдельно с порогом 15
-  // (не два независимых лимита по 10, см. рецензию Елены).
-  const highRiskPct = Math.round((monthStats.highRisk / MIGRAINE.triptanThreshold) * 100);
-  const nsaidPct = Math.round((monthStats.nsaid / MIGRAINE.nsaidThreshold) * 100);
-  const nsaidLeads = nsaidPct > highRiskPct;
-  const leadCount = nsaidLeads ? monthStats.nsaid : monthStats.highRisk;
-  const leadThreshold = nsaidLeads ? MIGRAINE.nsaidThreshold : MIGRAINE.triptanThreshold;
-  const leadHigh = Math.max(highRiskPct, nsaidPct) >= 70;
+  // ── Мигрень: счётчик МИГБ (ICHD-3 8.2). На плитке — группа, которая ближе
+  // к своему ориентиру: «триптаны и др.» (10), «НПВС» (15) или смешанный
+  // приём обеих групп (8.2.6, тоже 10). Цвет у ориентира — янтарный.
+  const load = medLoad(monthStats);
   const ds = dayMonthStats ?? monthStats;
-  const medNote =
-    `В ${MONTH_IN[target.getMonth()]}: дней с триптанами и комб. анальгетиками — ${ds.highRisk} из ${MIGRAINE.triptanThreshold}, ` +
-    `с НПВС — ${ds.nsaid} из ${MIGRAINE.nsaidThreshold}. Считаем дни приёма, а не дни боли.`;
+  const dayLoad = medLoad(ds);
+  // В шторке приступа счётчик — только у ориентира и с явным «это не запрет»:
+  // триптан работает лучше, если принять его рано (ревью Елены).
+  const medNote = dayLoad.near
+    ? `В ${MONTH_IN[target.getMonth()]} — ${dayLoad.phrase}. Это не запрет на приём сейчас: риск связан с частым приёмом месяцами. Повод обсудить с неврологом.`
+    : null;
 
   const lastAttack = attacks.filter((a) => a.date < dayKey).map((a) => a.date).sort().pop() ?? null;
   const lastAttackLabel = lastAttack
@@ -165,11 +181,13 @@ export default async function Today({
     <div className="mt-4 flex divide-x divide-line overflow-hidden rounded-card border border-line bg-surface">
       {tracks.migraine && (
         <Link href="/insights" className={kpiTile}>
-          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">{nsaidLeads ? "НПВС" : "триптаны"}</div>
-          <div className={`mt-1.5 font-mono text-[21px] font-semibold leading-none ${leadHigh ? "text-warn" : "text-ink"}`}>
-            {leadCount}<span className="text-[12px] font-normal text-ink-2">/{leadThreshold}</span>
+          <div className="truncate font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">{load.label}</div>
+          <div className={`mt-1.5 font-mono text-[21px] font-semibold leading-none ${load.near ? "text-caution" : "text-ink"}`}>
+            {load.count}<span className="text-[12px] font-normal text-ink-2">/{load.threshold}</span>
           </div>
-          <div className={`mt-1 font-mono text-[11px] ${leadHigh ? "text-warn" : "text-ink-2"}`}>{leadHigh ? "близко к порогу" : "дней в месяце"}</div>
+          <div className={`mt-1 font-mono text-[11px] ${load.near ? "text-caution" : "text-ink-2"}`}>
+            {load.atLimit ? "обсуди с врачом" : load.near ? "близко к ориентиру" : "дней в месяце"}
+          </div>
         </Link>
       )}
       {tracks.training && (
@@ -195,7 +213,7 @@ export default async function Today({
       {kpis}
       {tracks.migraine && monthStats.unclassified > 0 && (
         <Link href="/checkin/meds" className="mt-1.5 flex min-h-[36px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
-          {monthStats.unclassified === 1 ? "1 препарат без типа" : `${monthStats.unclassified} препарата без типа`} — не попадает в счётчик. Указать тип →
+          {pluralDays(monthStats.unclassified)} с препаратами без типа не попали в счёт — цифры могут быть ниже реальных. Указать тип →
         </Link>
       )}
     </>
