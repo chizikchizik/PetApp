@@ -207,6 +207,19 @@ function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
   );
 }
 
+// Уровень месяца по дням приёма — одно правило для вывода под графиком и
+// янтарных цифр «дни с обезболивающими» на графике. Сумма сравнивается с
+// ориентиром 10, только если приём смешанный (обе группы в месяце) — как на
+// плитках дневника; одни НПВС — ориентир 15.
+type MedThresholds = { highRisk: number; nsaid: number };
+function medLevel(m: MigraineMedStats, t: MedThresholds): "ok" | "near" | "over" {
+  const mixed = m.highRisk > 0 && m.nsaid > 0;
+  if (m.highRisk >= t.highRisk || m.nsaid >= t.nsaid || (mixed && m.total >= t.highRisk)) return "over";
+  if (m.highRisk >= Math.ceil(t.highRisk * 0.7) || m.nsaid >= Math.ceil(t.nsaid * 0.7) ||
+      (mixed && m.total >= Math.ceil(t.highRisk * 0.7))) return "near";
+  return "ok";
+}
+
 // Вывод под графиком «приступы по месяцам» — по данным, а не общей фразой,
 // и по той же метрике, что плитки дневника: дни приёма за месяц. Формулировки
 // по ревью Елены: один месяц выше ориентира — ещё не паттерн (ICHD-3 требует
@@ -214,19 +227,13 @@ function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
 // «лимитов», «злоупотребления» и призывов сократить приём самостоятельно.
 function monthlyVerdict(
   months: MigraineMedStats[],
-  t: { highRisk: number; nsaid: number },
+  t: MedThresholds,
   hasProphylaxis: boolean,
 ): React.ReactNode {
   if (months.length === 0) return null;
   const period = months.length >= 12 ? "12 мес." : `${months.length} мес.`;
-  // Сумма дней сравнивается с ориентиром 10, только если приём смешанный
-  // (обе группы в месяце) — как на плитках дневника. Одни НПВС — ориентир 15.
-  const mixed = (m: MigraineMedStats) => m.highRisk > 0 && m.nsaid > 0;
-  const over = (m: MigraineMedStats) =>
-    m.highRisk >= t.highRisk || m.nsaid >= t.nsaid || (mixed(m) && m.total >= t.highRisk);
-  const near = (m: MigraineMedStats) =>
-    m.highRisk >= Math.ceil(t.highRisk * 0.7) || m.nsaid >= Math.ceil(t.nsaid * 0.7) ||
-    (mixed(m) && m.total >= Math.ceil(t.highRisk * 0.7));
+  const over = (m: MigraineMedStats) => medLevel(m, t) === "over";
+  const near = (m: MigraineMedStats) => medLevel(m, t) !== "ok";
   let run = 0, maxRun = 0;
   for (const m of months) { run = over(m) ? run + 1 : 0; maxRun = Math.max(maxRun, run); }
   const overCount = months.filter(over).length;
@@ -276,7 +283,7 @@ export default async function Insights() {
   // 12 последних месяцев для вывода под графиком (включая текущий).
   const [ty, tm] = todayYM.split("-").map(Number);
   const fromYM = tm === 12 ? `${ty}-01` : `${ty - 1}-${String(tm + 1).padStart(2, "0")}`;
-  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user, diaryMonth, statsByMonth, meds] = await Promise.all([
+  const [starts, recentEvents, allEvents, cycleHistory, workoutHistory, sportDays, sportTypes, user, diaryMonth, meds] = await Promise.all([
     getPeriodStarts(),
     getMigraineEventsSince(since),
     getAllMigraineEvents(),
@@ -286,9 +293,12 @@ export default async function Insights() {
     getSportTypes(),
     getCurrentUser(),
     getMigreDiaryMonth(todayYM),
-    getMigraineMedStatsByMonth(fromYM, todayYM),
     getMeds(),
   ]);
+  // Дни приёма по месяцам на все годы графика (цифры под столбцами) — из них
+  // же последние 12 мес. для вывода.
+  const chartFromYM = `${allEvents[0]?.date.slice(0, 4) ?? ty}-01`;
+  const statsByMonth = await getMigraineMedStatsByMonth(chartFromYM < fromYM ? chartFromYM : fromYM, todayYM);
 
   const pregnant = isPregnant(user);
   // Окно беременности исключается из корреляции с циклом (и во время, и
@@ -306,14 +316,15 @@ export default async function Insights() {
   // Месяцы до первой записи в счёт «за N мес.» не берём.
   const firstRecordYM = allEvents[0]?.date.slice(0, 7) ?? todayYM;
   const verdictMonths = Object.entries(statsByMonth)
-    .filter(([ym]) => ym >= firstRecordYM)
+    .filter(([ym]) => ym >= firstRecordYM && ym >= fromYM)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, st]) => st);
   const hasProphylaxis = meds.some((m) => !m.isAsNeeded && !m.isSupplement);
-  const verdict = monthlyVerdict(
-    verdictMonths,
-    { highRisk: MIGRAINE.triptanThreshold, nsaid: MIGRAINE.nsaidThreshold },
-    hasProphylaxis,
+  const thresholds: MedThresholds = { highRisk: MIGRAINE.triptanThreshold, nsaid: MIGRAINE.nsaidThreshold };
+  const verdict = monthlyVerdict(verdictMonths, thresholds, hasProphylaxis);
+  const verdictTextOnly = verdictMonths.some((m) => m.textOnly > 0);
+  const chartMedDays = Object.fromEntries(
+    Object.entries(statsByMonth).map(([ym, st]) => [ym, { total: st.total, highRisk: st.highRisk, nsaid: st.nsaid, level: medLevel(st, thresholds) }]),
   );
 
   // Месячные и прогноз в календаре дневника. При беременности не показываем.
@@ -414,10 +425,13 @@ export default async function Insights() {
           приступы по месяцам
         </p>
         <div className="mt-4">
-          <MigraineChart bars={chartBars} todayYM={todayYM} />
+          <MigraineChart bars={chartBars} todayYM={todayYM} medDays={chartMedDays} />
         </div>
         {verdict && (
-          <p className="mt-3 font-sans text-[12px] leading-[1.55] text-ink-2">{verdict}</p>
+          <p className="mt-3 font-sans text-[12px] leading-[1.55] text-ink-2">
+            {verdict}
+            {verdictTextOnly && " В месяцах из импорта MigreBot учтены только отметки триптана — препараты из текстовых заметок в вывод не вошли."}
+          </p>
         )}
       </section>
 

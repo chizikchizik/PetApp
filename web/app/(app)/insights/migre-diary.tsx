@@ -106,7 +106,7 @@ export function MigreDiary({
   const medCount = data.medDays.length;
   const streaks = longStreaks(data.migraineDates);
   const st0: Partial<MigreDiaryMonth["stats"]> = data.stats ?? {};
-  const stats = { highRisk: st0.highRisk ?? 0, nsaid: st0.nsaid ?? 0, total: st0.total ?? 0, unclassified: st0.unclassified ?? 0 };
+  const stats = { highRisk: st0.highRisk ?? 0, nsaid: st0.nsaid ?? 0, total: st0.total ?? 0, unclassified: st0.unclassified ?? 0, textOnly: st0.textOnly ?? 0 };
   // С 7 из 10 и 11 из 15 — янтарный «обрати внимание», без красного (ревью Елены).
   const hrHigh = stats.highRisk >= Math.ceil(thresholds.highRisk * 0.7);
   const nsHigh = stats.nsaid >= Math.ceil(thresholds.nsaid * 0.7);
@@ -118,6 +118,10 @@ export function MigreDiary({
   const perMed = new Map<string, number>();
   for (const d of data.medDays) for (const name of d.meds) perMed.set(name, (perMed.get(name) ?? 0) + 1);
   const perMedRows = [...perMed.entries()].sort((a, b) => b[1] - a[1]);
+  // Распознанное в текстовых заметках MigreBot — отдельно и не в счёт (Елена).
+  const perText = new Map<string, number>();
+  for (const d of data.textMedDays ?? []) for (const name of d.meds) perText.set(name, (perText.get(name) ?? 0) + 1);
+  const perTextRows = [...perText.entries()].sort((a, b) => b[1] - a[1]);
 
   // Месячные и прогноз — полосы под числом дня.
   const periodSet = new Set<string>();
@@ -206,11 +210,22 @@ export function MigreDiary({
             и похожие. Если {thresholds.highRisk}+ дней в месяц (для НПВС {thresholds.nsaid}+)
             держится 3 месяца и дольше, растёт риск головной боли от избытка лекарств.
           </p>
+          <p className="mt-1.5 font-sans text-[12px] leading-snug text-ink-2">
+            Считаем только отмеченные препараты. Названия из текстовых заметок
+            MigreBot показываем отдельно и в счёт не берём: по тексту нельзя
+            надёжно понять, что и когда принималось.
+          </p>
         </details>
         {stats.unclassified > 0 && (
           <Link href="/checkin/meds" className="mt-1 flex min-h-[44px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
             {stats.unclassified} {pluralDays(stats.unclassified)} с препаратами без типа не попали в счёт — цифры могут быть ниже реальных. Указать тип →
           </Link>
+        )}
+        {stats.textOnly > 0 && (
+          <p className="mt-1 font-sans text-[12px] leading-snug text-ink-2">
+            В заметках MigreBot есть препараты ещё в {stats.textOnly} {stats.textOnly % 10 === 1 && stats.textOnly % 100 !== 11 ? "дне" : "днях"} —
+            они не вошли в счёт, цифры могут быть ниже реальных.
+          </p>
         )}
 
         {/* Календарь месяца */}
@@ -279,6 +294,22 @@ export function MigreDiary({
             </div>
           ) : (
             <p className="font-sans text-[13px] text-ink-2">Препараты для купирования не отмечены.</p>
+          )}
+          {perTextRows.length > 0 && (
+            <div className="mt-3">
+              <p className={lbl}>из заметок MigreBot</p>
+              <p className="mt-0.5 font-sans text-[12px] leading-snug text-ink-2">
+                Распознано по тексту заметок — в счётчик не входит, возможны неточности.
+              </p>
+              <div className="mt-1 space-y-1">
+                {perTextRows.map(([name, n]) => (
+                  <div key={name} className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 font-sans text-[13px] text-ink-2">{name}</span>
+                    <span className="shrink-0 font-mono text-[12px] text-ink-2">{n} {pluralDays(n)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           <div className="mt-2 space-y-1 border-t border-line pt-2">
             <div className="flex items-baseline justify-between gap-3">

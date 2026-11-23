@@ -125,7 +125,14 @@ export const WEIGHT_GOAL = {
 // (Витамины) can never enter this regardless of drug_class, so we filter on
 // is_as_needed at the query level as a structural safeguard, not just by class.
 // Reviewed with Elena (medical) — see feedback-dev-patterns memory.
-type MedClassBuckets = { highRisk: Set<string>; nsaid: Set<string>; unclassified: Set<string> };
+type MedClassBuckets = {
+  highRisk: Set<string>; nsaid: Set<string>; unclassified: Set<string>;
+  // habit_key тех же препаратов: часть отметок дня лежит в habits_done, и
+  // плитки их не видели (ревью Елены 23.11.2026).
+  highRiskKeys: Set<string>; nsaidKeys: Set<string>; unclassifiedKeys: Set<string>;
+};
+
+const HIGH_RISK_CLASSES = new Set(["triptan", "combination_analgesic", "ergot", "opioid"]);
 
 async function getAsNeededMedIdsByClass(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,29 +140,33 @@ async function getAsNeededMedIdsByClass(
   uid: string | null,
 ): Promise<MedClassBuckets> {
   const { data } = await byUser(
-    db.from("medication").select("id, drug_class").eq("is_as_needed", true),
+    db.from("medication").select("id, drug_class, habit_key, name").eq("is_as_needed", true),
     uid,
   );
-  const highRisk = new Set<string>();
-  const nsaid = new Set<string>();
-  const unclassified = new Set<string>();
-  for (const r of (data ?? []) as { id: string; drug_class: string | null }[]) {
+  const b: MedClassBuckets = {
+    highRisk: new Set(), nsaid: new Set(), unclassified: new Set(),
+    highRiskKeys: new Set(), nsaidKeys: new Set(), unclassifiedKeys: new Set(),
+  };
+  for (const r of (data ?? []) as { id: string; drug_class: string | null; habit_key: string | null; name: string }[]) {
     const cls = r.drug_class ?? "unclassified";
-    if (cls === "triptan" || cls === "combination_analgesic" || cls === "ergot" || cls === "opioid") highRisk.add(r.id);
-    else if (cls === "nsaid") nsaid.add(r.id);
-    else if (cls === "unclassified") unclassified.add(r.id);
+    const key = r.habit_key ?? r.name;
+    if (HIGH_RISK_CLASSES.has(cls)) { b.highRisk.add(r.id); b.highRiskKeys.add(key); }
+    else if (cls === "nsaid") { b.nsaid.add(r.id); b.nsaidKeys.add(key); }
+    else if (cls === "unclassified") { b.unclassified.add(r.id); b.unclassifiedKeys.add(key); }
     // 'unsure'/'other' — user explicitly opted out of classification; excluded
     // from every counter and from the "needs review" nudge, on purpose.
   }
-  return { highRisk, nsaid, unclassified };
+  return b;
 }
 
 // highRisk — дни приёма триптанов/комб. анальгетиков/эрготаминов/опиоидов
 // (ориентир 10), nsaid — НПВС/простых анальгетиков (15), total — дни с любым
 // из них: смешанный приём (ICHD-3 8.2.6) тоже считается с ориентиром 10.
-export type MigraineMedStats = { highRisk: number; nsaid: number; total: number; unclassified: number };
+// textOnly — дни, где препарат есть только в текстовой заметке MigreBot: в
+// счёт не входят (регулярка по тексту ненадёжна), но о них предупреждаем.
+export type MigraineMedStats = { highRisk: number; nsaid: number; total: number; unclassified: number; textOnly: number };
 
-const ZERO_STATS: MigraineMedStats = { highRisk: 0, nsaid: 0, total: 0, unclassified: 0 };
+const ZERO_STATS: MigraineMedStats = { highRisk: 0, nsaid: 0, total: 0, unclassified: 0, textOnly: 0 };
 
 function ymAdd(ym: string, n: number): string {
   let [y, m] = ym.split("-").map(Number);
@@ -177,44 +188,56 @@ export async function getMigraineMedStatsByMonth(fromYM: string, toYM: string): 
   const start = `${fromYM}-01`;
   const end = `${ymAdd(toYM, 1)}-01`;
 
-  // Legacy MigreBot-imported history only ever recorded a single triptan
-  // flag — folded into the merged high-risk bucket for continuity.
-  const [{ data: legacyRows }, classes] = await Promise.all([
-    byUser(
+  // Счёт — только по структурированным отметкам: meds_taken, habits_done и
+  // старый флаг migraine_event.triptan из импорта MigreBot. Препараты из
+  // текстовых заметок (migrebot_meds_text, migraine_event.meds) в счёт не
+  // идут — только textOnly (решение Елены 23.11.2026).
+  const [{ data: evRows }, classes, { data: logRows }] = await Promise.all([
+    fetchAllRows<{ event_date: string; triptan: boolean | null; meds: string | null }>(() => byUser(
       db.from("migraine_event")
-        .select("event_date")
-        .eq("triptan", true)
+        .select("event_date, triptan, meds")
         .gte("event_date", start)
-        .lt("event_date", end),
+        .lt("event_date", end)
+        .order("event_date"),
       uid,
-    ),
+    )),
     getAsNeededMedIdsByClass(db, uid),
+    fetchAllRows<{ log_date: string; meds_taken: string[] | null; habits_done: string[] | null; migrebot_meds_text: string | null }>(() => byUser(
+      db.from("daily_log")
+        .select("log_date, meds_taken, habits_done, migrebot_meds_text")
+        .gte("log_date", start)
+        .lt("log_date", end)
+        .order("log_date"),
+      uid,
+    )),
   ]);
-  const highRiskDays = new Set<string>((legacyRows ?? []).map((r: { event_date: string }) => r.event_date));
+  const highRiskDays = new Set<string>();
   const nsaidDays = new Set<string>();
   const unclassifiedDays = new Set<string>();
+  const textDays = new Set<string>();
 
-  const { highRisk, nsaid, unclassified } = classes;
-  if (highRisk.size || nsaid.size || unclassified.size) {
-    const { data: logRows } = await fetchAllRows<{ log_date: string; meds_taken: string[] | null }>(() => byUser(
-      db.from("daily_log").select("log_date, meds_taken").gte("log_date", start).lt("log_date", end).order("log_date"),
-      uid,
-    ));
-    for (const r of (logRows ?? []) as { log_date: string; meds_taken: string[] | null }[]) {
-      const taken = r.meds_taken ?? [];
-      if (taken.some((id) => highRisk.has(id))) highRiskDays.add(r.log_date);
-      if (taken.some((id) => nsaid.has(id))) nsaidDays.add(r.log_date);
-      if (taken.some((id) => unclassified.has(id))) unclassifiedDays.add(r.log_date);
-    }
+  for (const e of evRows) {
+    if (e.triptan) highRiskDays.add(e.event_date);
+    if (e.meds && detectMedLabels(e.meds).length) textDays.add(e.event_date);
+  }
+  const hit = (ids: string[] | null, keys: string[] | null, idSet: Set<string>, keySet: Set<string>) =>
+    (ids ?? []).some((id) => idSet.has(id)) || (keys ?? []).some((k) => keySet.has(k));
+  for (const r of logRows) {
+    if (hit(r.meds_taken, r.habits_done, classes.highRisk, classes.highRiskKeys)) highRiskDays.add(r.log_date);
+    if (hit(r.meds_taken, r.habits_done, classes.nsaid, classes.nsaidKeys)) nsaidDays.add(r.log_date);
+    if (hit(r.meds_taken, r.habits_done, classes.unclassified, classes.unclassifiedKeys)) unclassifiedDays.add(r.log_date);
+    if (r.migrebot_meds_text && detectMedLabels(r.migrebot_meds_text).length) textDays.add(r.log_date);
   }
 
+  const counted = new Set([...highRiskDays, ...nsaidDays]);
   const bump = (days: Set<string>, key: keyof MigraineMedStats) => {
     for (const d of days) { const s = out[d.slice(0, 7)]; if (s) s[key]++; }
   };
   bump(highRiskDays, "highRisk");
   bump(nsaidDays, "nsaid");
   bump(unclassifiedDays, "unclassified");
-  bump(new Set([...highRiskDays, ...nsaidDays]), "total");
+  bump(counted, "total");
+  bump(new Set([...textDays].filter((d) => !counted.has(d))), "textOnly");
   return out;
 }
 
@@ -226,7 +249,7 @@ export async function getMigraineMedStats(ym: string): Promise<MigraineMedStats>
   }
   if (uid !== "__legacy__") return { ...ZERO_STATS };
   const legacy = seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
-  return { highRisk: legacy, nsaid: 0, total: legacy, unclassified: 0 };
+  return { highRisk: legacy, nsaid: 0, total: legacy, unclassified: 0, textOnly: 0 };
 }
 
 export type Med = { id: string; name: string; note: string; when: string; habit_key: string; isAsNeeded: boolean; drugClass: string; isSupplement: boolean; kind: string; archived: boolean };
@@ -392,76 +415,53 @@ export async function getWeightEntries(): Promise<WeightRow[]> {
 // merged bucket as the dashboard's МИГБ counter, not triptan-only.
 export type MigraineEvent = { date: string; aura: boolean; triptan: boolean };
 
-export async function getMigraineEventsSince(sinceISO: string): Promise<MigraineEvent[]> {
+// Приступы: migraine_event (импорт MigreBot и шторка приступа) + дни с
+// отметкой «мигрень» без такой записи. triptan — флаг импорта ИЛИ отмеченный
+// в этот день препарат из группы «триптаны и др.» (раньше при наличии
+// migraine_event отметка дня не учитывалась — ревью Елены 23.11.2026).
+async function loadMigraineEvents(sinceISO: string | null): Promise<MigraineEvent[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
-  const [{ data: evData }, { data: logData }, triptanIds] = await Promise.all([
-    byUser(
-      db.from("migraine_event")
-        .select("event_date, aura, triptan")
-        .gte("event_date", sinceISO)
-        .order("event_date", { ascending: true }),
-      uid,
-    ),
-    byUser(
-      db.from("daily_log")
-        .select("log_date, migraine_aura, meds_taken")
-        .eq("migraine", true)
-        .gte("log_date", sinceISO)
-        .order("log_date", { ascending: true }),
-      uid,
-    ),
-    getAsNeededMedIdsByClass(db, uid).then((b) => b.highRisk),
+  const [{ data: evData }, { data: logData }, classes] = await Promise.all([
+    fetchAllRows<{ event_date: string; aura: boolean; triptan: boolean }>(() => {
+      let q = db.from("migraine_event").select("event_date, aura, triptan");
+      if (sinceISO) q = q.gte("event_date", sinceISO);
+      return byUser(q.order("event_date", { ascending: true }), uid);
+    }),
+    fetchAllRows<{ log_date: string; migraine: boolean | null; migraine_aura: boolean | null; meds_taken: string[] | null; habits_done: string[] | null }>(() => {
+      let q = db.from("daily_log").select("log_date, migraine, migraine_aura, meds_taken, habits_done");
+      if (sinceISO) q = q.gte("log_date", sinceISO);
+      return byUser(q.order("log_date", { ascending: true }), uid);
+    }),
+    getAsNeededMedIdsByClass(db, uid),
   ]);
+  const highRiskDay = new Set<string>();
+  for (const r of logData) {
+    if ((r.meds_taken ?? []).some((id) => classes.highRisk.has(id)) || (r.habits_done ?? []).some((k) => classes.highRiskKeys.has(k))) {
+      highRiskDay.add(r.log_date);
+    }
+  }
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];
-  for (const r of (evData ?? [])) {
+  for (const r of evData) {
     seen.add(r.event_date);
-    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
+    result.push({ date: r.event_date, aura: r.aura, triptan: !!r.triptan || highRiskDay.has(r.event_date) });
   }
-  for (const r of (logData ?? []) as { log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }[]) {
-    if (!seen.has(r.log_date)) {
-      const triptan = (r.meds_taken ?? []).some((id) => triptanIds.has(id));
-      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan });
+  for (const r of logData) {
+    if (r.migraine && !seen.has(r.log_date)) {
+      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan: highRiskDay.has(r.log_date) });
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function getMigraineEventsSince(sinceISO: string): Promise<MigraineEvent[]> {
+  return loadMigraineEvents(sinceISO);
+}
+
 export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
-  const db = supabaseAdmin();
-  if (!db) return [];
-  const uid = await getAppUserId();
-  const [{ data: evData }, { data: logData }, triptanIds] = await Promise.all([
-    fetchAllRows<{ event_date: string; aura: boolean; triptan: boolean }>(() => byUser(
-      db.from("migraine_event")
-        .select("event_date, aura, triptan")
-        .order("event_date", { ascending: true }),
-      uid,
-    )),
-    fetchAllRows<{ log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }>(() => byUser(
-      db.from("daily_log")
-        .select("log_date, migraine_aura, meds_taken")
-        .eq("migraine", true)
-        .order("log_date", { ascending: true }),
-      uid,
-    )),
-    getAsNeededMedIdsByClass(db, uid).then((b) => b.highRisk),
-  ]);
-  const seen = new Set<string>();
-  const result: MigraineEvent[] = [];
-  for (const r of evData) {
-    seen.add(r.event_date);
-    result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
-  }
-  for (const r of (logData ?? []) as { log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }[]) {
-    if (!seen.has(r.log_date)) {
-      const triptan = (r.meds_taken ?? []).some((id) => triptanIds.has(id));
-      result.push({ date: r.log_date, aura: r.migraine_aura ?? false, triptan });
-    }
-  }
-  return result.sort((a, b) => a.date.localeCompare(b.date));
+  return loadMigraineEvents(null);
 }
 
 export type CalorieEntry = { date: string; kcal: number };
@@ -923,7 +923,7 @@ export async function getMedIntakeDays(from: string, to: string): Promise<MedInt
   // importer (see migration 053's comment for why).
   const { data: migData } = await byUser(
     db.from("migraine_event")
-      .select("event_date, meds")
+      .select("event_date, meds, triptan")
       .gte("event_date", from)
       .lte("event_date", to)
       .not("meds", "is", null),
@@ -983,12 +983,16 @@ export type MigreDiaryMonth = {
   ym: string;
   loggedDates: string[];                       // дни с любой записью (для ✓)
   migraineDates: string[];                     // дни с приступом
-  medDays: { date: string; meds: string[] }[]; // дни приёма купирующих + препараты
+  medDays: { date: string; meds: string[] }[]; // отмеченные купирующие (тот же источник, что плитки)
+  textMedDays: { date: string; meds: string[] }[]; // распознано в заметках MigreBot, в счёт не входит
   stats: MigraineMedStats;                     // счётчик МИГБ за месяц (дни приёма)
 };
 
+// Строка для старого флага «был триптан» из импорта MigreBot без названия.
+export const LEGACY_TRIPTAN_LABEL = "Триптан (MigreBot, без названия)";
+
 export async function getMigreDiaryMonth(ym: string): Promise<MigreDiaryMonth> {
-  const empty: MigreDiaryMonth = { ym, loggedDates: [], migraineDates: [], medDays: [], stats: { highRisk: 0, nsaid: 0, total: 0, unclassified: 0 } };
+  const empty: MigreDiaryMonth = { ym, loggedDates: [], migraineDates: [], medDays: [], textMedDays: [], stats: { ...ZERO_STATS } };
   const db = supabaseAdmin();
   if (!db) return empty;
   if (!/^\d{4}-\d{2}$/.test(ym)) return empty;
@@ -1003,10 +1007,12 @@ export async function getMigreDiaryMonth(ym: string): Promise<MigreDiaryMonth> {
   const [meds, stats] = await Promise.all([getAllMeds(), getMigraineMedStats(ym)]);
   const asNeededById = new Map<string, string>();
   const asNeededByHabit = new Map<string, string>();
+  const highRiskNames = new Set<string>();
   for (const md of meds) {
     if (!md.isAsNeeded) continue;
     asNeededById.set(md.id, md.name);
     asNeededByHabit.set(md.habit_key, md.name);
+    if (HIGH_RISK_CLASSES.has(md.drugClass)) highRiskNames.add(md.name);
   }
 
   const { data: logData } = await byUser(
@@ -1027,10 +1033,12 @@ export async function getMigreDiaryMonth(ym: string): Promise<MigreDiaryMonth> {
   const logged = new Set<string>();
   const migraine = new Set<string>();
   const medsByDate = new Map<string, Set<string>>();
-  const addMed = (date: string, name: string) => {
-    if (!medsByDate.has(date)) medsByDate.set(date, new Set());
-    medsByDate.get(date)!.add(name);
+  const textByDate = new Map<string, Set<string>>();
+  const add = (map: Map<string, Set<string>>, date: string, name: string) => {
+    if (!map.has(date)) map.set(date, new Set());
+    map.get(date)!.add(name);
   };
+  const addMed = (date: string, name: string) => add(medsByDate, date, name);
 
   for (const r of (logData ?? []) as {
     log_date: string; meds_taken: string[] | null; habits_done: string[] | null;
@@ -1046,22 +1054,29 @@ export async function getMigreDiaryMonth(ym: string): Promise<MigreDiaryMonth> {
       const n = asNeededByHabit.get(hk);
       if (n) addMed(r.log_date, n);
     }
-    if (r.migrebot_meds_text) for (const label of detectMedLabels(r.migrebot_meds_text)) addMed(r.log_date, label);
+    if (r.migrebot_meds_text) for (const label of detectMedLabels(r.migrebot_meds_text)) add(textByDate, r.log_date, label);
   }
 
-  for (const e of (migData ?? []) as { event_date: string; meds: string | null }[]) {
+  for (const e of (migData ?? []) as { event_date: string; meds: string | null; triptan: boolean | null }[]) {
     logged.add(e.event_date);
     migraine.add(e.event_date);
-    if (e.meds) for (const label of detectMedLabels(e.meds)) addMed(e.event_date, label);
+    // Флаг импорта — отдельной строкой, если в этот день не отмечен
+    // конкретный препарат из группы «триптаны и др.» (чтобы не задвоить).
+    if (e.triptan && ![...(medsByDate.get(e.event_date) ?? [])].some((n) => highRiskNames.has(n))) {
+      addMed(e.event_date, LEGACY_TRIPTAN_LABEL);
+    }
+    if (e.meds) for (const label of detectMedLabels(e.meds)) add(textByDate, e.event_date, label);
   }
 
+  const toList = (map: Map<string, Set<string>>) => [...map.entries()]
+    .map(([date, set]) => ({ date, meds: [...set].sort() }))
+    .sort((a, b) => a.date.localeCompare(b.date));
   return {
     ym,
     loggedDates: [...logged].sort(),
     migraineDates: [...migraine].sort(),
-    medDays: [...medsByDate.entries()]
-      .map(([date, s]) => ({ date, meds: [...s].sort() }))
-      .sort((a, b) => a.date.localeCompare(b.date)),
+    medDays: toList(medsByDate),
+    textMedDays: toList(textByDate),
     stats,
   };
 }

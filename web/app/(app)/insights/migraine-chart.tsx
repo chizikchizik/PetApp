@@ -4,7 +4,8 @@ import type { MonthBar } from "@/lib/insights";
 
 const H = 96;
 const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-const GUIDE = 10; // ориентир дней с триптанами и др. в месяц (ICHD-3 8.2)
+
+export type MonthMedDays = { total: number; highRisk: number; nsaid: number; level: "ok" | "near" | "over" };
 
 function plural(n: number, one: string, few: string, many: string) {
   const a = n % 100, b = n % 10;
@@ -15,8 +16,19 @@ function plural(n: number, one: string, few: string, many: string) {
 }
 
 // Приступы по месяцам, одна страница — один календарный год (янв–дек).
-// По умолчанию открыт текущий год; будущие месяцы — пустые места.
-export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: string }) {
+// Решение Елены (23.11.2026): столбцы — только приступы, одним цветом; без
+// линии «ориентир 10» — она про дни приёма, а на оси приступов читалась как
+// «предел приступов». Дни приёма — отдельным рядом цифр под месяцами, тот же
+// счёт, что на плитках дневника; янтарная — близко к ориентиру или выше.
+export function MigraineChart({
+  bars,
+  todayYM,
+  medDays,
+}: {
+  bars: MonthBar[];
+  todayYM: string;
+  medDays: Record<string, MonthMedDays>;
+}) {
   const currentYear = Number(todayYM.slice(0, 4));
   const firstYear = bars.length ? Number(bars[0].ym.slice(0, 4)) : currentYear;
   const [year, setYear] = useState(currentYear);
@@ -24,14 +36,20 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
   const byYm = new Map(bars.map((b) => [b.ym, b]));
   const yearBars = Array.from({ length: 12 }, (_, i) => {
     const ym = `${year}-${String(i + 1).padStart(2, "0")}`;
-    const b = byYm.get(ym);
-    return { ym, label: MONTHS_SHORT[i], total: b?.total ?? 0, triptan: b?.triptan ?? 0, future: ym > todayYM };
+    return { ym, label: MONTHS_SHORT[i], total: byYm.get(ym)?.total ?? 0, med: medDays[ym], future: ym > todayYM };
   });
   const yearTotal = yearBars.reduce((s, b) => s + b.total, 0);
   const maxTotal = Math.max(...yearBars.map((b) => b.total), 0);
-  const scale = Math.max(12, maxTotal + 1);
+  const scale = Math.max(8, maxTotal + 1);
 
   const navBtn = "flex min-h-[44px] items-center px-1 font-mono text-[12px] text-ink-2 transition disabled:opacity-25";
+
+  const tip = (b: (typeof yearBars)[number]) => {
+    if (b.future) return `${b.label} ${year}`;
+    const head = `${b.label} ${year}: ${b.total} ${plural(b.total, "день", "дня", "дней")} с приступом`;
+    if (!b.med || b.med.total === 0) return `${head} · обезболивающие не отмечены`;
+    return `${head} · дней с обезболивающими ${b.med.total} (триптаны и др. ${b.med.highRisk}, НПВС ${b.med.nsaid})`;
+  };
 
   return (
     <div>
@@ -49,35 +67,23 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
         </button>
       </div>
 
-      {/* Столбцы */}
-      <div className="relative flex h-[118px] items-end gap-[4px] pt-[14px]">
-        <div
-          className="pointer-events-none absolute inset-x-0 flex items-center"
-          style={{ bottom: `${(GUIDE / scale) * H}px` }}
-        >
-          <div className="h-px flex-1 border-t border-dashed border-caution" />
-          <span className="ml-1 font-mono text-[11px] text-caution">{GUIDE}</span>
-        </div>
-
+      {/* Столбцы: приступы */}
+      <div className="flex h-[118px] items-end gap-[4px] pt-[14px]">
         {yearBars.map((b) => {
-          const triptanH = b.triptan > 0 ? Math.max(4, Math.round((b.triptan / scale) * H)) : 0;
-          const noTriptanH = b.total > b.triptan ? Math.max(3, Math.round(((b.total - b.triptan) / scale) * H)) : 0;
-          const color = b.triptan >= GUIDE ? "var(--caution)" : "var(--phase)";
+          const h = b.total > 0 ? Math.max(4, Math.round((b.total / scale) * H)) : 0;
           return (
             <div
               key={b.ym}
-              title={b.future ? `${b.label} ${year}` : `${b.label} ${year}: ${b.total} пр., из них ${b.triptan} с триптаном и др.`}
+              title={tip(b)}
+              aria-label={tip(b)}
               className="flex min-w-0 flex-1 flex-col items-stretch justify-end"
             >
               {b.total > 0 && (
                 <span className="mb-0.5 text-center font-mono text-[11px] leading-none text-ink-2">{b.total}</span>
               )}
-              {noTriptanH > 0 && (
-                <div style={{ height: `${noTriptanH}px`, background: "var(--phase)", opacity: 0.35, borderRadius: "1px 1px 0 0" }} />
-              )}
-              {triptanH > 0 ? (
-                <div style={{ height: `${triptanH}px`, background: color, borderRadius: noTriptanH > 0 ? 0 : "1px 1px 0 0" }} />
-              ) : b.total === 0 ? (
+              {h > 0 ? (
+                <div style={{ height: `${h}px`, background: "var(--phase)", borderRadius: "1px 1px 0 0" }} />
+              ) : (
                 <div
                   style={{
                     height: "3px",
@@ -86,7 +92,7 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
                     border: b.future ? "1px dashed var(--line-2)" : undefined,
                   }}
                 />
-              ) : null}
+              )}
             </div>
           );
         })}
@@ -104,21 +110,39 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
         ))}
       </div>
 
+      {/* Дни с обезболивающими */}
+      <div className="mt-1 flex gap-[4px]" aria-label="дни с обезболивающими по месяцам">
+        {yearBars.map((b) => (
+          <span
+            key={b.ym}
+            className={`min-w-0 flex-1 text-center font-mono text-[11px] leading-[18px] ${
+              b.med && b.med.level !== "ok" ? "font-semibold text-caution" : "text-ink-3"
+            }`}
+          >
+            {b.future || !b.med ? "" : b.med.total}
+          </span>
+        ))}
+      </div>
+
       {/* Легенда */}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-ink-2">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-[10px] w-[10px] rounded-[1px]" style={{ background: "var(--phase)" }} />
-          с триптаном и др.
+          приступы
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-[10px] w-[10px] rounded-[1px]" style={{ background: "var(--phase)", opacity: 0.35 }} />
-          без них
+          <span className="text-ink-3">8</span>
+          дни с обезболивающими
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 border-t border-dashed border-caution" />
-          ориентир {GUIDE} дней
+          <span className="font-semibold text-caution">8</span>
+          близко к ориентиру или выше — см. дневник месяца
         </span>
       </div>
+      <p className="mt-2 font-sans text-[12px] leading-[1.55] text-ink-2">
+        Столбцы — приступы, цифры — дни приёма обезболивающих. Ориентиры счётчика
+        относятся к дням приёма, а не к числу приступов.
+      </p>
     </div>
   );
 }
