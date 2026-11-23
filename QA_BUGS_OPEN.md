@@ -13,12 +13,6 @@
 **[P2] Гонка read-modify-write на `daily_log` (`TrainingQuickAdd`/`saveWorkout` вне очереди), риск низкий**
 В одной вкладке гонки нет (Next сериализует actions). Две вкладки или устройства: возможна потеря «Спорт»/«Бег», их никто не читает. На будущее: `saveWorkout` через `patchDay` или атомарную RPC.
 
-**[P2] Дневник месяца: плитки МИГБ и список «препараты в ...» из разных источников**
-Плитки: `meds_taken` + legacy `migraine_event.triptan`; список: ещё `habits_done`, `migrebot_meds_text`, текст `migraine_event.meds`. Нужен единый источник или подпись «по отметкам в приложении», к Елене.
-
-**[P2] График «приступы по месяцам»: столбцы про приступы, ориентир 10 про дни приёма**
-Линию «ориентир 10 дней» можно прочитать как «10 приступов — предел». Решение по визуализации к Елене и Наташе.
-
 ## Раунд 8 — проверено и подтверждено НЕ багом
 
 - **Изоляция в новом коде.** `setMedTaken` проверяет владение `medId` через `byUser`. `saveMigraineDetails`/`saveDayNumber` идут через `patchDay`: чтение `byUser`, запись с `app_user_id = uid`. `saveTrackedModules`/`saveModules` пишут через `.eq("id", uid)` (без пользователя `getUid` бросает исключение). `getMigraineMedStatsByMonth`, `getMigreDiaryMonth`, `getCycleHistory` фильтруют `byUser`. `updateCalendarEvent` — `byUser` + `eq id`, id приходит из серверных пропсов. `deleteMigraineTrigger` — `byUser`.
