@@ -88,10 +88,18 @@ export function TrainingChart({
   const typesByFreq = [...typeCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"));
   const typeColor = new Map<string, string>();
   for (const st of sportTypes) typeColor.set(st.name, st.color);
+  // Цвета справочника идут по номеру вида и могут быть с пропусками —
+  // виды вне справочника берут следующие ещё не занятые.
+  const usedColors = new Set(sportTypes.map((st) => st.color));
   let extra = sportTypes.length;
   for (const [t] of typesByFreq) {
     if (t.toLowerCase() === SPORT_KEY) typeColor.set(t, C_SPORT);
-    else if (!typeColor.has(t)) typeColor.set(t, sportColor(extra++));
+    else if (!typeColor.has(t)) {
+      while (usedColors.has(sportColor(extra))) extra++;
+      const c = sportColor(extra++);
+      usedColors.add(c);
+      typeColor.set(t, c);
+    }
   }
   const colorOf = (t: string) => typeColor.get(t) ?? C_SPORT;
   // Цвет клетки дня с несколькими тренировками — по самому частому виду.

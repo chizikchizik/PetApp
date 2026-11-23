@@ -804,11 +804,17 @@ export async function getSportTypes(): Promise<SportType[]> {
   if (db) {
     const uid = await getAppUserId();
     const { data, error } = await byUser(
-      db.from("sport_type").select("name").order("sort", { ascending: true }),
+      db.from("sport_type").select("name, sort").order("sort", { ascending: true }),
       uid,
     );
     if (!error && data && data.length) {
-      return toSportTypes(data.map((r: { name: string }) => r.name));
+      // Цвет — по постоянному номеру вида (sort), а не по месту в списке:
+      // удаление вида не перекрашивает остальные. Новые виды получают
+      // max(sort)+1, поэтому номера не повторяются.
+      return (data as { name: string; sort: number | null }[]).map((r, i) => ({
+        name: r.name,
+        color: sportColor(typeof r.sort === "number" && r.sort >= 0 ? r.sort : i),
+      }));
     }
     if (uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
   }
