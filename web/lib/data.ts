@@ -735,10 +735,16 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
 
   const toMs = (s: string) => new Date(s).getTime();
   const rows: CycleHistoryRow[] = [];
+  // Циклы до первой записи о мигрени не показываем: история цикла бывает
+  // длиннее истории приступов (например, цикл из FLO с 2018, мигрени с 2021),
+  // и пустые строки только отодвигают нужное. Начинаем с цикла, в который
+  // попал первый записанный приступ.
+  const historyFrom = allMigDates.length ? allMigDates[0] : null;
 
   for (let i = 0; i < starts.length; i++) {
     const startStr = starts[i].start_date as string;
     const nextStr = (starts[i + 1]?.start_date as string) ?? null;
+    if (historyFrom && nextStr && nextStr <= historyFrom) continue;
     const startMs = toMs(startStr);
     const nextMs = nextStr ? toMs(nextStr) : null;
     const length = nextMs ? Math.round((nextMs - startMs) / 86400000) : 30;
