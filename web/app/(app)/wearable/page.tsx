@@ -13,19 +13,18 @@ export const dynamic = "force-dynamic";
 
 // ── Chart layout ──────────────────────────────────────────────
 const DAY_W  = 24;   // px per day column
-const LABEL_W = 22;  // fixed left label column
+const LABEL_W = 26;  // fixed left label column (подписи 10 px, QA раунд 8)
 const MIG    = "#d04830";
 
 const S_H  = 58;  const S_Y  = 0;
 const GAP  = 7;
 const H_H  = 58;  const H_Y  = S_Y + S_H + GAP;
 const SL_H = 78;  const SL_Y = H_Y + H_H + GAP;
-const DATE_H = 14; const DATE_Y = SL_Y + SL_H + 5;
+const DATE_H = 16; const DATE_Y = SL_Y + SL_H + 5;
 const DOT_Y  = DATE_Y + DATE_H + 6;
 const TOTAL_H = DOT_Y + 8;
 
 const DIVIDER = "rgba(130,130,140,0.14)";
-const LABEL_C = "rgba(130,130,140,0.75)";
 
 // ── Types ─────────────────────────────────────────────────────
 type DayData = {
@@ -230,8 +229,8 @@ export default async function WearablePage() {
                 x={LABEL_W / 2}
                 y={S_Y + S_H / 2 + 3}
                 textAnchor="middle"
-                fill={LABEL_C}
-                fontSize={7}
+                fill="var(--ink-3)"
+                fontSize={10}
                 fontFamily="monospace"
                 transform={`rotate(-90,${LABEL_W / 2},${S_Y + S_H / 2})`}
               >ШАГ</text>
@@ -242,8 +241,8 @@ export default async function WearablePage() {
                 x={LABEL_W / 2}
                 y={H_Y + H_H / 2 + 3}
                 textAnchor="middle"
-                fill={LABEL_C}
-                fontSize={7}
+                fill="var(--ink-3)"
+                fontSize={10}
                 fontFamily="monospace"
                 transform={`rotate(-90,${LABEL_W / 2},${H_Y + H_H / 2})`}
               >HRV</text>
@@ -254,8 +253,8 @@ export default async function WearablePage() {
                 x={LABEL_W / 2}
                 y={SL_Y + SL_H / 2 + 3}
                 textAnchor="middle"
-                fill={LABEL_C}
-                fontSize={7}
+                fill="var(--ink-3)"
+                fontSize={10}
                 fontFamily="monospace"
                 transform={`rotate(-90,${LABEL_W / 2},${SL_Y + SL_H / 2})`}
               >СОН</text>
@@ -363,10 +362,10 @@ export default async function WearablePage() {
                     {i % 3 === 0 && (
                       <text
                         x={cx(i)}
-                        y={DATE_Y + 11}
+                        y={DATE_Y + 12}
                         textAnchor="middle"
-                        fill={LABEL_C}
-                        fontSize={7}
+                        fill="var(--ink-3)"
+                        fontSize={10}
                         fontFamily="monospace"
                       >
                         {d.date.slice(5)}
