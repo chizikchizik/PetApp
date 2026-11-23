@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
+import { DEFAULT_MIGRAINE_TRIGGERS } from "@/lib/data";
+
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
 
 async function getAppUserId(): Promise<string | null> {
   try {
@@ -17,7 +23,7 @@ async function getAppUserId(): Promise<string | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
-  if (!uid) return q.is("app_user_id", null);
+  if (!uid) return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
 }
 
@@ -31,6 +37,7 @@ export async function createMed(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   // If she's coming back to a medication she previously archived (see
   // deleteMed), reactivate that same row instead of creating a duplicate —
@@ -91,6 +98,7 @@ export async function changeMedDose(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const today = todayISOMoscow();
 
   const { data: old, error: fetchErr } = await byUser(
@@ -131,6 +139,7 @@ export async function deleteMed(id: string): Promise<{ ok: boolean; error?: stri
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const { data, error } = await byUser(
     db.from("medication").update({ archived_at: new Date().toISOString() }).eq("id", id),
     uid,
@@ -150,6 +159,7 @@ export async function setMedDrugClass(medId: string, drugClass: string): Promise
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
   const { error } = await byUser(db.from("medication").update({ drug_class: drugClass }).eq("id", medId), uid);
   if (error) return { ok: false };
   revalidatePath("/dashboard");
@@ -165,6 +175,7 @@ export async function quickLogMigraine(dayKey: string): Promise<{ ok: boolean; e
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   const { data: existing } = await byUser(
     db.from("daily_log").select("*").eq("log_date", dayKey),
@@ -200,6 +211,7 @@ export async function logQuickPain(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   // medId comes straight from the client (this server action is a public
   // endpoint) — without checking ownership here, passing someone else's
@@ -230,6 +242,7 @@ export async function savePeriodStart(dateISO: string): Promise<{ ok: boolean }>
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
   const { error } = await db
     .from("cycle_start")
     .upsert({ start_date: dateISO, app_user_id: uid }, { onConflict: "app_user_id,start_date" });
@@ -238,12 +251,32 @@ export async function savePeriodStart(dateISO: string): Promise<{ ok: boolean }>
   return { ok: true };
 }
 
-export async function addMigraineTrigger(name: string): Promise<{ ok: boolean }> {
+// Пока своих триггеров нет, пользовательница видит стандартный список (с
+// отрицательными id). Первое изменение сохраняет его в таблицу — без имени
+// удаляемого, если это удаление.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function materializeDefaultTriggers(db: any, uid: string, skipName?: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: existing, error: readErr } = await byUser(db.from("migraine_trigger").select("id").limit(1), uid);
+  if (readErr) return { ok: false, error: "Список триггеров пока недоступен" };
+  if (existing && existing.length > 0) return { ok: true };
+  const rows = DEFAULT_MIGRAINE_TRIGGERS
+    .filter((n) => !skipName || n.toLowerCase() !== skipName.toLowerCase())
+    .map((name, i) => ({ name, sort: i, app_user_id: uid }));
+  if (rows.length === 0) return { ok: true };
+  const { error } = await db.from("migraine_trigger").insert(rows);
+  return error ? { ok: false, error: "Список триггеров пока недоступен" } : { ok: true };
+}
+
+export async function addMigraineTrigger(name: string): Promise<{ ok: boolean; error?: string }> {
   const trimmed = name.trim();
-  if (!trimmed) return { ok: false };
+  if (!trimmed) return { ok: false, error: "Введи название" };
+  if (trimmed.length > 40) return { ok: false, error: "Не длиннее 40 символов" };
   const db = supabaseAdmin();
-  if (!db) return { ok: false };
+  if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
+  const mat = await materializeDefaultTriggers(db, uid);
+  if (!mat.ok) return mat;
   const { data: existing } = await byUser(
     db.from("migraine_trigger").select("id").ilike("name", trimmed).limit(1),
     uid,
@@ -254,20 +287,25 @@ export async function addMigraineTrigger(name: string): Promise<{ ok: boolean }>
     uid,
   );
   const nextSort = (maxSort?.[0]?.sort ?? 0) + 1;
-  await byUser(
-    db.from("migraine_trigger").insert({ name: trimmed, sort: nextSort, app_user_id: uid }),
-    uid,
-  );
+  const { error } = await db.from("migraine_trigger").insert({ name: trimmed, sort: nextSort, app_user_id: uid });
+  if (error) return { ok: false, error: "Не сохранилось" };
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
-export async function deleteMigraineTrigger(id: number): Promise<{ ok: boolean }> {
+// id < 0 — триггер из стандартного списка, который ещё не сохранён в таблицу.
+export async function deleteMigraineTrigger(id: number, name: string): Promise<{ ok: boolean; error?: string }> {
   const db = supabaseAdmin();
-  if (!db) return { ok: false };
+  if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
-  const { error } = await byUser(db.from("migraine_trigger").delete().eq("id", id), uid);
-  if (error) return { ok: false };
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
+  if (id < 0) {
+    const mat = await materializeDefaultTriggers(db, uid, name);
+    if (!mat.ok) return mat;
+  } else {
+    const { error } = await byUser(db.from("migraine_trigger").delete().eq("id", id), uid);
+    if (error) return { ok: false, error: "Не удалилось" };
+  }
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -321,6 +359,7 @@ export async function setMedTaken(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   // medId приходит с клиента — проверяем, что препарат принадлежит ей.
   const { data: med } = await byUser(
@@ -349,6 +388,7 @@ export async function saveMigraineDetails(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const intensity = Math.round(Number(m.intensity));
   if (!Number.isFinite(intensity) || intensity < 0 || intensity > 10) return { ok: false, error: "Сила — от 0 до 10" };
   const triggers = Array.isArray(m.triggers) ? m.triggers.filter((t) => typeof t === "string").slice(0, 30) : [];
@@ -375,6 +415,7 @@ export async function saveDayNumber(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   const trimmed = raw.trim().replace(",", ".");
   const value = trimmed === "" ? null : Number(trimmed);

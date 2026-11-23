@@ -218,9 +218,14 @@ function monthlyVerdict(
 ): React.ReactNode {
   if (months.length === 0) return null;
   const period = months.length >= 12 ? "12 мес." : `${months.length} мес.`;
-  const over = (m: MigraineMedStats) => m.highRisk >= t.highRisk || m.nsaid >= t.nsaid || m.total >= t.highRisk;
+  // Сумма дней сравнивается с ориентиром 10, только если приём смешанный
+  // (обе группы в месяце) — как на плитках дневника. Одни НПВС — ориентир 15.
+  const mixed = (m: MigraineMedStats) => m.highRisk > 0 && m.nsaid > 0;
+  const over = (m: MigraineMedStats) =>
+    m.highRisk >= t.highRisk || m.nsaid >= t.nsaid || (mixed(m) && m.total >= t.highRisk);
   const near = (m: MigraineMedStats) =>
-    m.highRisk >= Math.ceil(t.highRisk * 0.7) || m.nsaid >= Math.ceil(t.nsaid * 0.7) || m.total >= Math.ceil(t.highRisk * 0.7);
+    m.highRisk >= Math.ceil(t.highRisk * 0.7) || m.nsaid >= Math.ceil(t.nsaid * 0.7) ||
+    (mixed(m) && m.total >= Math.ceil(t.highRisk * 0.7));
   let run = 0, maxRun = 0;
   for (const m of months) { run = over(m) ? run + 1 : 0; maxRun = Math.max(maxRun, run); }
   const overCount = months.filter(over).length;
@@ -229,8 +234,8 @@ function monthlyVerdict(
   if (maxRun >= 3) {
     return (
       <>
-        <b className="font-semibold text-ink">{maxRun} мес. подряд</b> — {t.highRisk} и больше дней с обезболивающими
-        (для НПВС — {t.nsaid} и больше). При таком приёме растёт риск головной боли от избытка лекарств.
+        <b className="font-semibold text-ink">{maxRun} мес. подряд</b> — приём на уровне ориентира или выше
+        ({t.highRisk}+ дней с триптанами и др. или при смешанном приёме, {t.nsaid}+ с НПВС). При таком приёме растёт риск головной боли от избытка лекарств.
         Обсуди с неврологом и не меняй схему сама.
       </>
     );
@@ -238,16 +243,17 @@ function monthlyVerdict(
   if (overCount > 0) {
     return (
       <>
-        В <b className="font-semibold text-ink">{overCount} мес. из {months.length}</b> было {t.highRisk} и больше дней
-        с обезболивающими (для НПВС — {t.nsaid} и больше). Покажи это неврологу — это повод вместе пересмотреть лечение.
+        В <b className="font-semibold text-ink">{overCount} мес. из {months.length}</b> приём был на уровне
+        ориентира или выше ({t.highRisk}+ дней с триптанами и др. или при смешанном приёме, {t.nsaid}+ с НПВС). Покажи это неврологу — это повод вместе пересмотреть лечение.
       </>
     );
   }
   if (nearCount > 0) {
     return (
       <>
-        Ниже ориентира в {t.highRisk} дней, но в <b className="font-semibold text-ink">{nearCount} мес.</b> было 7–9 дней
-        с триптанами и др. или с обезболивающими в целом. Частый приём — повод обсудить с неврологом{" "}
+        Ниже ориентиров, но в <b className="font-semibold text-ink">{nearCount} мес.</b> приём был близок к ним
+        ({Math.ceil(t.highRisk * 0.7)}–{t.highRisk - 1} дней с триптанами и др. или при смешанном приёме,{" "}
+        {Math.ceil(t.nsaid * 0.7)}–{t.nsaid - 1} с НПВС). Частый приём — повод обсудить с неврологом{" "}
         {hasProphylaxis ? "хватает ли текущей профилактики" : "профилактику"}.
       </>
     );

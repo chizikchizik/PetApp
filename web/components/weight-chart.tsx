@@ -48,8 +48,8 @@ export function WeightChart({
   showTargets = true,
 }: {
   rows: WeightRow[];
-  goalKg: number;
-  goalDateISO: string;
+  goalKg: number | null;
+  goalDateISO: string | null;
   todayISO: string;
   calories?: CalorieEntry[];
   calorieBalanceKcal?: number | null;
@@ -125,13 +125,13 @@ export function WeightChart({
 
   const times = rows.map((r) => parseDate(r.date).getTime());
   const minD  = new Date(Math.min(...times));
-  const goalD = parseDate(goalDateISO);
-  const maxD  = showTargets && goalD.getTime() > Math.max(...times) ? goalD : new Date(Math.max(...times));
+  const goalD = goalDateISO ? parseDate(goalDateISO) : null;
+  const maxD  = showTargets && goalD && goalD.getTime() > Math.max(...times) ? goalD : new Date(Math.max(...times));
   const span  = Math.max(1, daysBetween(minD, maxD));
   const W     = ML + Math.ceil(span * pxPerDay) + MR;
 
   const X = (iso: string) => ML + daysBetween(minD, parseDate(iso)) * pxPerDay;
-  const kgs = [...plan, ...actual].map((p) => p.kg).concat(showTargets ? [goalKg] : []);
+  const kgs = [...plan, ...actual].map((p) => p.kg).concat(showTargets && goalKg != null ? [goalKg] : []);
   const minKg = Math.floor(Math.min(...kgs) - 1);
   const maxKg = Math.ceil(Math.max(...kgs) + 1);
   const Y = (kg: number) => Y0 + ((maxKg - kg) / (maxKg - minKg)) * (Y1 - Y0);
@@ -248,7 +248,7 @@ export function WeightChart({
           ))}
 
           {/* Goal line */}
-          {showTargets && (
+          {showTargets && goalKg != null && (
             <>
               <line x1={ML} y1={Y(goalKg)} x2={W - MR} y2={Y(goalKg)}
                 stroke="var(--phase)" strokeDasharray="3 3" opacity="0.65" />

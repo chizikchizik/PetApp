@@ -4,6 +4,11 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
+
 async function getAppUserId(): Promise<string | null> {
   try {
     const user = await getCurrentUser();
@@ -16,7 +21,7 @@ async function getAppUserId(): Promise<string | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
-  if (!uid) return q.is("app_user_id", null);
+  if (!uid) return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
 }
 
@@ -31,6 +36,7 @@ export async function saveWorkout(dateISO: string, payload: WorkoutPayload): Pro
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
 
   const { data, error } = await db.from("workout_log").insert({
     workout_date: dateISO,
@@ -96,6 +102,7 @@ export async function saveExercises(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
 
   // workout_exercise has no app_user_id column — verify ownership via workout_log first.
   const { data: owned } = await byUser(
@@ -132,6 +139,7 @@ export async function deleteWorkout(id: string): Promise<{ ok: boolean }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
 
   // Verify ownership before touching workout_exercise (no app_user_id column there).
   const { data: owned } = await byUser(
@@ -154,6 +162,7 @@ export async function getRecentWorkouts(): Promise<WorkoutRow[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
+  if (!uid) return [];
   const { data } = await byUser(
     db.from("workout_log")
       .select("id, workout_date, type, duration_min, fatigue_pct, note")
@@ -172,6 +181,7 @@ export async function updateWorkout(
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
   const { error } = await byUser(
     db.from("workout_log").update({
       type: payload.type,
@@ -193,6 +203,7 @@ export async function addSportType(name: string): Promise<{ ok: boolean }> {
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
   const { data: existing } = await byUser(
     db.from("sport_type").select("id").ilike("name", trimmed).limit(1),
     uid,
@@ -216,6 +227,7 @@ export async function bulkDeleteWorkouts(ids: string[]): Promise<{ ok: boolean }
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false };
 
   // Only delete workout_exercise rows for workouts the user actually owns.
   const { data: owned } = await byUser(

@@ -17,18 +17,16 @@ async function getAppUserId(): Promise<string | null> {
   }
 }
 
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null): запрос с поддельным cookie читал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
+
 // Apply per-user row filter to any Supabase query.
-// Legacy users (old password cookie) filter by NULL; UUID users filter by their ID.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
-  if (!uid || uid === "__legacy__") return q.is("app_user_id", null);
+  if (!uid || uid === "__legacy__") return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
-}
-
-// The app_user_id value to write on INSERT/UPSERT (null for legacy).
-function toUid(uid: string | null): string | null {
-  if (!uid || uid === "__legacy__") return null;
-  return uid;
 }
 
 export async function getPeriodStarts(): Promise<Date[]> {
@@ -42,7 +40,7 @@ export async function getPeriodStarts(): Promise<Date[]> {
     if (!error && data && data.length) {
       return data.map((r: { start_date: string }) => parseDate(r.start_date));
     }
-    if (uid && uid !== "__legacy__") return [];
+    if (uid !== "__legacy__") return [];
   }
   return seed.periodStarts();
 }
@@ -69,7 +67,7 @@ export async function getRecentActualWeights(limit = 8): Promise<WeightPoint[]> 
         }))
         .reverse();
     }
-    if (uid && uid !== "__legacy__") return [];
+    if (uid !== "__legacy__") return [];
   }
   return seed.WEIGHT.recent.map(([date, actual]) => ({ date, actual }));
 }
@@ -81,7 +79,7 @@ export async function getCurrentWeight(): Promise<number | null> {
   const uid = await getAppUserId();
   const w = await getRecentActualWeights(8);
   if (w.length) return w[w.length - 1].actual;
-  if (uid && uid !== "__legacy__") return null;
+  if (uid !== "__legacy__") return null;
   return seed.WEIGHT.currentKg;
 }
 
@@ -197,7 +195,7 @@ export async function getMigraineMedStats(ym: string): Promise<MigraineMedStats>
     const byMonth = await getMigraineMedStatsByMonth(ym, ym);
     return byMonth[ym] ?? { ...ZERO_STATS };
   }
-  if (uid && uid !== "__legacy__") return { ...ZERO_STATS };
+  if (uid !== "__legacy__") return { ...ZERO_STATS };
   const legacy = seed.MIGRAINE.triptanDaysByMonth[ym] ?? 0;
   return { highRisk: legacy, nsaid: 0, total: legacy, unclassified: 0 };
 }
@@ -241,7 +239,7 @@ async function fetchMeds(includeArchived: boolean): Promise<Med[]> {
         }),
       );
     }
-    if (uid && uid !== "__legacy__") return [];
+    if (uid !== "__legacy__") return [];
   }
   return seed.MEDS.map((m) => ({ ...m, habit_key: m.name, isAsNeeded: false, drugClass: "unclassified", isSupplement: false, kind: "regular", archived: false }));
 }
@@ -784,29 +782,30 @@ export async function getSportTypes(): Promise<SportType[]> {
     if (!error && data && data.length) {
       return toSportTypes(data.map((r: { name: string }) => r.name));
     }
-    if (uid && uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
+    if (uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
   }
   return toSportTypes(LEGACY_SPORT_TYPES);
 }
 
 export type MigraineTrigger = { id: number; name: string };
 
-const DEFAULT_MIGRAINE_TRIGGERS = ["Цикл", "Сон", "Пропуск еды", "Стресс", "Экран", "Погода", "Алкоголь"];
+export const DEFAULT_MIGRAINE_TRIGGERS = ["Цикл", "Сон", "Пропуск еды", "Стресс", "Экран", "Погода", "Алкоголь"];
 
+// Список триггеров для выбора. Пока у пользовательницы нет своих строк (или
+// таблицы нет — миграция 061 не применена), показываем стандартный список с
+// отрицательными id: первое изменение списка сохранит его в таблицу.
 export async function getMigraineTriggers(): Promise<MigraineTrigger[]> {
+  const defaults = DEFAULT_MIGRAINE_TRIGGERS.map((name, i) => ({ id: -(i + 1), name }));
   const db = supabaseAdmin();
-  if (db) {
-    const uid = await getAppUserId();
-    const { data, error } = await byUser(
-      db.from("migraine_trigger").select("id, name").order("sort", { ascending: true }),
-      uid,
-    );
-    if (!error && data && data.length) {
-      return data as MigraineTrigger[];
-    }
-    if (uid && uid !== "__legacy__") return [];
-  }
-  return DEFAULT_MIGRAINE_TRIGGERS.map((name, i) => ({ id: i, name }));
+  if (!db) return defaults;
+  const uid = await getAppUserId();
+  if (!uid || uid === "__legacy__") return defaults;
+  const { data, error } = await byUser(
+    db.from("migraine_trigger").select("id, name").order("sort", { ascending: true }),
+    uid,
+  );
+  if (error || !data || data.length === 0) return defaults;
+  return data as MigraineTrigger[];
 }
 
 // One-off, occasional-pain logging (Iteration 1 of the medication rework) —

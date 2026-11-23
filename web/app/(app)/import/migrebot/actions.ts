@@ -5,6 +5,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { MIGREBOT_MED_PATTERNS } from "@/lib/migrebot-meds";
 
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
+
 async function getAppUserId(): Promise<string | null> {
   try {
     const user = await getCurrentUser();
@@ -17,7 +22,7 @@ async function getAppUserId(): Promise<string | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
-  if (!uid) return q.is("app_user_id", null);
+  if (!uid) return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
 }
 
@@ -154,6 +159,7 @@ export async function importCSV(
   if (!db) return { ok: false, error: "БД недоступна" };
 
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const dataRows = rows.slice(1).filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r[0]));
 
   const toImport = dataRows.map((r) => {
@@ -235,11 +241,12 @@ export async function getImportLog(): Promise<ImportLogEntry[]> {
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getAppUserId();
+  if (!uid) return [];
   const q = db
     .from("import_log")
     .select("id, source, file_name, imported_at, total_rows, migraine_rows, date_from, date_to")
     .order("imported_at", { ascending: false })
     .limit(20);
-  const { data } = uid ? await q.eq("app_user_id", uid) : await q.is("app_user_id", null);
+  const { data } = uid ? await q.eq("app_user_id", uid) : await q.eq("app_user_id", NO_USER);
   return (data ?? []) as ImportLogEntry[];
 }

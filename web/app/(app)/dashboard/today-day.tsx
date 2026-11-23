@@ -306,7 +306,7 @@ export function TodayDay({
             if (cur.triggers.includes(t.name)) {
               changeMigraine({ ...cur, triggers: cur.triggers.filter((x) => x !== t.name) });
             }
-            await deleteMigraineTrigger(t.id);
+            await deleteMigraineTrigger(t.id, t.name);
             router.refresh();
           }}
           medNote={medNote}

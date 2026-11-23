@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
+
 async function getUid(): Promise<string | null> {
   try {
     const user = await getCurrentUser();
@@ -13,7 +18,7 @@ async function getUid(): Promise<string | null> {
 }
 
 function byUser(q: any, uid: string | null): any {
-  if (!uid) return q.is("app_user_id", null);
+  if (!uid) return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
 }
 
@@ -33,6 +38,7 @@ export async function getCalendarEvents(from: string, to: string): Promise<Calen
   const db = supabaseAdmin();
   if (!db) return [];
   const uid = await getUid();
+  if (!uid) return [];
   const { data } = await byUser(
     db.from("calendar_event")
       .select("id, event_date, title, type, time_start, duration_min, note, status, moved_to")
@@ -58,6 +64,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<{ 
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getUid();
+  if (!uid) return { ok: false };
   const { data, error } = await db.from("calendar_event").insert({
     app_user_id: uid,
     event_date: input.event_date,
@@ -89,6 +96,7 @@ export async function updateCalendarEvent(
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getUid();
+  if (!uid) return { ok: false };
   const { error } = await byUser(
     db.from("calendar_event").update(changes).eq("id", id),
     uid,
@@ -102,6 +110,7 @@ export async function deleteCalendarEvent(id: string): Promise<{ ok: boolean }> 
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getUid();
+  if (!uid) return { ok: false };
   const { error } = await byUser(
     db.from("calendar_event").delete().eq("id", id),
     uid,

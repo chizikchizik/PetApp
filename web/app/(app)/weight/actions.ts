@@ -4,6 +4,11 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+// Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
+// никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
+// «ничейные» строки (QA раунд 8, P1-1).
+const NO_USER = "00000000-0000-0000-0000-000000000000";
+
 async function getAppUserId(): Promise<string | null> {
   try {
     const user = await getCurrentUser();
@@ -16,7 +21,7 @@ async function getAppUserId(): Promise<string | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
-  if (!uid) return q.is("app_user_id", null);
+  if (!uid) return q.eq("app_user_id", NO_USER);
   return q.eq("app_user_id", uid);
 }
 
@@ -34,6 +39,7 @@ export async function saveWeight(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const { error } = await db
     .from("weight_entry")
     .upsert(
@@ -67,6 +73,7 @@ export async function savePlanPoint(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const { error } = await db
     .from("weight_entry")
     .upsert(
@@ -85,6 +92,7 @@ export async function deletePlanPoint(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const { error } = await byUser(
     db.from("weight_entry").update({ plan_kg: null }).eq("entry_date", dateISO),
     uid,
@@ -101,6 +109,7 @@ export async function saveCalories(
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();
+  if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
   const ts = new Date().toISOString();
 
   const { data: existing } = await byUser(

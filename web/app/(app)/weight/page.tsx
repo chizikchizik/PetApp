@@ -32,8 +32,12 @@ export default async function Weight() {
   // фазовые подсказки (ревью Елены).
   const pregnant = isPregnant(user);
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
-  const goalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
-  const startKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
+  // Сид (цель, старт и дата Марины) — только для legacy-режима без аккаунта.
+  // Реальной пользовательнице без цели цель и полосу прогресса не показываем
+  // (QA раунд 8, P1-4).
+  const isReal = !!user && user.id !== "__legacy__";
+  const goalKg: number | null = user?.weightGoalKg ?? (isReal ? null : WEIGHT_GOAL.kg);
+  const startKg: number | null = user?.weightStartKg ?? (isReal ? null : WEIGHT_GOAL.startKg);
   const actualRows = rows.filter((r): r is typeof r & { actual: number } => r.actual != null);
   const todayWeight = actualRows.find((r) => r.date === dayKey)?.actual ?? null;
   // Изменение за неделю — от последнего взвешивания не позже чем 7 дней назад.
@@ -43,7 +47,7 @@ export default async function Weight() {
   const fmtKg = (n: number) => String(n).replace(".", ",");
   const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmtKg(Math.abs(n))}`;
   // Прогресс от старта к цели (только когда цель ниже старта — похудение).
-  const progressPct = current != null && startKg > goalKg
+  const progressPct = current != null && startKg != null && goalKg != null && startKg > goalKg
     ? Math.max(0, Math.min(100, Math.round(((startKg - current) / (startKg - goalKg)) * 100)))
     : null;
 
@@ -73,7 +77,7 @@ export default async function Weight() {
           ? "Запиши первый вес — ниже."
           : [
               weekDelta != null ? `${signed(weekDelta)} за неделю` : null,
-              !pregnant ? `цель ${fmtKg(goalKg)} кг` : "цели скрыты на время беременности",
+              pregnant ? "цели скрыты на время беременности" : goalKg != null ? `цель ${fmtKg(goalKg)} кг` : "цель можно задать в профиле",
             ].filter(Boolean).join(" · ")}
       </p>
       {!pregnant && progressPct != null && (
@@ -82,9 +86,9 @@ export default async function Weight() {
             <div className="h-full rounded-full bg-phase" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-2">
-            <span>старт {fmtKg(startKg)}</span>
+            <span>старт {fmtKg(startKg!)}</span>
             <span>пройдено {progressPct}%</span>
-            <span>цель {fmtKg(goalKg)}</span>
+            <span>цель {fmtKg(goalKg!)}</span>
           </div>
         </div>
       )}
@@ -138,7 +142,7 @@ export default async function Weight() {
           <WeightChart
             rows={rows}
             goalKg={goalKg}
-            goalDateISO={WEIGHT_GOAL.dateISO}
+            goalDateISO={isReal ? null : WEIGHT_GOAL.dateISO}
             todayISO={dayKey}
             calories={calories}
             calorieBalanceKcal={pregnant ? null : user?.calorieBalanceKcal}
