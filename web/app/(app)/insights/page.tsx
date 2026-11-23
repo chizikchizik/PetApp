@@ -404,7 +404,7 @@ export default async function Insights() {
           приступы по месяцам
         </p>
         <div className="mt-4">
-          <MigraineChart bars={chartBars} />
+          <MigraineChart bars={chartBars} todayYM={todayYM} />
         </div>
         {verdict && (
           <p className="mt-3 font-sans text-[12px] leading-[1.55] text-ink-2">{verdict}</p>
