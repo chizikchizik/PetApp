@@ -22,6 +22,20 @@ async function getAppUserId(): Promise<string | null> {
 // «ничейные» строки (QA раунд 8, P1-1).
 const NO_USER = "00000000-0000-0000-0000-000000000000";
 
+// PostgREST в этом проекте отдаёт максимум 1000 строк (max_rows), лишнее
+// молча отрезается. Для выборок «за всё время» читаем постранично; запрос
+// должен быть упорядочен, иначе страницы пересекаются.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAllRows<T>(make: () => any, pageSize = 1000): Promise<{ data: T[]; error: unknown }> {
+  const out: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await make().range(from, from + pageSize - 1);
+    if (error) return { data: out, error };
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < pageSize) return { data: out, error: null };
+  }
+}
+
 // Apply per-user row filter to any Supabase query.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function byUser(q: any, uid: string | null): any {
@@ -75,6 +89,20 @@ export async function getRecentActualWeights(limit = 8): Promise<WeightPoint[]> 
 // Returns null for a real registered user with no weight entries yet — must NOT
 // fall back to Marina's seed weight, which getRecentActualWeights already guards
 // against but this wrapper previously didn't.
+// Фактический вес за конкретную дату (для «Сегодня» на прошлом дне —
+// последние 30 взвешиваний могут её не включать).
+export async function getWeightOn(dateISO: string): Promise<number | null> {
+  const db = supabaseAdmin();
+  if (!db) return null;
+  const uid = await getAppUserId();
+  if (!uid || uid === "__legacy__") return null;
+  const { data } = await byUser(
+    db.from("weight_entry").select("actual_kg").eq("entry_date", dateISO).not("actual_kg", "is", null),
+    uid,
+  ).maybeSingle();
+  return data?.actual_kg != null ? Number(data.actual_kg) : null;
+}
+
 export async function getCurrentWeight(): Promise<number | null> {
   const uid = await getAppUserId();
   const w = await getRecentActualWeights(8);
@@ -167,10 +195,10 @@ export async function getMigraineMedStatsByMonth(fromYM: string, toYM: string): 
 
   const { highRisk, nsaid, unclassified } = classes;
   if (highRisk.size || nsaid.size || unclassified.size) {
-    const { data: logRows } = await byUser(
-      db.from("daily_log").select("log_date, meds_taken").gte("log_date", start).lt("log_date", end).limit(2000),
+    const { data: logRows } = await fetchAllRows<{ log_date: string; meds_taken: string[] | null }>(() => byUser(
+      db.from("daily_log").select("log_date, meds_taken").gte("log_date", start).lt("log_date", end).order("log_date"),
       uid,
-    );
+    ));
     for (const r of (logRows ?? []) as { log_date: string; meds_taken: string[] | null }[]) {
       const taken = r.meds_taken ?? [];
       if (taken.some((id) => highRisk.has(id))) highRiskDays.add(r.log_date);
@@ -405,24 +433,24 @@ export async function getAllMigraineEvents(): Promise<MigraineEvent[]> {
   if (!db) return [];
   const uid = await getAppUserId();
   const [{ data: evData }, { data: logData }, triptanIds] = await Promise.all([
-    byUser(
+    fetchAllRows<{ event_date: string; aura: boolean; triptan: boolean }>(() => byUser(
       db.from("migraine_event")
         .select("event_date, aura, triptan")
         .order("event_date", { ascending: true }),
       uid,
-    ),
-    byUser(
+    )),
+    fetchAllRows<{ log_date: string; migraine_aura: boolean | null; meds_taken: string[] | null }>(() => byUser(
       db.from("daily_log")
         .select("log_date, migraine_aura, meds_taken")
         .eq("migraine", true)
         .order("log_date", { ascending: true }),
       uid,
-    ),
+    )),
     getAsNeededMedIdsByClass(db, uid).then((b) => b.highRisk),
   ]);
   const seen = new Set<string>();
   const result: MigraineEvent[] = [];
-  for (const r of (evData ?? [])) {
+  for (const r of evData) {
     seen.add(r.event_date);
     result.push({ date: r.event_date, aura: r.aura, triptan: r.triptan });
   }
@@ -708,18 +736,18 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
   const uid = await getAppUserId();
 
   const [{ data: starts }, { data: events }, { data: logEvents }] = await Promise.all([
-    byUser(
+    fetchAllRows<{ start_date: string }>(() => byUser(
       db.from("cycle_start").select("start_date").order("start_date", { ascending: true }),
       uid,
-    ),
-    byUser(
+    )),
+    fetchAllRows<{ event_date: string }>(() => byUser(
       db.from("migraine_event").select("event_date").order("event_date", { ascending: true }),
       uid,
-    ),
-    byUser(
+    )),
+    fetchAllRows<{ log_date: string }>(() => byUser(
       db.from("daily_log").select("log_date").eq("migraine", true).order("log_date", { ascending: true }),
       uid,
-    ),
+    )),
   ]);
 
   if (!starts?.length) return [];

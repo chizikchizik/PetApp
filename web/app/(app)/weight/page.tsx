@@ -4,6 +4,7 @@ import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
 import { DayNumbersCard } from "@/components/day-numbers-card";
+import { ModuleOffNotice } from "@/components/module-off-notice";
 import { WeightHistory } from "./weight-history";
 import { CalorieInput } from "./calorie-input";
 import { PlanEditor } from "./plan-editor";
@@ -67,6 +68,7 @@ export default async function Weight() {
 
   return (
     <>
+      {user && !user.tracks.weight && <ModuleOffNotice title="Вес и калории" />}
       {/* ── Шапка: текущий вес ── */}
       <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">вес</div>
       <h1 className="mt-1 font-mono text-[40px] font-semibold leading-none text-ink">

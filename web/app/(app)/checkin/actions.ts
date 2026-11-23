@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
-import { todayISOMoscow } from "@/lib/format";
+import { todayISOMoscow, isLoggableDay, isValidKcal } from "@/lib/format";
 import { DEFAULT_MIGRAINE_TRIGGERS } from "@/lib/data";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
@@ -172,6 +172,7 @@ export async function setMedDrugClass(medId: string, drugClass: string): Promise
 // triggers, meds) can be filled in later via the full checkin form — asking
 // for all of that up front when someone feels terrible is the whole problem.
 export async function quickLogMigraine(dayKey: string): Promise<{ ok: boolean; error?: string }> {
+  if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
@@ -208,6 +209,7 @@ export async function logQuickPain(
   painLocation: string,
   medId: string | null,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
@@ -235,19 +237,6 @@ export async function logQuickPain(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard");
   revalidatePath("/checkin/meds");
-  return { ok: true };
-}
-
-export async function savePeriodStart(dateISO: string): Promise<{ ok: boolean }> {
-  const db = supabaseAdmin();
-  if (!db) return { ok: false };
-  const uid = await getAppUserId();
-  if (!uid) return { ok: false };
-  const { error } = await db
-    .from("cycle_start")
-    .upsert({ start_date: dateISO, app_user_id: uid }, { onConflict: "app_user_id,start_date" });
-  if (error) return { ok: false };
-  revalidatePath("/dashboard");
   return { ok: true };
 }
 
@@ -316,10 +305,8 @@ export async function deleteMigraineTrigger(id: number, name: string): Promise<{
 // состояние клиента затёрло бы то, что параллельно пишут другие действия
 // (например, «Спорт»/«Бег» в habits_done от записи тренировки).
 
-const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 function validDay(dayKey: string): boolean {
-  return DAY_RE.test(dayKey) && dayKey <= todayISOMoscow();
+  return isLoggableDay(dayKey);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -369,11 +356,22 @@ export async function setMedTaken(
   if (!med) return { ok: false, error: "Препарат не найден" };
   const habitKey: string = med.habit_key ?? med.name;
 
+  // Снятие отметки убирает все версии препарата (смена дозы = новая строка с
+  // тем же habit_key), иначе старый id оставался в meds_taken и считался в МИГБ.
+  let sameMedIds: string[] = [medId];
+  if (!on) {
+    const { data: versions } = await byUser(
+      db.from("medication").select("id").eq("habit_key", habitKey),
+      uid,
+    );
+    sameMedIds = [medId, ...((versions ?? []) as { id: string }[]).map((v) => v.id)];
+  }
+
   const res = await patchDay(db, uid, dayKey, (row) => {
     const meds = new Set((row.meds_taken as string[] | null) ?? []);
     const habits = new Set((row.habits_done as string[] | null) ?? []);
     if (on) { meds.add(medId); habits.add(habitKey); }
-    else { meds.delete(medId); habits.delete(habitKey); }
+    else { for (const id of sameMedIds) meds.delete(id); habits.delete(habitKey); }
     return { meds_taken: [...meds], habits_done: [...habits] };
   });
   if (res.ok) revalidateDay();
@@ -382,15 +380,17 @@ export async function setMedTaken(
 
 export async function saveMigraineDetails(
   dayKey: string,
-  m: { had: boolean; intensity: number; aura: boolean; triggers: string[] },
+  m: { had: boolean; intensity: number | null; aura: boolean; triggers: string[] },
 ): Promise<{ ok: boolean; error?: string }> {
   if (!validDay(dayKey)) return { ok: false, error: "Неверная дата" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "БД недоступна" };
   const uid = await getAppUserId();
   if (!uid) return { ok: false, error: "Сессия истекла — войди заново" };
-  const intensity = Math.round(Number(m.intensity));
-  if (!Number.isFinite(intensity) || intensity < 0 || intensity > 10) return { ok: false, error: "Сила — от 0 до 10" };
+  // Сила не выбрана — null, а не 5: в отчёт неврологу не должно попадать
+  // значение, которое пользовательница не ставила (QA раунд 8).
+  const intensity = m.intensity == null ? null : Math.round(Number(m.intensity));
+  if (intensity != null && (!Number.isFinite(intensity) || intensity < 0 || intensity > 10)) return { ok: false, error: "Сила — от 0 до 10" };
   const triggers = Array.isArray(m.triggers) ? m.triggers.filter((t) => typeof t === "string").slice(0, 30) : [];
 
   const res = await patchDay(db, uid, dayKey, () => ({
@@ -422,7 +422,7 @@ export async function saveDayNumber(
   if (value != null) {
     if (!Number.isFinite(value)) return { ok: false, error: "Нужно число" };
     if (field === "weight" && (value < 30 || value > 250)) return { ok: false, error: "Вес — от 30 до 250 кг" };
-    if (field === "kcal" && (value < 0 || value > 15000)) return { ok: false, error: "Калории — от 0 до 15 000" };
+    if (field === "kcal" && !isValidKcal(value)) return { ok: false, error: "Калории — от 0 до 15 000" };
   }
 
   const column = field === "weight" ? "weight_kg" : "calorie_kcal";
@@ -431,17 +431,16 @@ export async function saveDayNumber(
   if (!res.ok) return res;
 
   if (field === "weight") {
-    if (stored != null) {
-      await db.from("weight_entry").upsert(
-        { entry_date: dayKey, actual_kg: stored, app_user_id: uid },
-        { onConflict: "app_user_id,entry_date" },
-      );
-    } else {
-      await byUser(
-        db.from("weight_entry").update({ actual_kg: null }).eq("entry_date", dayKey),
-        uid,
-      );
-    }
+    const { error: wErr } = stored != null
+      ? await db.from("weight_entry").upsert(
+          { entry_date: dayKey, actual_kg: stored, app_user_id: uid },
+          { onConflict: "app_user_id,entry_date" },
+        )
+      : await byUser(
+          db.from("weight_entry").update({ actual_kg: null }).eq("entry_date", dayKey),
+          uid,
+        );
+    if (wErr) return { ok: false, error: "Вес в дне сохранён, но не попал на экран «Вес» — повтори" };
   }
   revalidatePath("/dashboard");
   revalidatePath("/weight");

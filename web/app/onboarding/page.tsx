@@ -41,33 +41,36 @@ export default function OnboardingPage() {
     });
   }
 
+  // Вес вводят и с запятой: «68,5» → 68.5 (parseFloat давал 68).
+  const kg = (v: string) => (v.trim() ? Number(v.trim().replace(",", ".")) : null);
+
   function handleNext() {
     setError(null);
     startTransition(async () => {
+      const fail = (r: { ok: boolean; error?: string }) => {
+        if (r.ok) return false;
+        setError(r.error ?? "Не сохранилось, попробуй ещё раз");
+        return true;
+      };
       try {
         if (step === "cycle") {
-          await saveCycle(lastPeriod, cycleLen);
+          if (fail(await saveCycle(lastPeriod, cycleLen))) return;
           setStep("modules");
         } else if (step === "modules") {
-          await saveModules(tracks);
+          if (fail(await saveModules(tracks))) return;
           if (tracks.weight) {
             setStep("weight");
           } else {
-            await completeOnboarding();
+            if (fail(await completeOnboarding())) return;
             router.push("/");
-            return;
           }
         } else if (step === "weight") {
-          await saveWeight(
-            currentWeight ? parseFloat(currentWeight) : null,
-            goalWeight ? parseFloat(goalWeight) : null
-          );
-          await completeOnboarding();
+          if (fail(await saveWeight(kg(currentWeight), kg(goalWeight)))) return;
+          if (fail(await completeOnboarding())) return;
           router.push("/");
-          return;
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+      } catch {
+        setError("Нет связи с сервером — проверь интернет и попробуй ещё раз");
       }
     });
   }
@@ -76,13 +79,15 @@ export default function OnboardingPage() {
     setError(null);
     startTransition(async () => {
       try {
-        await completeOnboarding();
+        const r = await completeOnboarding();
+        if (!r.ok) { setError(r.error); return; }
         router.push("/");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+      } catch {
+        setError("Нет связи с сервером — проверь интернет и попробуй ещё раз");
       }
     });
   }
+
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-[430px] flex-col px-5"
@@ -183,7 +188,8 @@ export default function OnboardingPage() {
               <label className="flex flex-col gap-1.5">
                 <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Текущий вес (кг)</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={currentWeight}
                   onChange={(e) => setCurrentWeight(e.target.value)}
                   placeholder="напр. 68"
@@ -194,7 +200,8 @@ export default function OnboardingPage() {
               <label className="flex flex-col gap-1.5">
                 <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Цель (кг)</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={goalWeight}
                   onChange={(e) => setGoalWeight(e.target.value)}
                   placeholder="напр. 60"

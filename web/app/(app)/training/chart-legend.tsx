@@ -25,7 +25,8 @@ function Item({ item }: { item: LegendItem }) {
   );
 }
 
-const toggleCls = "font-mono text-[11px] leading-4 text-ink-2 underline underline-offset-2";
+// after: — невидимая зона касания 44px вокруг короткой подписи, строку не раздувает.
+const toggleCls = "relative font-mono text-[11px] leading-4 text-ink-2 underline underline-offset-2 after:absolute after:-inset-x-2 after:-inset-y-3.5 after:content-['']";
 
 // Легенда в `rows` строк: всё, что не помещается, и редкие пункты прячутся
 // под «ещё N».

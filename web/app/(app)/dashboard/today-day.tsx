@@ -27,7 +27,7 @@ const labelCls = "font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3";
 function fromLog(l: DailyLog | null): MigraineState {
   return {
     had: l?.migraine ?? false,
-    intensity: l?.migraine_intensity ?? 5,
+    intensity: l?.migraine_intensity ?? null,
     aura: l?.migraine_aura ?? false,
     triggers: l?.migraine_triggers ?? [],
   };
@@ -85,6 +85,7 @@ export function TodayDay({
   const [takenKeys, setTakenKeys] = useState<Set<string>>(() => new Set(initial?.habits_done ?? []));
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [doneEventIds, setDoneEventIds] = useState<Set<string>>(() => new Set());
 
   // ── Мигрень ──
   function logAttack() {
@@ -122,11 +123,15 @@ export function TodayDay({
   }
 
   // ── Тренировка из расписания ──
+  // После успешной записи событие скрываем сразу, не дожидаясь refresh, —
+  // иначе в этом окне второе касание создавало дубль тренировки.
   function markPlanned(ev: CalendarEventRow) {
+    if (markingId || doneEventIds.has(ev.id)) return;
     setMarkingId(ev.id);
     run(async () => {
       const res = await saveWorkout(dayKey, { type: ev.title, duration: ev.duration_min, fatigue_pct: null, note: "" });
       if (!res.ok) return res;
+      setDoneEventIds((prev) => new Set(prev).add(ev.id));
       const upd = await updateCalendarEvent(ev.id, { status: "done" });
       setMarkingId(null);
       router.refresh();
@@ -138,7 +143,7 @@ export function TodayDay({
     .filter((m) => m.isAsNeeded)
     .sort((a, b) => (medCounts[b.id] ?? 0) - (medCounts[a.id] ?? 0));
   const takenAsNeeded = asNeeded.filter((m) => takenKeys.has(m.habit_key)).map((m) => m.name);
-  const plannedOpen = planned.filter((ev) => ev.status === "planned");
+  const plannedOpen = planned.filter((ev) => ev.status === "planned" && !doneEventIds.has(ev.id));
 
   return (
     <>
@@ -165,7 +170,7 @@ export function TodayDay({
               <button
                 type="button"
                 onClick={() => setPainOpen(true)}
-                className="mt-1 min-h-[40px] font-mono text-[12px] text-ink-2 underline underline-offset-2"
+                className="mt-1 min-h-[44px] font-mono text-[12px] text-ink-2 underline underline-offset-2"
               >
                 болит что-то другое
               </button>
@@ -176,7 +181,7 @@ export function TodayDay({
                 <div className="min-w-0">
                   <p className="font-sans text-[16px] font-extrabold text-warn">Приступ записан</p>
                   <p className="mt-1 font-sans text-[13px] text-ink-2">
-                    сила {migraine.intensity}
+                    {migraine.intensity == null ? "сила не указана" : `сила ${migraine.intensity}`}
                     {migraine.aura ? " · с аурой" : ""}
                     {takenAsNeeded.length > 0 ? ` · ${takenAsNeeded.join(", ")}` : ""}
                     {migraine.triggers.length > 0 ? ` · ${migraine.triggers.join(", ")}` : ""}
@@ -185,7 +190,7 @@ export function TodayDay({
                 <button
                   type="button"
                   onClick={() => setSheetOpen(true)}
-                  className="min-h-[40px] shrink-0 rounded-[3px] border border-warn px-3 font-mono text-[12px] font-semibold text-warn"
+                  className="min-h-[44px] shrink-0 rounded-[3px] border border-warn px-3 font-mono text-[12px] font-semibold text-warn"
                 >
                   детали
                 </button>
@@ -193,14 +198,14 @@ export function TodayDay({
               {confirmUndo ? (
                 <div className="mt-2 flex items-center gap-3">
                   <span className="font-sans text-[13px] text-ink-2">Убрать отметку приступа?</span>
-                  <button type="button" onClick={undoAttack} className="min-h-[36px] font-mono text-[12px] font-semibold text-warn">Да</button>
-                  <button type="button" onClick={() => setConfirmUndo(false)} className="min-h-[36px] font-mono text-[12px] text-ink-2">Нет</button>
+                  <button type="button" onClick={undoAttack} className="min-h-[44px] font-mono text-[12px] font-semibold text-warn">Да</button>
+                  <button type="button" onClick={() => setConfirmUndo(false)} className="min-h-[44px] font-mono text-[12px] text-ink-2">Нет</button>
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => setConfirmUndo(true)}
-                  className="mt-1 min-h-[36px] font-mono text-[12px] text-ink-2 underline underline-offset-2"
+                  className="mt-1 min-h-[44px] font-mono text-[12px] text-ink-2 underline underline-offset-2"
                 >
                   отметила по ошибке
                 </button>
@@ -225,7 +230,7 @@ export function TodayDay({
 
       {/* ── Препараты ── */}
       <div className="mt-5">
-        <MedsCard meds={meds} medCounts={medCounts} takenKeys={takenKeys} onToggle={toggleMed} />
+        <MedsCard meds={meds} medCounts={medCounts} takenKeys={takenKeys} onToggle={toggleMed} showAsNeeded={tracks.migraine} />
       </div>
 
       {/* ── Тренировка ── */}

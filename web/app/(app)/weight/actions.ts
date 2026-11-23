@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { isLoggableDay, isValidKcal, isRealISODate } from "@/lib/format";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
 // никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
@@ -35,6 +36,7 @@ export async function saveWeight(
   dateISO: string,
   kg: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isLoggableDay(dateISO)) return { ok: false, error: "Неверная дата" };
   if (badWeight(kg)) return { ok: false, error: "Вес вне диапазона 30–250 кг" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
@@ -69,6 +71,7 @@ export async function savePlanPoint(
   dateISO: string,
   kg: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isRealISODate(dateISO)) return { ok: false, error: "Неверная дата" };
   if (badWeight(kg)) return { ok: false, error: "Вес вне диапазона 30–250 кг" };
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
@@ -106,6 +109,9 @@ export async function saveCalories(
   dateISO: string,
   kcal: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isLoggableDay(dateISO)) return { ok: false, error: "Неверная дата" };
+  if (!isValidKcal(kcal)) return { ok: false, error: "Калории — от 0 до 15 000" };
+  kcal = Math.round(kcal);
   const db = supabaseAdmin();
   if (!db) return { ok: false, error: "Supabase не настроен" };
   const uid = await getAppUserId();

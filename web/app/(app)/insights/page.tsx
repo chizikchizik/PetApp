@@ -22,6 +22,7 @@ import { MigreDiary, type CycleOverlay } from "./migre-diary";
 import { CycleHistoryChart } from "./cycle-history";
 import { TrainingChart } from "../training/training-chart";
 import { PressureBlock } from "./pressure-block";
+import { ModuleOffNotice } from "@/components/module-off-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ function corrConfig(c: CycleCorrelation): CorrConfig {
           <p className="mt-3 font-sans text-[12.5px] leading-[1.55] text-ink-2">
             <b className="font-semibold text-ink">Слабая связь с циклом.</b>{" "}
             За 12 мес: {peri} из {total} приступов попали в перименструальное окно —
-            уровень случайного совпадения. Тригеры стоит искать в другом.
+            уровень случайного совпадения. Триггеры стоит искать в другом.
           </p>
         ),
       };
@@ -332,11 +333,12 @@ export default async function Insights() {
   return (
     <>
       {/* ── Шапка ── */}
+      {user && !user.tracks.migraine && <ModuleOffNotice title="Мигрень" />}
       <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">МИГРЕНЬ</h1>
       <p className="mt-1.5 font-sans text-[12.5px] leading-snug text-ink-2">
         Наблюдения по твоим записям, а не диагноз. Решения — с лечащим неврологом.
       </p>
-      <a href="#urgent" className="mt-0.5 inline-flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+      <a href="#urgent" className="mt-0.5 inline-flex min-h-[44px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
         Когда срочно к врачу →
       </a>
 
@@ -383,7 +385,8 @@ export default async function Insights() {
       {/* ── Давление и мигрень ── */}
       <PressureBlock attackDates={recentEvents.map((e) => e.date)} pregnant={pregnant} />
 
-      {/* ── Мигрень × тренировки ── */}
+      {/* ── Мигрень × тренировки (если тренировки отслеживаются) ── */}
+      {(user?.tracks.training ?? true) && (
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
           <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
@@ -400,6 +403,7 @@ export default async function Insights() {
           sportTypes={sportTypes}
         />
       </section>
+      )}
 
       {/* ── История ── */}
       <h2 className="mt-7 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">история</h2>

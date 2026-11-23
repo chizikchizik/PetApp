@@ -196,7 +196,7 @@ export function MigreDiary({
           Считаем дни приёма, а не дни боли. Профилактика и витамины не считаются.
         </p>
         <details className="group mt-0.5">
-          <summary className="flex min-h-[36px] cursor-pointer list-none items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+          <summary className="flex min-h-[44px] cursor-pointer list-none items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
             <span className="group-open:hidden">подробнее о счётчике</span>
             <span className="hidden group-open:inline">свернуть</span>
           </summary>
@@ -208,7 +208,7 @@ export function MigreDiary({
           </p>
         </details>
         {stats.unclassified > 0 && (
-          <Link href="/checkin/meds" className="mt-1 flex min-h-[36px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
+          <Link href="/checkin/meds" className="mt-1 flex min-h-[44px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
             {stats.unclassified} {pluralDays(stats.unclassified)} с препаратами без типа не попали в счёт — цифры могут быть ниже реальных. Указать тип →
           </Link>
         )}
@@ -264,7 +264,7 @@ export function MigreDiary({
         <div className="mt-3 border-t border-line pt-3">
           <div className="flex items-center justify-between">
             <p className={lbl}>препараты в {RU_MONTHS_IN[m - 1]}</p>
-            <Link href="/checkin/meds" className="flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+            <Link href="/checkin/meds" className="flex min-h-[44px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
               график приёма
             </Link>
           </div>

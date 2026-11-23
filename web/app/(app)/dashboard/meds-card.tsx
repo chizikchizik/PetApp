@@ -16,11 +16,14 @@ export function MedsCard({
   medCounts,
   takenKeys,
   onToggle,
+  showAsNeeded = true,
 }: {
   meds: Med[];
   medCounts: Record<string, number>;
   takenKeys: Set<string>;
   onToggle: (med: Med) => void;
+  // Мигрень выключена в профиле — препараты «по мигрени» и график не показываем.
+  showAsNeeded?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -41,7 +44,7 @@ export function MedsCard({
   // из MigreBot — показываем топ-3 по частоте за месяц и уже отмеченные.
   const regular = meds.filter((m) => !m.isAsNeeded && !m.isSupplement);
   const supplements = meds.filter((m) => !m.isAsNeeded && m.isSupplement);
-  const asNeeded = meds.filter((m) => m.isAsNeeded).sort((a, b) => (medCounts[b.id] ?? 0) - (medCounts[a.id] ?? 0));
+  const asNeeded = meds.filter((m) => m.isAsNeeded && showAsNeeded).sort((a, b) => (medCounts[b.id] ?? 0) - (medCounts[a.id] ?? 0));
   const pinned = new Set(asNeeded.slice(0, 3).map((m) => m.id));
   for (const m of asNeeded) if (takenKeys.has(m.habit_key)) pinned.add(m.id);
   const topAsNeeded = asNeeded.filter((m) => pinned.has(m.id) || editing);
@@ -113,10 +116,10 @@ export function MedsCard({
           {editing && (
             confirmDeleteId === med.id ? (
               <div className="flex shrink-0 items-center gap-1">
-                <button type="button" onClick={() => handleDelete(med.id)} className="min-h-[36px] rounded-[3px] bg-warn px-3 font-mono text-[12px] text-white">
+                <button type="button" onClick={() => handleDelete(med.id)} className="min-h-[44px] rounded-[3px] bg-warn px-3 font-mono text-[12px] text-white">
                   Убрать
                 </button>
-                <button type="button" onClick={() => setConfirmDeleteId(null)} className="min-h-[36px] px-2 font-mono text-[12px] text-ink-2">
+                <button type="button" onClick={() => setConfirmDeleteId(null)} className="min-h-[44px] px-2 font-mono text-[12px] text-ink-2">
                   Нет
                 </button>
               </div>
@@ -131,7 +134,7 @@ export function MedsCard({
                     setDoseNote(med.note);
                     setDoseStatus("idle");
                   }}
-                  className="min-h-[40px] px-2 font-mono text-[12px] text-ink-2 underline underline-offset-2"
+                  className="min-h-[44px] px-2 font-mono text-[12px] text-ink-2 underline underline-offset-2"
                 >
                   доза
                 </button>
@@ -139,7 +142,7 @@ export function MedsCard({
                   type="button"
                   onClick={() => setConfirmDeleteId(med.id)}
                   aria-label={`Убрать ${med.name} из списка`}
-                  className="grid h-10 w-10 place-items-center font-mono text-[18px] leading-none text-ink-3"
+                  className="grid h-11 w-11 place-items-center font-mono text-[18px] leading-none text-ink-3"
                 >
                   ×
                 </button>
@@ -188,13 +191,13 @@ export function MedsCard({
       <div className="flex items-center justify-between">
         <span className={labelCls}>Препараты</span>
         <div className="flex items-center gap-1">
-          <Link href="/checkin/meds" className="flex min-h-[36px] items-center px-2 font-mono text-[11px] text-ink-2 underline underline-offset-2">
+          {showAsNeeded && <Link href="/checkin/meds" className="flex min-h-[44px] items-center px-2 font-mono text-[11px] text-ink-2 underline underline-offset-2">
             график
-          </Link>
+          </Link>}
           <button
             type="button"
             onClick={() => { setEditing((v) => !v); setConfirmDeleteId(null); setChangingDoseId(null); }}
-            className="min-h-[36px] px-2 font-mono text-[11px] font-semibold text-phase-deep"
+            className="min-h-[44px] px-2 font-mono text-[11px] font-semibold text-phase-deep"
           >
             {editing ? "готово" : "изменить список"}
           </button>
@@ -237,7 +240,9 @@ export function MedsCard({
               placeholder="Новый препарат"
               className="min-h-[44px] w-full rounded-[3px] border border-line bg-surface px-3 text-[15px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
             />
-            <div className="flex items-center gap-2">
+            {/* flex-wrap + min-w-0: на 320 px поле времени (особенно в Safari)
+                выталкивало «Добавить» за экран (QA раунд 8). */}
+            <div className="flex flex-wrap items-center gap-2">
               {!newAsNeeded && (
                 <input
                   id="new-med-when"
@@ -245,7 +250,7 @@ export function MedsCard({
                   value={newWhen}
                   onChange={(e) => setNewWhen(e.target.value)}
                   aria-label="Время приёма"
-                  className="min-h-[44px] flex-1 rounded-[3px] border border-line bg-surface px-3 text-[14px] text-ink outline-none focus:border-phase"
+                  className="min-h-[44px] min-w-0 flex-1 basis-[7.5rem] rounded-[3px] border border-line bg-surface px-3 text-[14px] text-ink outline-none focus:border-phase"
                 />
               )}
               <button

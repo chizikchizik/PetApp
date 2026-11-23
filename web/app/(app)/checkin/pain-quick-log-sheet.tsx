@@ -34,7 +34,7 @@ export function PainQuickLogSheet({
       <div className="w-full max-w-[430px] rounded-card border border-line bg-surface p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">Что болит?</p>
-          <button type="button" onClick={onClose} className="font-mono text-[18px] leading-none text-ink-3">×</button>
+          <button type="button" onClick={onClose} aria-label="Закрыть" className="-m-3 grid h-11 w-11 shrink-0 place-items-center font-mono text-[18px] leading-none text-ink-3">×</button>
         </div>
 
         <div className="grid grid-cols-2 gap-2">

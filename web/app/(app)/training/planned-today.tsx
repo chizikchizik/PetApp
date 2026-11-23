@@ -11,21 +11,26 @@ export function PlannedToday({ events, dayKey }: { events: CalendarEventRow[]; d
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Отмеченное прячем сразу (до refresh), чтобы второе касание не создало дубль.
+  const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set());
 
   async function mark(ev: CalendarEventRow) {
+    if (busy || doneIds.has(ev.id)) return;
     setBusy(ev.id);
     setError(null);
     const res = await saveWorkout(dayKey, { type: ev.title, duration: ev.duration_min, fatigue_pct: null, note: "" });
+    if (res.ok) setDoneIds((prev) => new Set(prev).add(ev.id));
     const upd = res.ok ? await updateCalendarEvent(ev.id, { status: "done" }) : res;
     setBusy(null);
     if (res.ok && upd.ok) router.refresh();
     else setError("Не сохранилось. Проверь интернет и попробуй ещё раз.");
   }
 
-  if (events.length === 0) return null;
+  const open = events.filter((ev) => !doneIds.has(ev.id));
+  if (open.length === 0 && !error) return null;
   return (
     <div className="mt-3 space-y-2">
-      {events.map((ev) => (
+      {open.map((ev) => (
         <button
           key={ev.id}
           type="button"

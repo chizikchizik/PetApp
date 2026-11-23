@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { isLoggableDay } from "@/lib/format";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
 // никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
@@ -20,6 +21,7 @@ async function getAppUserId(): Promise<string | null> {
 }
 
 export async function addCycleStart(dateISO: string): Promise<{ ok: boolean }> {
+  if (!isLoggableDay(dateISO)) return { ok: false };
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();
@@ -37,6 +39,7 @@ export async function addCycleStart(dateISO: string): Promise<{ ok: boolean }> {
 }
 
 export async function removeCycleStart(dateISO: string): Promise<{ ok: boolean }> {
+  if (!isLoggableDay(dateISO)) return { ok: false };
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();

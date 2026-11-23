@@ -13,9 +13,11 @@ import {
   getRecentActualWeights,
   getWorkoutHistory,
   getMigraineEventsSince,
+  getAllMeds,
+  getWeightOn,
 } from "@/lib/data";
 import { getCurrentUser, isPregnant, ALL_TRACKED } from "@/lib/auth";
-import { formatDay, pluralDays, todayISOMoscow, isoLocal } from "@/lib/format";
+import { formatDay, pluralDays, todayISOMoscow, isoLocal, isLoggableDay } from "@/lib/format";
 import { getCalendarEvents } from "../training/schedule/actions";
 import { TodayDay } from "./today-day";
 import { DayNav, PeriodStartButton } from "./day-controls";
@@ -83,7 +85,7 @@ export default async function Today({
 }) {
   const { date } = await searchParams;
   const todayISO = todayISOMoscow();
-  const dayKey = date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayISO ? date : todayISO;
+  const dayKey = date && isLoggableDay(date) ? date : todayISO;
   const isToday = dayKey === todayISO;
   const target = new Date(dayKey + "T12:00:00");
   const today = new Date(todayISO + "T12:00:00");
@@ -102,13 +104,15 @@ export default async function Today({
   const dayInWeek = dayKey >= weekStart && dayKey <= weekDates[6];
 
   const [
-    user, starts, log, meds, medCounts, triggers, sportTypes, quickPain,
-    monthStats, dayMonthStats, weights, workoutsSince, weekEvents, dayEvents, attacks,
+    user, starts, log, allMeds, medCounts, triggers, sportTypes, quickPain,
+    monthStats, dayMonthStats, weights, workoutsSince, weekEvents, dayEvents, attacks, weightOnDay,
   ] = await Promise.all([
     getCurrentUser(),
     getPeriodStarts(),
     getDailyLog(dayKey),
-    getMeds(),
+    // Прошлый день: все препараты (и архивные) — отфильтруем ниже до активных
+    // плюс уже отмеченных в этот день.
+    dayKey === todayISO ? getMeds() : getAllMeds(),
     getMedMonthlyCounts(dayYM),
     getMigraineTriggers(),
     getSportTypes(),
@@ -120,7 +124,14 @@ export default async function Today({
     getCalendarEvents(weekStart, weekDates[6]),
     dayInWeek ? Promise.resolve(null) : getCalendarEvents(dayKey, dayKey),
     getMigraineEventsSince(addDaysISO(dayKey, -365)),
+    getWeightOn(dayKey),
   ]);
+
+  // Прошлый день: активные препараты + архивные, но отмеченные в этот день
+  // (иначе отметку архивного не снять). Сегодня — только активные.
+  const markedIds = new Set(log?.meds_taken ?? []);
+  const markedKeys = new Set(log?.habits_done ?? []);
+  const meds = allMeds.filter((m) => !m.archived || markedIds.has(m.id) || markedKeys.has(m.habit_key));
 
   const tracks = user?.tracks ?? ALL_TRACKED;
   const pregnant = isPregnant(user);
@@ -176,13 +187,15 @@ export default async function Today({
   const dateHeader = `${WEEKDAY_SHORT[target.getDay()]} ${target.getDate()} ${MONTH_SHORT[target.getMonth()]}`;
   const title = isToday ? "Сегодня" : dayKey === addDaysISO(todayISO, -1) ? "Вчера" : formatDay(target);
 
-  const kpiTile = "flex-1 min-w-0 px-3 py-3 active:bg-surface-2";
+  // Подписи без uppercase и трекинга, в две строки при нужде: «триптаны и др.»
+  // обрезалось многоточием на всех iPhone (QA раунд 8). Цифры выровнены по низу.
+  const kpiTile = "flex flex-1 min-w-0 flex-col justify-between gap-1.5 px-3 py-3 active:bg-surface-2";
   const kpis = (
     <div className="mt-4 flex divide-x divide-line overflow-hidden rounded-card border border-line bg-surface">
       {tracks.migraine && (
         <Link href="/insights" className={kpiTile}>
-          <div className="truncate font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">{load.label}</div>
-          <div className={`mt-1.5 font-mono text-[21px] font-semibold leading-none ${load.near ? "text-caution" : "text-ink"}`}>
+          <div className="font-mono text-[11px] leading-tight text-ink-3">{load.label}</div>
+          <div className={`font-mono text-[21px] font-semibold leading-none ${load.near ? "text-caution" : "text-ink"}`}>
             {load.count}<span className="text-[12px] font-normal text-ink-2">/{load.threshold}</span>
           </div>
           <div className={`mt-1 font-mono text-[11px] ${load.near ? "text-caution" : "text-ink-2"}`}>
@@ -192,15 +205,15 @@ export default async function Today({
       )}
       {tracks.training && (
         <Link href="/training" className={kpiTile}>
-          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">тренировки</div>
-          <div className="mt-1.5 font-mono text-[21px] font-semibold leading-none text-ink">{weekWorkoutCount}</div>
+          <div className="font-mono text-[11px] leading-tight text-ink-3">тренировки</div>
+          <div className="font-mono text-[21px] font-semibold leading-none text-ink">{weekWorkoutCount}</div>
           <div className="mt-1 font-mono text-[11px] text-ink-2">за неделю</div>
         </Link>
       )}
       {tracks.weight && (
         <Link href="/weight" className={kpiTile}>
-          <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">вес</div>
-          <div className="mt-1.5 font-mono text-[21px] font-semibold leading-none text-ink">
+          <div className="font-mono text-[11px] leading-tight text-ink-3">вес</div>
+          <div className="font-mono text-[21px] font-semibold leading-none text-ink">
             {current ? current.actual.toString().replace(".", ",") : "—"}
           </div>
           <div className="mt-1 font-mono text-[11px] text-ink-2">{weightSub}</div>
@@ -212,7 +225,7 @@ export default async function Today({
     <>
       {kpis}
       {tracks.migraine && monthStats.unclassified > 0 && (
-        <Link href="/checkin/meds" className="mt-1.5 flex min-h-[36px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
+        <Link href="/checkin/meds" className="mt-1.5 flex min-h-[44px] items-center font-sans text-[12px] text-ink-2 underline underline-offset-2">
           {pluralDays(monthStats.unclassified)} с препаратами без типа не попали в счёт — цифры могут быть ниже реальных. Указать тип →
         </Link>
       )}
@@ -243,7 +256,7 @@ export default async function Today({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             href="/cycle"
-            className="inline-flex min-h-[36px] items-center gap-2 rounded-[3px] bg-phase-soft px-2.5 font-mono text-[12px] text-phase-deep"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-[3px] bg-phase-soft px-2.5 font-mono text-[12px] text-phase-deep"
           >
             <span className="h-[7px] w-[7px] rounded-full bg-phase" />
             день {c.day} · {PHASE_LABELS[c.phase].toLowerCase()}
@@ -299,7 +312,7 @@ export default async function Today({
         quickPain={quickPain}
         planned={planned}
         workouts={dayWorkouts}
-        dayWeight={weights.find((w) => w.date === dayKey)?.actual ?? log?.weight_kg ?? null}
+        dayWeight={weightOnDay ?? log?.weight_kg ?? null}
         weightPlaceholder={isToday ? current?.actual ?? null : null}
         lastAttackLabel={lastAttackLabel}
         medNote={medNote}

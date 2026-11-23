@@ -17,6 +17,7 @@ import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-pa
 import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow, isoLocal } from "@/lib/format";
 import { getCalendarEvents } from "./schedule/actions";
 import { PlannedToday } from "./planned-today";
+import { ModuleOffNotice } from "@/components/module-off-notice";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export const dynamic = "force-dynamic";
 const PROTOCOL = (
   <div className="border-t border-line pt-3">
     <div className="mb-1.5 font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
-      протокол (уровень B, AAN)
+      что помогает перед нагрузкой
     </div>
     <ul className="space-y-0.5 font-sans text-[12px] leading-[1.5] text-ink-2">
       <li>· 500 мл воды за 2 ч до + 200 мл каждые 20 мин</li>
@@ -89,17 +90,17 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
             <div className="font-sans font-semibold text-[13px] text-ink">Связи нагрузки с мигренью не выявлено</div>
             <p className="mt-0.5 font-sans text-[12px] leading-[1.5] text-ink-2">
               За период: {pattern.count} тренировок, {pattern.migCount} мигреней.
-              Постнагрузочный паттерн (мигрень через 24–48 ч после тренировки) встречается в {pattern.overallRate}% случаев —
+              Мигрень в течение 1–2 дней после тренировки была в {pattern.overallRate}% случаев —
               ниже порога значимости. Тренировки, вероятно, не основной триггер.
             </p>
             <div className="mt-1 font-mono text-[11px] text-ink-3">
-              → ищи тригеры в другом: сон, питание, гормональный цикл, стресс
+              → ищи триггеры в другом: сон, питание, гормональный цикл, стресс
             </div>
           </div>
           {PROTOCOL}
         </div>
         <p className="mt-3 font-mono text-[11px] text-ink-3">
-          n={pattern.migCount} мигрень · гипотеза, не статвывод
+          по {pattern.migCount} приступам · это гипотеза, а не вывод
         </p>
       </div>
     );
@@ -118,17 +119,16 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
           </div>
           <p className="mt-0.5 font-sans text-[12px] leading-[1.5] text-ink-2">
             {pattern.peakPostEx} из {pattern.peakWorkouts} тренировок в {pattern.peakDowLabel.toLowerCase()} предшествовали мигрени на следующий день
-            ({pattern.peakRate}%). Общий постнагрузочный показатель: {pattern.overallRate}% тренировок → мигрень 24–48 ч.
-            Латентность 6–24 ч биологически правдоподобна: спазм церебральных сосудов после высокой нагрузки.
+            ({pattern.peakRate}%). Всего после {pattern.overallRate}% тренировок мигрень была в течение 1–2 дней.
           </p>
           <div className="mt-1 font-mono text-[11px] text-ink-3">
-            → снизить интенсивность {pattern.peakDowLabel.toLowerCase()} до RPE 6–7 и проследить
+            → попробуй снизить нагрузку в {pattern.peakDowLabel.toLowerCase()} до умеренной (можно говорить фразами) и проследить
           </div>
         </div>
         {PROTOCOL}
       </div>
       <p className="mt-3 font-mono text-[11px] text-ink-3">
-        n={pattern.migCount} мигрень · гипотеза, не статвывод · наложи на фазу цикла для подтверждения
+        по {pattern.migCount} приступам · это гипотеза, а не вывод · сверь с фазой цикла
       </p>
     </div>
   );
@@ -207,6 +207,7 @@ export default async function TrainingPage() {
   const { phase } = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
+  const showMigraine = user?.tracks.migraine ?? true;
 
   // Неделя: точка — тренировка записана, кружок — запланирована и ещё не была.
   const doneDays = new Set(workoutHistoryAll.filter((w) => w.date >= weekDates[0] && w.date <= weekDates[6]).map((w) => w.date));
@@ -220,6 +221,7 @@ export default async function TrainingPage() {
   return (
     <>
       {/* ── Шапка ── */}
+      {user && !user.tracks.training && <ModuleOffNotice title="Тренировки" />}
       <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">ТРЕНИРОВКИ</h1>
       {pregnant ? (
         <p className="mt-2 border-l-2 border-phase pl-2.5 font-sans text-[13px] leading-snug text-ink-2">
@@ -237,7 +239,7 @@ export default async function TrainingPage() {
           <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">
             эта неделя · {weekCount} {weekCount % 10 === 1 && weekCount % 100 !== 11 ? "тренировка" : [2, 3, 4].includes(weekCount % 10) && ![12, 13, 14].includes(weekCount % 100) ? "тренировки" : "тренировок"}
           </span>
-          <Link href="/training/schedule" className="flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+          <Link href="/training/schedule" className="flex min-h-[44px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
             расписание →
           </Link>
         </div>
@@ -303,13 +305,13 @@ export default async function TrainingPage() {
       <TrainingChart
         workouts={yearWorkouts}
         sports={yearSports}
-        migraines={yearMigraines}
+        migraines={showMigraine ? yearMigraines : []}
         sportTypes={sportTypes}
         range="year"
       />
 
-      {/* ── Паттерны (адаптивные) ── */}
-      <PatternsBlock pattern={pattern} />
+      {/* ── Паттерны (адаптивные) — только если мигрень отслеживается ── */}
+      {showMigraine && <PatternsBlock pattern={pattern} />}
 
       {/* ── История ── */}
       <WorkoutHistoryList workouts={workouts} />

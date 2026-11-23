@@ -3,6 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { isLoggableDay } from "@/lib/format";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
 // никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
@@ -33,6 +34,7 @@ export type WorkoutPayload = {
 };
 
 export async function saveWorkout(dateISO: string, payload: WorkoutPayload): Promise<{ ok: boolean; id?: string }> {
+  if (!isLoggableDay(dateISO)) return { ok: false };
   const db = supabaseAdmin();
   if (!db) return { ok: false };
   const uid = await getAppUserId();

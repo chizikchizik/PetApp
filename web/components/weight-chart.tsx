@@ -5,7 +5,7 @@ import { parseDate, daysBetween } from "@/lib/cycle";
 import type { WeightRow, CalorieEntry } from "@/lib/data";
 
 const RU_MON = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-const ML = 28, MR = 26, H = 200, Y0 = 12, Y1 = 175;
+const ML = 34, MR = 30, H = 204, Y0 = 14, Y1 = 175;
 
 function addDaysISO(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00");
@@ -204,7 +204,7 @@ export function WeightChart({
             <>
               <line x1={ML} y1={Yk(calorieBalanceKcal)} x2={W - MR} y2={Yk(calorieBalanceKcal)}
                 stroke="var(--ink-3)" strokeDasharray="2 3" opacity="0.5" />
-              <text x={ML + 2} y={Yk(calorieBalanceKcal) - 3} fontSize="8" fill="var(--ink-3)">
+              <text x={ML + 2} y={Yk(calorieBalanceKcal) - 3} fontSize="10" fill="var(--ink-3)">
                 баланс {calorieBalanceKcal}
               </text>
             </>
@@ -215,7 +215,7 @@ export function WeightChart({
             <>
               <line x1={ML} y1={Yk(calorieGoalKcal)} x2={W - MR} y2={Yk(calorieGoalKcal)}
                 stroke="var(--deficit)" strokeDasharray="4 2" opacity="0.6" />
-              <text x={ML + 2} y={Yk(calorieGoalKcal) - 3} fontSize="8" fill="var(--deficit)">
+              <text x={ML + 2} y={Yk(calorieGoalKcal) - 3} fontSize="10" fill="var(--deficit)">
                 цель {calorieGoalKcal}
               </text>
             </>
@@ -226,7 +226,7 @@ export function WeightChart({
             <g key={k}>
               <line x1={ML} y1={Y(k)} x2={W - MR} y2={Y(k)} stroke="var(--line)" />
               <text x={ML - 4} y={Y(k)} textAnchor="end" dominantBaseline="middle"
-                fontSize="9" fill="currentColor" opacity="0.7">{k}</text>
+                fontSize="11" fill="var(--ink-3)">{k}</text>
             </g>
           ))}
 
@@ -234,15 +234,15 @@ export function WeightChart({
           {months.map(({ x, label }) => x >= ML && x <= W - MR ? (
             <g key={`m-${label}-${x}`}>
               <line x1={x} y1={Y0} x2={x} y2={Y1} stroke="var(--line)" strokeDasharray="1 4" opacity="0.5" />
-              <text x={x} y={H - 3} textAnchor="middle" fontSize="8"
-                fill="currentColor" opacity="0.5">{label}</text>
+              <text x={x} y={H - 3} textAnchor="middle" fontSize="11"
+                fill="var(--ink-3)">{label}</text>
             </g>
           ) : null)}
 
           {/* Kcal right axis */}
           {cal.length > 0 && kcalTicks.map((v) => (
             <text key={v} x={W - MR + 3} y={Yk(v)} dominantBaseline="middle"
-              fontSize="7.5" fill="var(--phase)" opacity="0.55">
+              fontSize="10" fill="var(--phase)">
               {v >= 1000 ? `${v / 1000}k` : v}
             </text>
           ))}
@@ -252,7 +252,7 @@ export function WeightChart({
             <>
               <line x1={ML} y1={Y(goalKg)} x2={W - MR} y2={Y(goalKg)}
                 stroke="var(--phase)" strokeDasharray="3 3" opacity="0.65" />
-              <text x={W - MR} y={Y(goalKg) - 4} textAnchor="end" fontSize="9" fill="var(--phase)">
+              <text x={W - MR} y={Y(goalKg) - 4} textAnchor="end" fontSize="11" fill="var(--phase)">
                 цель {goalKg}
               </text>
             </>

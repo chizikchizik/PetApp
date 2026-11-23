@@ -31,7 +31,7 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
   const maxTotal = Math.max(...yearBars.map((b) => b.total), 0);
   const scale = Math.max(12, maxTotal + 1);
 
-  const navBtn = "flex min-h-[40px] items-center px-1 font-mono text-[12px] text-ink-2 transition disabled:opacity-25";
+  const navBtn = "flex min-h-[44px] items-center px-1 font-mono text-[12px] text-ink-2 transition disabled:opacity-25";
 
   return (
     <div>

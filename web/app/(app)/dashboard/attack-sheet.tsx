@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Med, MigraineTrigger } from "@/lib/data";
 
-export type MigraineState = { had: boolean; intensity: number; aura: boolean; triggers: string[] };
+// intensity null — сила ещё не выбрана (не подставляем 5 молча).
+export type MigraineState = { had: boolean; intensity: number | null; aura: boolean; triggers: string[] };
 
 const labelCls = "font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3";
-const chip = "min-h-[40px] rounded-[3px] border px-3 py-2 font-sans text-[13px] transition";
+const chip = "min-h-[44px] rounded-[3px] border px-3 py-2 font-sans text-[13px] transition";
 
 // Шторка деталей приступа. Открывается сразу после «Голова болит» — сам
 // приступ к этому моменту уже записан, всё здесь необязательно.
@@ -99,7 +100,7 @@ export function AttackSheet({
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4">
           <div>
             <p className="font-sans text-[13px] text-ink-2">Всё здесь необязательно — можно закрыть и вернуться позже.</p>
-            <Link href="/insights#urgent" className="mt-0.5 inline-flex min-h-[36px] items-center font-sans text-[13px] text-ink-2 underline underline-offset-2">
+            <Link href="/insights#urgent" className="mt-0.5 inline-flex min-h-[44px] items-center font-sans text-[13px] text-ink-2 underline underline-offset-2">
               Боль не как обычно? Когда срочно к врачу →
             </Link>
           </div>
@@ -108,14 +109,16 @@ export function AttackSheet({
           <div>
             <div className="flex items-center justify-between">
               <span className={labelCls}>Сила боли</span>
-              <span className="font-mono text-[20px] font-semibold text-warn">{m.intensity}</span>
+              {m.intensity == null
+                ? <span className="font-sans text-[13px] text-ink-2">не выбрана</span>
+                : <span className="font-mono text-[20px] font-semibold text-warn">{m.intensity}</span>}
             </div>
             <input
               type="range"
               min={0}
               max={10}
               step={1}
-              value={m.intensity}
+              value={m.intensity ?? 5}
               aria-label="Сила боли от 0 до 10"
               onChange={(e) => onMigraineChange({ ...m, intensity: +e.target.value }, true)}
               className="mt-2 h-8 w-full"
@@ -184,7 +187,7 @@ export function AttackSheet({
               <button
                 type="button"
                 onClick={() => setEditingTriggers((v) => !v)}
-                className="min-h-[36px] font-mono text-[11px] text-ink-2 underline underline-offset-2"
+                className="min-h-[44px] font-mono text-[11px] text-ink-2 underline underline-offset-2"
               >
                 {editingTriggers ? "готово" : "изменить список"}
               </button>
@@ -199,7 +202,7 @@ export function AttackSheet({
                       type="button"
                       onClick={() => onDeleteTrigger(t)}
                       aria-label={`Удалить триггер ${t.name}`}
-                      className="-mr-1 grid h-7 w-7 place-items-center text-ink-3"
+                      className="-my-2 -mr-2.5 grid h-11 w-11 place-items-center text-ink-3"
                     >
                       ×
                     </button>

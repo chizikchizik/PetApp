@@ -231,7 +231,7 @@ function EventModal({
           <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             {mode === "add" ? "Новое событие" : "Изменить"}
           </p>
-          <button onClick={onClose} className="font-mono text-[18px] leading-none text-ink-3">×</button>
+          <button onClick={onClose} aria-label="Закрыть" className="-m-3 grid h-11 w-11 shrink-0 place-items-center font-mono text-[18px] leading-none text-ink-3">×</button>
         </div>
 
         {/* Quick status buttons for editing */}
@@ -498,7 +498,7 @@ function DaySheet({
       <div className="w-full max-w-[430px] rounded-card border border-line bg-surface p-5 shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <p className="font-sans text-[15px] font-semibold text-ink">{label}</p>
-          <button onClick={onClose} className="font-mono text-[18px] leading-none text-ink-3">×</button>
+          <button onClick={onClose} aria-label="Закрыть" className="-m-3 grid h-11 w-11 shrink-0 place-items-center font-mono text-[18px] leading-none text-ink-3">×</button>
         </div>
 
         {events.length === 0 ? (

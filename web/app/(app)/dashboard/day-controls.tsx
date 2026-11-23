@@ -72,7 +72,7 @@ export function PeriodStartButton({ dayKey, isStart }: { dayKey: string; isStart
       aria-pressed={on}
       onClick={toggle}
       disabled={pending}
-      className={`min-h-[36px] shrink-0 rounded-[3px] border px-2.5 font-mono text-[11px] transition disabled:opacity-60 ${
+      className={`min-h-[44px] shrink-0 rounded-[3px] border px-2.5 font-mono text-[11px] transition disabled:opacity-60 ${
         on ? "border-phase bg-phase text-on-phase" : "border-line-2 text-ink-2"
       }`}
     >

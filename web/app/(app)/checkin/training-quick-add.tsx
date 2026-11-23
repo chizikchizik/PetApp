@@ -77,7 +77,7 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
     <div className="rounded-card border border-line bg-surface">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-2">Тренировка</span>
-        <button type="button" onClick={close} className="font-mono text-[18px] leading-none text-ink-3">×</button>
+        <button type="button" onClick={close} aria-label="Закрыть" className="-m-3 grid h-11 w-11 shrink-0 place-items-center font-mono text-[18px] leading-none text-ink-3">×</button>
       </div>
 
       <div className="space-y-4 p-4">

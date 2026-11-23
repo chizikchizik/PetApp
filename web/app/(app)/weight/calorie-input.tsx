@@ -138,7 +138,7 @@ export function CalorieInput({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="min-h-[36px] font-mono text-[11px] text-ink-2 underline underline-offset-2"
+            className="min-h-[44px] font-mono text-[11px] text-ink-2 underline underline-offset-2"
           >
             добавить за другой день
           </button>

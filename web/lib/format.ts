@@ -62,3 +62,20 @@ export function pluralDays(n: number): string {
     a > 10 && a < 20 ? "дней" : b === 1 ? "день" : b >= 2 && b <= 4 ? "дня" : "дней";
   return `${n} ${word}`;
 }
+
+/** Настоящая календарная дата YYYY-MM-DD (2026-02-31 — нет). */
+export function isRealISODate(d: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = new Date(d + "T12:00:00Z");
+  return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === d;
+}
+
+/** Дата для записи дня: настоящая и не в будущем (по Москве). */
+export function isLoggableDay(d: string): boolean {
+  return isRealISODate(d) && d <= todayISOMoscow();
+}
+
+/** Калории за день — общая проверка для «Сегодня» и «Веса». */
+export function isValidKcal(n: number): boolean {
+  return Number.isFinite(n) && n >= 0 && n <= 15000;
+}
