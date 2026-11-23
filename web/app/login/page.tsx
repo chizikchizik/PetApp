@@ -151,7 +151,7 @@ export default async function Login({
       {/* ── Заголовок ── */}
       <div className="mt-5 text-center">
         <p className="font-serif font-bold text-[26px] tracking-[0.04em] text-ink">VERTA</p>
-        <p className="mt-0.5 font-mono text-[10px] tracking-[0.2em] uppercase text-ink-3">
+        <p className="mt-0.5 font-mono text-[11px] tracking-[0.2em] uppercase text-ink-3">
           женский биохакинг
         </p>
       </div>

@@ -46,7 +46,7 @@ const TYPE_SLUG: Record<string, string> = {
   "Волейбол": "volleyball",
 };
 
-const labelCls = "font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3";
+const labelCls = "font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3";
 
 export function TrainingForm({
   templates,
@@ -195,8 +195,8 @@ export function TrainingForm({
     return (
       <div className="mt-3.5 rounded-card border border-line bg-surface">
         <div className="border-b border-line px-4 py-3">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">тренировка сохранена ✓</p>
-          <p className="mt-0.5 font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">упражнения</p>
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-phase">тренировка сохранена ✓</p>
+          <p className="mt-0.5 font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">упражнения</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -204,7 +204,7 @@ export function TrainingForm({
             <thead>
               <tr className="border-b border-line">
                 {["Упражнение", "Подх.", "Повт.", "Вес кг", "RPE"].map((h, i) => (
-                  <th key={h} className={`px-3 py-2 font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3 ${i === 0 ? "min-w-[120px]" : "w-14 text-center"}`}>{h}</th>
+                  <th key={h} className={`px-3 py-2 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3 ${i === 0 ? "min-w-[120px]" : "w-14 text-center"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -214,7 +214,7 @@ export function TrainingForm({
                   <td className="px-3 py-2">
                     <div className="font-sans text-[12px] text-ink">{ex.exercise_name}</div>
                     {(ex.target_sets != null || ex.target_reps) && (
-                      <div className="font-mono text-[9px] text-ink-4 mt-0.5">
+                      <div className="font-mono text-[11px] text-ink-3 mt-0.5">
                         {[ex.target_sets ? `${ex.target_sets}×` : null, ex.target_reps, ex.target_weight ? `${ex.target_weight}кг` : null].filter(Boolean).join(" ")}
                       </div>
                     )}
@@ -259,7 +259,7 @@ export function TrainingForm({
     <div className="mt-3.5 rounded-card border border-line bg-surface">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-2">Новая тренировка</span>
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-2">Новая тренировка</span>
         <button type="button" onClick={close} className="font-mono text-[18px] leading-none text-ink-3">×</button>
       </div>
 
@@ -314,7 +314,7 @@ export function TrainingForm({
             />
           )}
           {s.type === "__other__" && s.customType.trim() && (
-            <p className="mt-1 font-mono text-[10px] text-ink-3">
+            <p className="mt-1 font-mono text-[11px] text-ink-3">
               «{s.customType.trim()}» добавится в твой список видов
             </p>
           )}
@@ -354,7 +354,7 @@ export function TrainingForm({
             </span>
           </div>
           <div className="mt-2 flex items-center gap-3">
-            <span className="font-mono text-[10px] text-ink-4">лёгко</span>
+            <span className="font-mono text-[11px] text-ink-3">лёгко</span>
             <input
               type="range"
               min={0}
@@ -365,7 +365,7 @@ export function TrainingForm({
               className="h-6 flex-1"
               style={{ accentColor: fatigueColor }}
             />
-            <span className="font-mono text-[10px] text-ink-4">выжата</span>
+            <span className="font-mono text-[11px] text-ink-3">выжата</span>
           </div>
         </div>
 

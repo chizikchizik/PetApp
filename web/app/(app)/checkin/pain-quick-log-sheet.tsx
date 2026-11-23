@@ -33,7 +33,7 @@ export function PainQuickLogSheet({
     >
       <div className="w-full max-w-[430px] rounded-card border border-line bg-surface p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">Что болит?</p>
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">Что болит?</p>
           <button type="button" onClick={onClose} className="font-mono text-[18px] leading-none text-ink-3">×</button>
         </div>
 
@@ -54,7 +54,7 @@ export function PainQuickLogSheet({
 
         {asNeededMeds.length > 0 && (
           <>
-            <p className="mb-2 mt-5 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">Чем сняла?</p>
+            <p className="mb-2 mt-5 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">Чем сняла?</p>
             <div className="flex flex-wrap gap-2">
               {asNeededMeds.map((med) => (
                 <button

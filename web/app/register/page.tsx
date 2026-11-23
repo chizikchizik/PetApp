@@ -51,7 +51,7 @@ export default async function Register({
         >
           Создать аккаунт
         </button>
-        <p className="text-center font-mono text-[10px] tracking-[0.08em] text-ink-3">
+        <p className="text-center font-mono text-[11px] tracking-[0.08em] text-ink-3">
           Уже есть аккаунт?{" "}
           <a href="/login" className="text-phase underline underline-offset-2">Войти</a>
         </p>

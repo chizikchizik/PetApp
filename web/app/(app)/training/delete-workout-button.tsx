@@ -11,7 +11,7 @@ export function DeleteWorkoutButton({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => setConfirm(true)}
-        className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-4 transition hover:text-warn"
+        className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 transition hover:text-warn"
       >
         удалить
       </button>
@@ -28,14 +28,14 @@ export function DeleteWorkoutButton({ id }: { id: string }) {
           })
         }
         disabled={pending}
-        className="font-mono text-[10px] tracking-[0.08em] uppercase text-warn disabled:opacity-50"
+        className="font-mono text-[11px] tracking-[0.08em] uppercase text-warn disabled:opacity-50"
       >
         {pending ? "…" : "да, удалить"}
       </button>
       <button
         type="button"
         onClick={() => setConfirm(false)}
-        className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-3"
+        className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3"
       >
         отмена
       </button>

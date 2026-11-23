@@ -34,7 +34,7 @@ export function TrackedModulesForm({ initial }: { initial: TrackedModules }) {
 
   return (
     <section className="mt-5">
-      <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">Что отслеживаю</p>
+      <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">Что отслеживаю</p>
       <div className="mt-2 overflow-hidden rounded-card border border-line bg-surface">
         {KEYS.map((key) => {
           const on = tracks[key];

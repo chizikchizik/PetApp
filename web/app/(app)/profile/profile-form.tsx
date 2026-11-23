@@ -88,7 +88,7 @@ export function ProfileForm({
   return (
     <div className="mt-5 flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">Имя</span>
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">Имя</span>
         <input
           type="text"
           value={name}
@@ -98,7 +98,7 @@ export function ProfileForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           Средняя длина цикла (дней)
         </span>
         <input
@@ -112,7 +112,7 @@ export function ProfileForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           Критические дни (дней)
         </span>
         <input
@@ -127,7 +127,7 @@ export function ProfileForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             Стартовый вес, кг
           </span>
           <input
@@ -140,7 +140,7 @@ export function ProfileForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             Цель, кг
           </span>
           <input
@@ -155,7 +155,7 @@ export function ProfileForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           Цель по тренировкам в год
         </span>
         <input
@@ -170,7 +170,7 @@ export function ProfileForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             Точка баланса, ккал
           </span>
           <input
@@ -183,7 +183,7 @@ export function ProfileForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             Цель по калориям
           </span>
           <input
@@ -196,7 +196,7 @@ export function ProfileForm({
           />
         </label>
       </div>
-      <p className="-mt-2.5 font-mono text-[9px] leading-relaxed text-ink-3">
+      <p className="-mt-2.5 font-mono text-[11px] leading-relaxed text-ink-3">
         Точка баланса — сколько нужно есть, чтобы вес держался (примерно твой TDEE). Используется для подсветки дефицита/профицита на графике калорий.
       </p>
 

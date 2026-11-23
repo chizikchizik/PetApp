@@ -107,7 +107,7 @@ export async function PressureBlock({
   if (!settings) {
     return (
       <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           давление и мигрень
         </p>
         <div className="mt-3">
@@ -132,10 +132,10 @@ export async function PressureBlock({
   return (
     <section className="mt-3.5 rounded-card border border-line bg-surface p-5">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           давление и мигрень
         </p>
-        <span className="font-mono text-[10px] text-ink-4">
+        <span className="font-mono text-[11px] text-ink-3">
           {fromM} — {toM}{windowAttacks.length > 0 ? ` · ${windowAttacks.length} прист.` : ""}
         </span>
       </div>
@@ -152,14 +152,14 @@ export async function PressureBlock({
             />
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1">
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-ink-3">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
               <span className="inline-block h-0 w-3.5 border-t-2" style={{ borderColor: "var(--ink-2)" }} /> давление, гПа
             </span>
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-ink-3">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
               <span className="inline-block h-2.5 w-[2px]" style={{ background: "var(--warn)" }} /> день с мигренью
             </span>
             {matchedDates.size > 0 && (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-ink-3">
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
                 <span className="inline-block h-2.5 w-2.5 rounded-[1px]" style={{ background: "var(--warn)", opacity: 0.25 }} /> падение накануне
               </span>
             )}
@@ -173,7 +173,7 @@ export async function PressureBlock({
 
       {analysis.state === "found" ? (
         <div className="mt-3 border border-line p-3" style={{ borderLeft: "2px solid var(--warn)" }}>
-          <p className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--warn)" }}>
+          <p className="font-mono text-[11px] tracking-[0.1em] uppercase" style={{ color: "var(--warn)" }}>
             замечена закономерность
           </p>
           <p className="mt-1.5 font-sans text-[12.5px] leading-[1.55] text-ink-2">
@@ -185,7 +185,7 @@ export async function PressureBlock({
           </p>
         </div>
       ) : (
-        <p className="mt-3 font-mono text-[10px] text-ink-4">
+        <p className="mt-3 font-mono text-[11px] text-ink-3">
           {analysis.state === "insufficient"
             ? `автопоиск закономерностей: мало данных — ${analysis.attacksWithData} из 8 нужных приступов`
             : `автопоиск закономерностей: пока ничего заметного · ${analysis.attacksWithData} приступов за 12 мес`}
@@ -206,7 +206,7 @@ export async function PressureBlock({
         в отличие от цикла. Здесь просто твои данные рядом.
       </p>
 
-      <div className="mt-2.5 font-mono text-[10px] text-ink-4">
+      <div className="mt-2.5 font-mono text-[11px] text-ink-3">
         <span>{settings.city} · точность ниже для старых записей, если переезжала</span>{" "}
         <PressureCityForm initialCity={settings.city} />
       </div>

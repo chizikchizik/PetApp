@@ -20,7 +20,7 @@ function fatigueLabel(pct: number): string {
 }
 
 const FIELD = "h-8 w-full rounded-[3px] border border-line bg-surface-3 px-2 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-[var(--phase)]";
-const LABEL = "font-mono text-[9px] tracking-[0.12em] uppercase text-ink-3";
+const LABEL = "font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3";
 
 type EditState = {
   type: string;
@@ -126,7 +126,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
     <div>
       {/* Header row */}
       <div className="mt-5 flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           история · нагрузка · {items.length}
         </p>
         <button
@@ -134,7 +134,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
             if (bulkMode) { setBulkMode(false); setSelected(new Set()); }
             else { setBulkMode(true); setEditingId(null); setConfirmId(null); }
           }}
-          className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-3 underline underline-offset-2"
+          className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 underline underline-offset-2"
         >
           {bulkMode ? "отмена" : "выбрать"}
         </button>
@@ -143,7 +143,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
       {bulkMode && (
         <button
           onClick={toggleSelectAll}
-          className="mt-1.5 font-mono text-[10px] text-ink-3 underline underline-offset-2"
+          className="mt-1.5 font-mono text-[11px] text-ink-3 underline underline-offset-2"
         >
           {selected.size === visible.length ? "снять всё" : "выбрать всё"}
         </button>
@@ -267,12 +267,12 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-2.5">
-                    <span className="font-mono text-[10px] text-ink-3">{formatDate(w.workout_date)}</span>
+                    <span className="font-mono text-[11px] text-ink-3">{formatDate(w.workout_date)}</span>
                     {!bulkMode && (
                       <>
                         <button
                           onClick={() => openEdit(w)}
-                          className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-3 underline underline-offset-2"
+                          className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 underline underline-offset-2"
                         >
                           ред.
                         </button>
@@ -281,13 +281,13 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
                             <button
                               onClick={() => doDeleteOne(w.id)}
                               disabled={isPending}
-                              className="font-mono text-[10px] tracking-[0.08em] uppercase text-warn disabled:opacity-50"
+                              className="font-mono text-[11px] tracking-[0.08em] uppercase text-warn disabled:opacity-50"
                             >
                               {isPending ? "…" : "да"}
                             </button>
                             <button
                               onClick={() => setConfirmId(null)}
-                              className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-3"
+                              className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3"
                             >
                               нет
                             </button>
@@ -295,7 +295,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
                         ) : (
                           <button
                             onClick={() => setConfirmId(w.id)}
-                            className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-4 transition hover:text-warn"
+                            className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 transition hover:text-warn"
                           >
                             удалить
                           </button>
@@ -314,7 +314,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
                         style={{ width: `${w.fatigue_pct}%`, background: "var(--phase)" }}
                       />
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] text-ink-2">
+                    <span className="shrink-0 font-mono text-[11px] text-ink-2">
                       {w.fatigue_pct}% · {fatigueLabel(w.fatigue_pct)}
                     </span>
                   </div>
@@ -322,7 +322,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
 
                 {/* Duration / note */}
                 {(w.duration_min || w.note) && (
-                  <div className="mt-1.5 font-mono text-[10px] text-ink-3">
+                  <div className="mt-1.5 font-mono text-[11px] text-ink-3">
                     {[w.duration_min ? `${w.duration_min} мин` : null, w.note || null]
                       .filter(Boolean)
                       .join(" · ")}
@@ -338,7 +338,7 @@ export function WorkoutHistoryList({ workouts }: { workouts: WorkoutRow[] }) {
       {items.length > PAGE_SIZE && (
         <button
           onClick={() => setShowAll(v => !v)}
-          className="mt-3 w-full py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3 underline underline-offset-2"
+          className="mt-3 w-full py-2.5 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3 underline underline-offset-2"
         >
           {showAll ? "скрыть" : `показать все · ещё ${hidden}`}
         </button>

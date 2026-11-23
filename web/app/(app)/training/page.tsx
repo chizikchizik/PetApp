@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 
 const PROTOCOL = (
   <div className="border-t border-line pt-3">
-    <div className="mb-1.5 font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
+    <div className="mb-1.5 font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
       протокол (уровень B, AAN)
     </div>
     <ul className="space-y-0.5 font-sans text-[12px] leading-[1.5] text-ink-2">
@@ -41,7 +41,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   if (pattern.state === "no_workouts") {
     return (
       <div className="mt-4 rounded-card border border-dashed border-line bg-surface p-4">
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">паттерны</div>
+        <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">паттерны</div>
         <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
           Начни записывать тренировки — через несколько недель здесь появится анализ связи нагрузки с мигренью.
         </p>
@@ -52,7 +52,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   if (pattern.state === "too_few") {
     return (
       <div className="mt-4 rounded-card border border-dashed border-line bg-surface p-4">
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">паттерны</div>
+        <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">паттерны</div>
         <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
           Записано {pattern.count} тренировок — нужно не менее 10 за полгода для статистически значимого анализа. Продолжай логировать.
         </p>
@@ -63,14 +63,14 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   if (pattern.state === "no_migraines") {
     return (
       <div className="mt-4 rounded-card border border-line bg-surface p-4" style={{ borderLeft: "3px solid var(--phase)" }}>
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">паттерны</div>
+        <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-phase">паттерны</div>
         <div className="mt-3">
           <div className="font-sans font-semibold text-[13px] text-ink">Мигреней в периоде не зафиксировано</div>
           <p className="mt-0.5 font-sans text-[12px] leading-[1.5] text-ink-2">
             За анализируемый период ({pattern.count} тренировок) мигреней не было — нет данных для поиска постнагрузочных паттернов.
             Самый активный день недели — <b className="text-ink">{pattern.topDowLabel}</b> ({pattern.topDowCount} тренировок).
           </p>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
+          <div className="mt-1 font-mono text-[11px] text-ink-3">
             → если мигрени появятся — отмечай их на экране «Сегодня», и паттерны рассчитаются автоматически
           </div>
         </div>
@@ -81,7 +81,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   if (pattern.state === "no_pattern") {
     return (
       <div className="mt-4 rounded-card border border-line bg-surface p-4" style={{ borderLeft: "3px solid #d04830" }}>
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "#d04830" }}>
+        <div className="font-mono text-[11px] tracking-[0.14em] uppercase" style={{ color: "#d04830" }}>
           паттерны · анализ
         </div>
         <div className="mt-3 space-y-3">
@@ -92,13 +92,13 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
               Постнагрузочный паттерн (мигрень через 24–48 ч после тренировки) встречается в {pattern.overallRate}% случаев —
               ниже порога значимости. Тренировки, вероятно, не основной триггер.
             </p>
-            <div className="mt-1 font-mono text-[10px] text-ink-3">
+            <div className="mt-1 font-mono text-[11px] text-ink-3">
               → ищи тригеры в другом: сон, питание, гормональный цикл, стресс
             </div>
           </div>
           {PROTOCOL}
         </div>
-        <p className="mt-3 font-mono text-[9px] text-ink-4">
+        <p className="mt-3 font-mono text-[11px] text-ink-3">
           n={pattern.migCount} мигрень · гипотеза, не статвывод
         </p>
       </div>
@@ -108,7 +108,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   // state === "postexertional"
   return (
     <div className="mt-4 rounded-card border border-line bg-surface p-4" style={{ borderLeft: "3px solid #d04830" }}>
-      <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "#d04830" }}>
+      <div className="font-mono text-[11px] tracking-[0.14em] uppercase" style={{ color: "#d04830" }}>
         паттерны · анализ
       </div>
       <div className="mt-3 space-y-3">
@@ -121,13 +121,13 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
             ({pattern.peakRate}%). Общий постнагрузочный показатель: {pattern.overallRate}% тренировок → мигрень 24–48 ч.
             Латентность 6–24 ч биологически правдоподобна: спазм церебральных сосудов после высокой нагрузки.
           </p>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
+          <div className="mt-1 font-mono text-[11px] text-ink-3">
             → снизить интенсивность {pattern.peakDowLabel.toLowerCase()} до RPE 6–7 и проследить
           </div>
         </div>
         {PROTOCOL}
       </div>
-      <p className="mt-3 font-mono text-[9px] text-ink-4">
+      <p className="mt-3 font-mono text-[11px] text-ink-3">
         n={pattern.migCount} мигрень · гипотеза, не статвывод · наложи на фазу цикла для подтверждения
       </p>
     </div>
@@ -274,7 +274,7 @@ export default async function TrainingPage() {
       {/* ── Счётчик года ── */}
       <div className="mt-4 rounded-card border border-line bg-surface p-4">
         <div className="flex items-baseline justify-between">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             тренировок в {year}
           </span>
           <span className="font-mono text-[11px] text-ink-3">
@@ -292,7 +292,7 @@ export default async function TrainingPage() {
             style={{ width: `${goalPct}%` }}
           />
         </div>
-        <p className="mt-2 font-mono text-[10px] text-ink-3">
+        <p className="mt-2 font-mono text-[11px] text-ink-3">
           {left > 0
             ? `ещё ${left} · ${paceText(yearCount, year)}`
             : "цель достигнута 🎯"}

@@ -133,7 +133,7 @@ export function CycleCalendar({
         {DAY_LABELS.map((label) => (
           <div
             key={label}
-            className="h-10 w-10 flex items-center justify-center font-mono text-[9px] uppercase text-ink-3"
+            className="h-10 w-10 flex items-center justify-center font-mono text-[11px] uppercase text-ink-3"
           >
             {label}
           </div>

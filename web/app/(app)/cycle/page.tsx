@@ -62,7 +62,7 @@ export default async function CyclePage({
       <div className="mt-5 flex items-center justify-between">
         <Link
           href={`/cycle?month=${prev}`}
-          className="flex h-9 w-9 items-center justify-center rounded-[3px] border border-line text-ink-2 hover:border-phase hover:text-phase transition"
+          className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line text-ink-2 hover:border-phase hover:text-phase transition"
           aria-label="Предыдущий месяц"
         >
           <span className="font-mono text-[14px]">←</span>
@@ -75,13 +75,13 @@ export default async function CyclePage({
         {canGoNext ? (
           <Link
             href={`/cycle?month=${next}`}
-            className="flex h-9 w-9 items-center justify-center rounded-[3px] border border-line text-ink-2 hover:border-phase hover:text-phase transition"
+            className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line text-ink-2 hover:border-phase hover:text-phase transition"
             aria-label="Следующий месяц"
           >
             <span className="font-mono text-[14px]">→</span>
           </Link>
         ) : (
-          <div className="h-9 w-9" aria-hidden />
+          <div className="h-11 w-11" aria-hidden />
         )}
       </div>
 

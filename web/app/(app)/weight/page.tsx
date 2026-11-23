@@ -104,7 +104,7 @@ export default async function Weight() {
 
       {/* ── График ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-ink-2">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-0 w-4 border-t-2 border-phase" /> вес (факт)
           </span>
@@ -163,7 +163,7 @@ export default async function Weight() {
           </div>
         )}
         {calories.length > 0 && !user?.calorieBalanceKcal && !pregnant && (
-          <p className="mt-2 font-mono text-[9px] leading-relaxed text-ink-3">
+          <p className="mt-2 font-mono text-[11px] leading-relaxed text-ink-3">
             Укажи точку баланса калорий в профиле, чтобы столбики окрашивались по дефициту/профициту.
           </p>
         )}

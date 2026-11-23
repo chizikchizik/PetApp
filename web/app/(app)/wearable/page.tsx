@@ -144,33 +144,33 @@ export default async function WearablePage() {
       {/* ── Снапшот ── */}
       <div className="mt-4 flex overflow-hidden rounded-card border border-line bg-surface">
         <div className="flex-1 border-r border-line px-3 py-3.5">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">HRV</div>
+          <div className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">HRV</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
             {lastHrv ?? "—"}<span className="text-[11px] font-normal text-ink-3"> мс</span>
           </div>
-          <div className={`mt-1 font-mono text-[10px] ${hrvTrend > 0 ? "text-phase" : "text-ink-3"}`}>
+          <div className={`mt-1 font-mono text-[11px] ${hrvTrend > 0 ? "text-phase" : "text-ink-3"}`}>
             {lastHrv != null ? `${hrvTrend >= 0 ? "▲" : "▼"} ${Math.abs(hrvTrend).toFixed(0)} vs 7д` : "—"}
           </div>
         </div>
         <div className="flex-1 border-r border-line px-3 py-3.5">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">шаги</div>
+          <div className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">шаги</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
             {latest?.steps != null
               ? latest.steps >= 1000 ? `${(latest.steps / 1000).toFixed(1)}к` : String(latest.steps)
               : "—"}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
+          <div className="mt-1 font-mono text-[11px] text-ink-3">
             {latest?.tdee_kcal != null ? `${latest.tdee_kcal} ккал` : ""}
           </div>
         </div>
         <div className="flex-1 px-3 py-3.5">
-          <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-3">сон</div>
+          <div className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">сон</div>
           <div className="mt-1.5 font-mono font-semibold text-[21px] leading-none text-ink">
             {latestSleep?.total_min != null
               ? `${Math.floor(latestSleep.total_min / 60)}ч${latestSleep.total_min % 60 > 0 ? `${latestSleep.total_min % 60}м` : ""}`
               : "—"}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-ink-3">
+          <div className="mt-1 font-mono text-[11px] text-ink-3">
             {latestSleep?.quality_pct != null ? `${latestSleep.quality_pct}% кач` : ""}
           </div>
         </div>
@@ -180,11 +180,11 @@ export default async function WearablePage() {
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
         {/* Header + legend */}
         <div className="flex items-start justify-between">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             шаги · HRV · сон × мигрень
           </p>
           {migCount > 0 && (
-            <span className="flex items-center gap-1 font-mono text-[9px] text-ink-3">
+            <span className="flex items-center gap-1 font-mono text-[11px] text-ink-3">
               <span className="inline-block h-[8px] w-[8px] rounded-full" style={{ background: MIG }} />
               {migCount} мигрен{migCount === 1 ? "ь" : "и"}
             </span>
@@ -197,7 +197,7 @@ export default async function WearablePage() {
             ["сон глуб.", 1],
             ["сон лёгк.", 0.32],
           ].map(([label, op]) => (
-            <span key={label as string} className="flex items-center gap-1 font-mono text-[8px] text-ink-4">
+            <span key={label as string} className="flex items-center gap-1 font-mono text-[11px] text-ink-3">
               <span
                 className="inline-block h-[8px] w-[8px] rounded-[1px]"
                 style={{ background: "var(--phase)", opacity: op as number }}
@@ -382,7 +382,7 @@ export default async function WearablePage() {
           </div>
         </div>
 
-        <p className="mt-1 text-right font-mono text-[9px] text-ink-4">← прокрути</p>
+        <p className="mt-1 text-right font-mono text-[11px] text-ink-3">← прокрути</p>
 
         <p className="mt-2 font-sans text-[11.5px] leading-[1.55] text-ink-2">
           {migCount > 0
@@ -394,24 +394,24 @@ export default async function WearablePage() {
       {/* ── Витальные ── */}
       {latest && (
         <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             витальные · {latest.date}
           </p>
           <div className="mt-3 grid grid-cols-3 gap-3">
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">ЧСС покоя</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">ЧСС покоя</div>
               <div className="mt-1.5 font-mono font-semibold text-[22px] leading-none text-ink">{latest.hr_resting ?? "—"}</div>
-              <div className="mt-0.5 font-mono text-[9px] text-ink-4">уд/мин</div>
+              <div className="mt-0.5 font-mono text-[11px] text-ink-3">уд/мин</div>
             </div>
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">SpO₂</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">SpO₂</div>
               <div className="mt-1.5 font-mono font-semibold text-[22px] leading-none text-ink">{latest.spo2_avg ?? "—"}</div>
-              <div className="mt-0.5 font-mono text-[9px] text-ink-4">%</div>
+              <div className="mt-0.5 font-mono text-[11px] text-ink-3">%</div>
             </div>
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">TDEE</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">TDEE</div>
               <div className="mt-1.5 font-mono font-semibold text-[22px] leading-none text-ink">{latest.tdee_kcal ?? "—"}</div>
-              <div className="mt-0.5 font-mono text-[9px] text-ink-4">ккал/д</div>
+              <div className="mt-0.5 font-mono text-[11px] text-ink-3">ккал/д</div>
             </div>
           </div>
         </section>

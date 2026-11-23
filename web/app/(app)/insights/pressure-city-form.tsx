@@ -33,7 +33,7 @@ export function PressureCityForm({ initialCity }: { initialCity?: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="font-mono text-[10px] text-ink-4 underline underline-offset-2"
+        className="font-mono text-[11px] text-ink-3 underline underline-offset-2"
       >
         изменить
       </button>
@@ -48,7 +48,7 @@ export function PressureCityForm({ initialCity }: { initialCity?: string }) {
           историю атмосферного давления.
         </p>
       )}
-      <p className="mb-1.5 font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">Город</p>
+      <p className="mb-1.5 font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Город</p>
       <div className="flex gap-2">
         <input
           type="text"
@@ -68,15 +68,15 @@ export function PressureCityForm({ initialCity }: { initialCity?: string }) {
           {saving ? "…" : "Подтвердить"}
         </button>
       </div>
-      {error && <p className="mt-1.5 font-mono text-[10px] text-warn">{error}</p>}
+      {error && <p className="mt-1.5 font-mono text-[11px] text-warn">{error}</p>}
       {!initialCity && (
-        <p className="mt-2 font-mono text-[9px] text-ink-4">можно изменить позже</p>
+        <p className="mt-2 font-mono text-[11px] text-ink-3">можно изменить позже</p>
       )}
       {initialCity && (
         <button
           type="button"
           onClick={() => { setOpen(false); setCity(initialCity); setError(null); }}
-          className="mt-1.5 font-mono text-[10px] text-ink-3"
+          className="mt-1.5 font-mono text-[11px] text-ink-3"
         >
           отмена
         </button>

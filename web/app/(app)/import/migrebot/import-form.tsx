@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { previewCSV, importCSV, type PreviewStats } from "./actions";
 
-const labelCls = "font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3";
+const labelCls = "font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3";
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T12:00:00");
@@ -96,7 +96,7 @@ export function MigreBotImportForm() {
               disabled={status === "parsing" || status === "importing"}
             />
           </label>
-          <p className="mt-2 font-mono text-[10px] text-ink-4">
+          <p className="mt-2 font-mono text-[11px] text-ink-3">
             Экспортируй данные из Migrebot: «Настройки → Экспорт данных → CSV»
           </p>
         </div>
@@ -108,18 +108,18 @@ export function MigreBotImportForm() {
           <p className={labelCls}>Найдено в файле</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="font-mono text-[10px] text-ink-3">Всего дней</p>
+              <p className="font-mono text-[11px] text-ink-3">Всего дней</p>
               <p className="font-serif text-[28px] font-bold text-ink">{preview.totalRows}</p>
             </div>
             <div>
-              <p className="font-mono text-[10px] text-ink-3">С мигренью</p>
+              <p className="font-mono text-[11px] text-ink-3">С мигренью</p>
               <p className="font-serif text-[28px] font-bold text-phase">{preview.migraineRows}</p>
             </div>
           </div>
           <p className="font-mono text-[11px] text-ink-2">
             Период: {fmtDate(preview.dateFrom)} — {fmtDate(preview.dateTo)}
           </p>
-          <p className="font-mono text-[10px] text-ink-3">
+          <p className="font-mono text-[11px] text-ink-3">
             Импортируем все записи (мигрень + чистые дни). Не затронем твои вес, тренировки и настроение.
           </p>
           <button
@@ -143,14 +143,14 @@ export function MigreBotImportForm() {
       {status === "importing" && (
         <div className="rounded-card border border-line bg-surface p-6 text-center">
           <p className="font-mono text-[13px] text-ink-2">Импортирую данные…</p>
-          <p className="mt-1 font-mono text-[10px] text-ink-4">Это займёт несколько секунд</p>
+          <p className="mt-1 font-mono text-[11px] text-ink-3">Это займёт несколько секунд</p>
         </div>
       )}
 
       {/* Done */}
       {status === "done" && result && (
         <div className="rounded-card border border-phase bg-phase-soft p-5 space-y-2">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase-deep">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-phase-deep">
             Импорт завершён ✓
           </p>
           <p className="font-sans text-[15px] font-semibold text-ink">
@@ -172,7 +172,7 @@ export function MigreBotImportForm() {
       {/* Error */}
       {status === "error" && (
         <div className="rounded-card border border-warn bg-warn-soft p-4 space-y-2">
-          <p className="font-mono text-[10px] text-warn">Ошибка</p>
+          <p className="font-mono text-[11px] text-warn">Ошибка</p>
           <p className="font-sans text-[13px] text-ink">{errorMsg}</p>
           <button
             type="button"

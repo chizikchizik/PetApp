@@ -34,7 +34,7 @@ export default async function ProfilePage() {
       {/* ── Шапка ── */}
       <Link
         href="/dashboard"
-        className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
+        className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3"
       >
         ← сегодня
       </Link>

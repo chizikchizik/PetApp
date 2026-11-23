@@ -243,7 +243,7 @@ export function MigreDiary({
                   title={[d, mig ? "приступ" : log ? "день отмечен" : null, med ? "препарат" : null, period ? "месячные" : forecast ? "прогноз месячных" : null].filter(Boolean).join(" · ")}
                 >
                   <span className={`font-mono text-[12px] leading-none ${mig ? "font-semibold text-warn" : future ? "text-ink-4" : log ? "text-ink" : "text-ink-3"}`}>{day}</span>
-                  <span className="mt-0.5 h-[10px] font-mono text-[9px] leading-none">
+                  <span className="mt-0.5 h-[10px] font-mono text-[11px] leading-none">
                     {mig ? <span style={{ color: "var(--warn)" }}>▲</span> : log ? <span className="text-ink-3">✓</span> : ""}
                   </span>
                   {period && <span aria-hidden className="absolute inset-x-[3px] bottom-[2px] h-[3px] rounded-[1px] bg-phase" />}

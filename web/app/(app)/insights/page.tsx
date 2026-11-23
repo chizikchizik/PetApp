@@ -184,7 +184,7 @@ function ConfidenceBadge({ corr }: { corr: CycleCorrelation }) {
   const color = weak ? "text-warn" : strong ? "text-phase" : "text-ink-3";
   const bg = weak ? "bg-warn/10" : strong ? "bg-phase-soft" : "bg-surface-2";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-[3px] px-2 py-1 font-mono text-[10px] tracking-[0.02em] ${color} ${bg}`}>
+    <span className={`inline-flex items-center gap-1 rounded-[3px] px-2 py-1 font-mono text-[11px] tracking-[0.02em] ${color} ${bg}`}>
       {weak ? "мало данных" : "основано на"} · {corr.total} приступ{corr.total === 1 ? "" : corr.total < 5 ? "а" : "ов"} · {corr.cycleCount} цикл{corr.cycleCount === 1 ? "" : corr.cycleCount < 5 ? "а" : "ов"}
     </span>
   );
@@ -195,7 +195,7 @@ function CycleCorrelationBlock({ corr }: { corr: CycleCorrelation }) {
   return (
     <section className="mt-2 rounded-card border border-line bg-surface p-5">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           связь с циклом
         </p>
         <ConfidenceBadge corr={corr} />
@@ -362,7 +362,7 @@ export default async function Insights() {
 
       {pregnant ? (
         <section className="mt-2 rounded-card border border-line bg-surface p-5">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             связь с циклом
           </p>
           <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
@@ -380,10 +380,10 @@ export default async function Insights() {
       {/* ── Мигрень × тренировки ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             мигрень × тренировки
           </p>
-          <Link href="/training" className="font-mono text-[10px] text-ink-3 underline underline-offset-2">
+          <Link href="/training" className="font-mono text-[11px] text-ink-3 underline underline-offset-2">
             анализ паттернов →
           </Link>
         </div>
@@ -400,7 +400,7 @@ export default async function Insights() {
 
       {/* ── Приступы по месяцам ── */}
       <section className="mt-2 rounded-card border border-line bg-surface p-4">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           приступы по месяцам
         </p>
         <div className="mt-4">
@@ -415,10 +415,10 @@ export default async function Insights() {
           в календаре был бы бесконечным и вводил бы в заблуждение) */}
       {!pregnant && (
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           мигрень × цикл
         </p>
-        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-ink-2">
+        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-[11px] w-[11px] rounded-[2px]" style={{ background: MENS }} />
             менструация
@@ -431,7 +431,7 @@ export default async function Insights() {
         <div className="mt-3 flex flex-col gap-1">
           {cycles.map((cy, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="w-6 shrink-0 text-right font-mono text-[9px] text-ink-3">
+              <span className="w-6 shrink-0 text-right font-mono text-[11px] text-ink-3">
                 {cy.label}
               </span>
               <div
@@ -462,10 +462,10 @@ export default async function Insights() {
 
       {/* ── Вся история: цикл × мигрень ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           все циклы{historyYears ? ` · ${historyYears}` : ""}
         </p>
-        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-ink-2">
+        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-[10px] w-[10px] rounded-[2px]" style={{ background: "rgba(196,80,110,0.18)" }} />
             менструация
@@ -475,7 +475,7 @@ export default async function Insights() {
             мигрень
           </span>
         </div>
-        <p className="mt-1 font-mono text-[9px] text-ink-4">
+        <p className="mt-1 font-mono text-[11px] text-ink-3">
           каждая строка — один цикл · X = день цикла · прокрути вниз
         </p>
         <div className="mt-2.5">

@@ -111,7 +111,7 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
 
   return (
     <div className="rounded-card border border-line bg-surface p-3.5">
-      <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
+      <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
         {pending.length} {pending.length === 1 ? "приём" : "приёма"} без указанного типа
       </p>
       <p className="mt-1 font-sans text-[11.5px] leading-relaxed text-ink-3">
@@ -130,7 +130,7 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
                     type="button"
                     onClick={() => apply(med.id, hint.drugClass)}
                     disabled={busy}
-                    className="font-mono text-[10px] text-phase underline underline-offset-2 disabled:opacity-50"
+                    className="font-mono text-[11px] text-phase underline underline-offset-2 disabled:opacity-50"
                   >
                     похоже на {hint.label} · подтвердить
                   </button>
@@ -143,7 +143,7 @@ function DrugClassPrompt({ meds }: { meds: Med[] }) {
                     type="button"
                     onClick={() => apply(med.id, c)}
                     disabled={busy}
-                    className="rounded-[2px] border border-line px-2 py-1 font-mono text-[10px] text-ink-2 transition active:bg-surface-3 disabled:opacity-50"
+                    className="rounded-[2px] border border-line px-2 py-1 font-mono text-[11px] text-ink-2 transition active:bg-surface-3 disabled:opacity-50"
                   >
                     {CLASS_LABELS[c]}
                   </button>
@@ -192,7 +192,7 @@ function Heatmap({
             className="flex items-center justify-end pr-1"
             style={{ height: "13px", marginBottom: "2px", opacity: i % 2 === 0 ? 1 : 0 }}
           >
-            <span className="font-mono text-[8px] text-ink-4">{label}</span>
+            <span className="font-mono text-[11px] text-ink-3">{label}</span>
           </div>
         ))}
       </div>
@@ -207,7 +207,7 @@ function Heatmap({
           {weeks.map((_, wi) => (
             <div
               key={wi}
-              className="font-mono text-[8px] text-ink-4"
+              className="font-mono text-[11px] text-ink-3"
               style={{ whiteSpace: "nowrap", overflow: "visible" }}
             >
               {monthLabels.get(wi) ?? ""}
@@ -278,26 +278,26 @@ function MedRow({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-sans text-[14px] font-semibold text-ink">{med.name}</span>
             {med.isAsNeeded && (
-              <span className="rounded-[2px] bg-warn/15 px-1.5 py-0.5 font-mono text-[9px] uppercase text-warn">
+              <span className="rounded-[2px] bg-warn/15 px-1.5 py-0.5 font-mono text-[11px] uppercase text-warn">
                 по мигрени
               </span>
             )}
             {med.archived && (
-              <span className="rounded-[2px] bg-surface-3 px-1.5 py-0.5 font-mono text-[9px] uppercase text-ink-4">
+              <span className="rounded-[2px] bg-surface-3 px-1.5 py-0.5 font-mono text-[11px] uppercase text-ink-3">
                 архив
               </span>
             )}
           </div>
-          {med.note && <p className="font-mono text-[10px] text-ink-3 mt-0.5">{med.note}</p>}
+          {med.note && <p className="font-mono text-[11px] text-ink-3 mt-0.5">{med.note}</p>}
           {!med.isAsNeeded && med.when && (
-            <p className="font-mono text-[10px] text-ink-3 mt-0.5">{med.when}</p>
+            <p className="font-mono text-[11px] text-ink-3 mt-0.5">{med.when}</p>
           )}
         </div>
         <div className="shrink-0 text-right">
           <span className="font-mono text-[18px] font-bold text-ink leading-none">
             {intakeSet.size}
           </span>
-          <span className="block font-mono text-[8px] text-ink-4">дней</span>
+          <span className="block font-mono text-[11px] text-ink-3">дней</span>
         </div>
       </div>
 
@@ -312,11 +312,11 @@ function MedRow({
         <div className="mt-2 flex flex-wrap gap-3">
           <div className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-[1px]" style={{ background: "var(--warn, #e8a23a)" }} />
-            <span className="font-mono text-[9px] text-ink-4">принято</span>
+            <span className="font-mono text-[11px] text-ink-3">принято</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-[1px]" style={{ background: "rgba(232,162,58,0.28)" }} />
-            <span className="font-mono text-[9px] text-ink-4">мигрень без отметки</span>
+            <span className="font-mono text-[11px] text-ink-3">мигрень без отметки</span>
           </div>
         </div>
       )}
@@ -404,7 +404,7 @@ function SupplementHeatmap({
             className="flex items-center justify-end pr-1"
             style={{ height: "13px", marginBottom: "2px", opacity: i % 2 === 0 ? 1 : 0 }}
           >
-            <span className="font-mono text-[8px] text-ink-4">{label}</span>
+            <span className="font-mono text-[11px] text-ink-3">{label}</span>
           </div>
         ))}
       </div>
@@ -417,7 +417,7 @@ function SupplementHeatmap({
           {weeks.map((_, wi) => (
             <div
               key={wi}
-              className="font-mono text-[8px] text-ink-4"
+              className="font-mono text-[11px] text-ink-3"
               style={{ whiteSpace: "nowrap", overflow: "visible" }}
             >
               {monthLabels.get(wi) ?? ""}
@@ -486,7 +486,7 @@ function SupplementCalendar({
         <span className="flex-1 font-sans text-[14px] font-semibold text-ink">Витамины</span>
         <div className="shrink-0 text-right">
           <span className="font-mono text-[18px] font-bold text-ink leading-none">{anyDay.size}</span>
-          <span className="block font-mono text-[8px] text-ink-4">дней</span>
+          <span className="block font-mono text-[11px] text-ink-3">дней</span>
         </div>
       </div>
 
@@ -496,12 +496,12 @@ function SupplementCalendar({
         {supplements.map(({ med, intakeSet }) => (
           <div key={med.id} className="flex items-center gap-1">
             <span
-              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[8px] font-bold"
+              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[11px] font-bold"
               style={{ background: "var(--phase-soft)", color: "var(--phase-deep)" }}
             >
               {codes[med.name]}
             </span>
-            <span className="font-mono text-[9px] text-ink-4">
+            <span className="font-mono text-[11px] text-ink-3">
               {med.name} · {intakeSet.size}{med.archived ? " · архив" : ""}
             </span>
           </div>
@@ -549,7 +549,7 @@ function AsNeededHeatmap({
             className="flex items-center justify-end pr-1"
             style={{ height: "13px", marginBottom: "2px", opacity: i % 2 === 0 ? 1 : 0 }}
           >
-            <span className="font-mono text-[8px] text-ink-4">{label}</span>
+            <span className="font-mono text-[11px] text-ink-3">{label}</span>
           </div>
         ))}
       </div>
@@ -562,7 +562,7 @@ function AsNeededHeatmap({
           {weeks.map((_, wi) => (
             <div
               key={wi}
-              className="font-mono text-[8px] text-ink-4"
+              className="font-mono text-[11px] text-ink-3"
               style={{ whiteSpace: "nowrap", overflow: "visible" }}
             >
               {monthLabels.get(wi) ?? ""}
@@ -638,7 +638,7 @@ function AsNeededCalendar({
         <span className="flex-1 font-sans text-[14px] font-semibold text-ink">По факту мигрени</span>
         <div className="shrink-0 text-right">
           <span className="font-mono text-[18px] font-bold text-ink leading-none">{anyDay.size}</span>
-          <span className="block font-mono text-[8px] text-ink-4">дней</span>
+          <span className="block font-mono text-[11px] text-ink-3">дней</span>
         </div>
       </div>
 
@@ -648,19 +648,19 @@ function AsNeededCalendar({
         {meds.map((med) => (
           <div key={med.id} className="flex items-center gap-1">
             <span
-              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[8px] font-bold"
+              className="inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-[1px] px-0.5 font-mono text-[11px] font-bold"
               style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
             >
               {codes[med.name]}
             </span>
-            <span className="font-mono text-[9px] text-ink-4">
+            <span className="font-mono text-[11px] text-ink-3">
               {med.name} · {(intakeSets.get(med.id) ?? new Set()).size}{med.archived ? " · архив" : ""}
             </span>
           </div>
         ))}
         <div className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-[1px]" style={{ background: "rgba(232,162,58,0.28)" }} />
-          <span className="font-mono text-[9px] text-ink-4">мигрень без отметки</span>
+          <span className="font-mono text-[11px] text-ink-3">мигрень без отметки</span>
         </div>
       </div>
     </div>
@@ -680,10 +680,10 @@ function MigreBotSection({ entries }: { entries: MigraineDayEntry[] }) {
   return (
     <div className="rounded-card border border-line bg-surface p-3">
       <div className="mb-3 flex items-center gap-2">
-        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-warn">
+        <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-warn">
           из дневника мигрени
         </span>
-        <span className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[9px] text-warn">
+        <span className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[11px] text-warn">
           {entries.length} приступов
         </span>
       </div>
@@ -697,7 +697,7 @@ function MigreBotSection({ entries }: { entries: MigraineDayEntry[] }) {
               {e.labels.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-0.5">
                   {e.labels.map((m) => (
-                    <span key={m} className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[9px] text-warn">
+                    <span key={m} className="rounded-[2px] bg-warn/10 px-1.5 py-0.5 font-mono text-[11px] text-warn">
                       {m}
                     </span>
                   ))}
@@ -717,10 +717,10 @@ function QuickPainSection({ entries }: { entries: QuickPainEntry[] }) {
   return (
     <div className="rounded-card border border-line bg-surface p-3">
       <div className="mb-3 flex items-center gap-2">
-        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">
+        <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
           разовые записи · другая боль
         </span>
-        <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-ink-3">
+        <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink-3">
           {entries.length}
         </span>
       </div>
@@ -804,7 +804,7 @@ export function MedCalendar({
     return (
       <div className="rounded-card border border-dashed border-line bg-surface p-5 text-center">
         <p className="font-mono text-[12px] text-ink-3">Препаратов не добавлено</p>
-        <p className="mt-1 font-mono text-[11px] text-ink-4">Добавь через экран Чек-ин</p>
+        <p className="mt-1 font-mono text-[11px] text-ink-3">Добавь на экране «Сегодня» → «изменить список»</p>
       </div>
     );
   }
@@ -823,13 +823,13 @@ export function MedCalendar({
       {nothingToShow && (
         <div className="rounded-card border border-dashed border-line bg-surface p-5 text-center">
           <p className="font-mono text-[12px] text-ink-3">За период приёмов не отмечено</p>
-          <p className="mt-1 font-mono text-[11px] text-ink-4">Отмечай приём на чек-ине — здесь появится история</p>
+          <p className="mt-1 font-mono text-[11px] text-ink-3">Отмечай приём на экране «Сегодня» — здесь появится история</p>
         </div>
       )}
 
       {regularMeds.length > 0 && (
         <div>
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Регулярные</p>
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">Регулярные</p>
           <div className="space-y-3">
             {regularMeds.map((med) => (
               <MedRow
@@ -846,7 +846,7 @@ export function MedCalendar({
 
       {supplementMeds.length > 0 && (
         <div>
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">Витамины</p>
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">Витамины</p>
           <SupplementCalendar
             supplements={supplementMeds.map((med) => ({ med, intakeSet: medIntakeSets.get(med.id) ?? new Set<string>() }))}
             weeks={weeks}
@@ -856,7 +856,7 @@ export function MedCalendar({
 
       {asNeededMeds.length > 0 && (
         <div>
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-4">По факту мигрени</p>
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">По факту мигрени</p>
           <AsNeededCalendar
             meds={asNeededMeds}
             weeks={weeks}
@@ -872,11 +872,11 @@ export function MedCalendar({
       <div className="flex flex-wrap gap-4 pt-1">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-[1px]" style={{ background: "var(--phase)" }} />
-          <span className="font-mono text-[10px] text-ink-3">принято</span>
+          <span className="font-mono text-[11px] text-ink-3">принято</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-[1px]" style={{ background: "var(--surface-3)" }} />
-          <span className="font-mono text-[10px] text-ink-3">нет данных</span>
+          <span className="font-mono text-[11px] text-ink-3">нет данных</span>
         </div>
       </div>
     </div>

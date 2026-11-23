@@ -56,7 +56,7 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
           style={{ bottom: `${(GUIDE / scale) * H}px` }}
         >
           <div className="h-px flex-1 border-t border-dashed border-caution" />
-          <span className="ml-1 font-mono text-[10px] text-caution">{GUIDE}</span>
+          <span className="ml-1 font-mono text-[11px] text-caution">{GUIDE}</span>
         </div>
 
         {yearBars.map((b) => {
@@ -70,7 +70,7 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
               className="flex min-w-0 flex-1 flex-col items-stretch justify-end"
             >
               {b.total > 0 && (
-                <span className="mb-0.5 text-center font-mono text-[10px] leading-none text-ink-2">{b.total}</span>
+                <span className="mb-0.5 text-center font-mono text-[11px] leading-none text-ink-2">{b.total}</span>
               )}
               {noTriptanH > 0 && (
                 <div style={{ height: `${noTriptanH}px`, background: "var(--phase)", opacity: 0.35, borderRadius: "1px 1px 0 0" }} />
@@ -97,7 +97,7 @@ export function MigraineChart({ bars, todayYM }: { bars: MonthBar[]; todayYM: st
         {yearBars.map((b) => (
           <span
             key={b.ym}
-            className={`min-w-0 flex-1 text-center font-mono text-[10px] ${b.ym === todayYM ? "font-semibold text-ink" : b.future ? "text-ink-4" : "text-ink-3"}`}
+            className={`min-w-0 flex-1 text-center font-mono text-[11px] ${b.ym === todayYM ? "font-semibold text-ink" : b.future ? "text-ink-4" : "text-ink-3"}`}
           >
             {b.label}
           </span>

@@ -94,13 +94,13 @@ export default async function BpPage() {
 
       {readings.filter((r) => r.date >= chartFrom).length >= 2 && (
         <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             тренд · 30 дней
           </p>
           <div className="mt-3">
             <BpChart readings={readings} fromISO={chartFrom} toISO={todayISO} />
           </div>
-          <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10px] text-ink-3">
+          <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[11px] text-ink-3">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--ink)" }} /> верхнее
             </span>

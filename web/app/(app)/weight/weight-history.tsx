@@ -74,7 +74,7 @@ function HistoryRow({ date, actual }: { date: string; actual: number }) {
       ) : (
         <>
           <span className="flex-1 font-mono text-[14px] font-semibold text-ink">
-            {actual} <span className="text-[10px] font-normal text-ink-3">кг</span>
+            {actual} <span className="text-[11px] font-normal text-ink-3">кг</span>
           </span>
           <button
             type="button"
@@ -101,7 +101,7 @@ export function WeightHistory({ todayISO, rows }: { todayISO: string; rows: Weig
 
   return (
     <div className="mt-3.5">
-      <p className="mb-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+      <p className="mb-2 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
         история веса
       </p>
       <div className="space-y-1.5">
@@ -110,7 +110,7 @@ export function WeightHistory({ todayISO, rows }: { todayISO: string; rows: Weig
           <button
             type="button"
             onClick={() => setShowAll((s) => !s)}
-            className="w-full pt-1 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3"
+            className="w-full pt-1 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3"
           >
             {showAll ? "скрыть" : `ещё ${pastEntries.length - 7} дней`}
           </button>

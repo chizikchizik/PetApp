@@ -172,13 +172,13 @@ export function BpTracker({
           )}
         </div>
         {existing && (
-          <p className="mt-1.5 font-mono text-[10px] text-ink-4">
+          <p className="mt-1.5 font-mono text-[11px] text-ink-3">
             за {fmtDate(date)} ({slot === "morning" ? "утро" : "вечер"}) уже записано {existing.systolic}/{existing.diastolic} — новая запись заменит
           </p>
         )}
-        {error && <p className="mt-1.5 font-mono text-[10px] text-warn">{error}</p>}
+        {error && <p className="mt-1.5 font-mono text-[11px] text-warn">{error}</p>}
         {suspicious && !error && (
-          <p className="mt-1.5 font-mono text-[10px] text-ink-3">
+          <p className="mt-1.5 font-mono text-[11px] text-ink-3">
             Разница между верхним и нижним меньше 15 — проверь, не перепутаны ли цифры.
           </p>
         )}
@@ -187,7 +187,7 @@ export function BpTracker({
             <p className="font-sans text-[12px] leading-[1.55] text-ink-2">{FLAG_TEXTS[savedFlag as 1 | 2]}</p>
           </div>
         )}
-        <p className="mt-2 font-sans text-[10.5px] leading-relaxed text-ink-4">
+        <p className="mt-2 font-sans text-[11px] leading-relaxed text-ink-3">
           Измеряй сидя, после 5 минут покоя: спина с опорой, манжета на уровне сердца,
           ноги не скрещены. Не сразу после кофе, еды или подъёма по лестнице.
         </p>
@@ -199,9 +199,9 @@ export function BpTracker({
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-line">
-                <th className="py-2.5 pl-3.5 pr-2 text-left font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">дата</th>
-                <th className="px-2 py-2.5 text-left font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">утро</th>
-                <th className="py-2.5 pl-2 pr-3.5 text-left font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">вечер</th>
+                <th className="py-2.5 pl-3.5 pr-2 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">дата</th>
+                <th className="px-2 py-2.5 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">утро</th>
+                <th className="py-2.5 pl-2 pr-3.5 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">вечер</th>
               </tr>
             </thead>
             <tbody>
@@ -219,7 +219,7 @@ export function BpTracker({
                         {r.systolic}/{r.diastolic}
                       </span>
                       {r.pulse != null && (
-                        <span className="ml-1 font-mono text-[10px] text-ink-4">♥{r.pulse}</span>
+                        <span className="ml-1 font-mono text-[11px] text-ink-3">♥{r.pulse}</span>
                       )}
                     </button>
                   ) : (
@@ -238,7 +238,7 @@ export function BpTracker({
         </div>
       )}
       {days.length > 0 && (
-        <p className="mt-2 font-mono text-[9px] text-ink-4">
+        <p className="mt-2 font-mono text-[11px] text-ink-3">
           нажми на значение, чтобы исправить или удалить
         </p>
       )}

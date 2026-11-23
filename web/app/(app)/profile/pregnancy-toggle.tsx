@@ -28,7 +28,7 @@ export function PregnancyToggle({ active }: { active: boolean }) {
     <div className="mt-6 border-t border-line pt-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             Беременность
           </p>
           <p className="mt-1 font-sans text-[12px] leading-snug text-ink-2">

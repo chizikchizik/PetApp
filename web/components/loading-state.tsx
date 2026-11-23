@@ -34,7 +34,7 @@ export function LoadingState({ variant = "list", rows = 4 }: LoadingStateProps) 
       {/* дышащая точка-индикатор — единственный явный "признак жизни" */}
       <div className="mb-5 flex items-center gap-2">
         <span className="pulse-dot h-[10px] w-[10px] shrink-0 rounded-full bg-phase" />
-        <span className="font-mono text-[10px] tracking-[0.14em] text-ink-3 uppercase">
+        <span className="font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
           загрузка
         </span>
       </div>

@@ -73,7 +73,7 @@ function HistoryRow({ entry }: { entry: CalorieEntry }) {
         <>
           <span className="flex-1 font-mono text-[14px] font-semibold text-ink">
             {entry.kcal.toLocaleString("ru")}{" "}
-            <span className="text-[10px] font-normal text-ink-3">ккал</span>
+            <span className="text-[11px] font-normal text-ink-3">ккал</span>
           </span>
           <button
             type="button"
@@ -206,7 +206,7 @@ export function CalorieInput({
             <button
               type="button"
               onClick={() => setShowAll((s) => !s)}
-              className="w-full pt-1 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3"
+              className="w-full pt-1 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3"
             >
               {showAll ? "скрыть" : `ещё ${pastEntries.length - 7} дней`}
             </button>

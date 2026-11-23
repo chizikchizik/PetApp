@@ -11,7 +11,7 @@ const FALLBACK_TYPES: SportType[] = [
   { name: "Групповая",      color: "#8f5ec8" },
 ];
 
-const labelCls = "font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3";
+const labelCls = "font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3";
 
 export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sportTypes?: SportType[] }) {
   const router = useRouter();
@@ -76,7 +76,7 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
   return (
     <div className="rounded-card border border-line bg-surface">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-2">Тренировка</span>
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-2">Тренировка</span>
         <button type="button" onClick={close} className="font-mono text-[18px] leading-none text-ink-3">×</button>
       </div>
 
@@ -144,7 +144,7 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
             <span className="font-mono text-[13px] font-semibold" style={{ color: fatigueColor }}>{fatigue}%</span>
           </div>
           <div className="mt-2 flex items-center gap-3">
-            <span className="font-mono text-[10px] text-ink-4">лёгко</span>
+            <span className="font-mono text-[11px] text-ink-3">лёгко</span>
             <input
               type="range"
               min={0}
@@ -155,7 +155,7 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
               className="h-6 flex-1"
               style={{ accentColor: fatigueColor }}
             />
-            <span className="font-mono text-[10px] text-ink-4">выжата</span>
+            <span className="font-mono text-[11px] text-ink-3">выжата</span>
           </div>
         </div>
 

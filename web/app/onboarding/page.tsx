@@ -101,13 +101,13 @@ export default function OnboardingPage() {
         {step === "cycle" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / {steps.length}</div>
+              <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 1 / {steps.length}</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Твой цикл</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Для отслеживания фаз и прогнозов</p>
             </div>
             <div className="flex flex-col gap-3">
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">Начало последних месячных</span>
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Начало последних месячных</span>
                 <input
                   type="date"
                   value={lastPeriod}
@@ -117,7 +117,7 @@ export default function OnboardingPage() {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">Длина цикла (дни)</span>
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Длина цикла (дни)</span>
                 <input
                   type="number"
                   value={cycleLen}
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
         {step === "modules" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / {steps.length}</div>
+              <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг 2 / {steps.length}</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Что отслеживаешь?</h1>
               <p className="mt-2 font-sans text-[13px] text-ink-2">Лишнее можно выключить — оно пропадёт из меню. Изменить можно в профиле.</p>
             </div>
@@ -175,13 +175,13 @@ export default function OnboardingPage() {
         {step === "weight" && (
           <div className="flex flex-col gap-6">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг {steps.length} / {steps.length}</div>
+              <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-ink-3 mb-3">шаг {steps.length} / {steps.length}</div>
               <h1 className="font-serif font-bold text-[28px] leading-[1.1] uppercase">Вес</h1>
               <p className="mt-2 font-mono text-[12px] text-ink-3">Необязательно — можно заполнить позже в разделе Вес</p>
             </div>
             <div className="flex flex-col gap-3">
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">Текущий вес (кг)</span>
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Текущий вес (кг)</span>
                 <input
                   type="number"
                   value={currentWeight}
@@ -192,7 +192,7 @@ export default function OnboardingPage() {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3">Цель (кг)</span>
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Цель (кг)</span>
                 <input
                   type="number"
                   value={goalWeight}

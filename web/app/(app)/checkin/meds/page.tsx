@@ -60,7 +60,8 @@ export default async function MedsPage({
       <div className="mt-2 flex items-center gap-3">
         <Link
           href={`/checkin/meds?end=${prevEnd}`}
-          className="flex h-7 w-7 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+          aria-label="Раньше"
+          className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line font-mono text-[15px] text-ink-2 transition active:bg-surface-3"
         >
           ←
         </Link>
@@ -70,12 +71,13 @@ export default async function MedsPage({
         {!isLatest ? (
           <Link
             href={`/checkin/meds?end=${nextEnd2}`}
-            className="flex h-7 w-7 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+            aria-label="Позже"
+            className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line font-mono text-[15px] text-ink-2 transition active:bg-surface-3"
           >
             →
           </Link>
         ) : (
-          <div className="h-7 w-7" />
+          <div className="h-11 w-11" />
         )}
       </div>
 

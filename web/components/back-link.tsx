@@ -13,7 +13,7 @@ export function BackLink({ href, label }: { href: string; label: string }) {
         if (typeof window !== "undefined" && window.history.length > 1) router.back();
         else router.push(href);
       }}
-      className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3"
+      className="-my-2 flex min-h-[44px] items-center font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3"
     >
       {label}
     </button>

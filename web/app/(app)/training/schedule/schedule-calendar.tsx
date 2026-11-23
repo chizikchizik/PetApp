@@ -121,6 +121,8 @@ function WeekRow({
                   <DayMark key={ev.id} ev={ev} />
                 ))}
                 {events.length > 4 && (
+                  // Компактный индикатор, не подпись: 9px, иначе «+N» вылезает
+                  // за ячейку на ширине 375 (3 марки + текст ≈ 41px из ~40).
                   <span className="font-mono text-[9px] leading-none text-ink-3">
                     +{events.length - 3}
                   </span>
@@ -226,7 +228,7 @@ function EventModal({
       <div className="w-full max-w-[430px] rounded-card border border-line bg-surface p-5 shadow-2xl">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
             {mode === "add" ? "Новое событие" : "Изменить"}
           </p>
           <button onClick={onClose} className="font-mono text-[18px] leading-none text-ink-3">×</button>
@@ -278,7 +280,7 @@ function EventModal({
                 key={t}
                 type="button"
                 onClick={() => setForm({ ...form, type: t })}
-                className={`flex-1 rounded-[3px] border py-2 font-mono text-[10px] tracking-[0.06em] uppercase transition ${
+                className={`flex-1 rounded-[3px] border py-2 font-mono text-[11px] tracking-[0.06em] uppercase transition ${
                   form.type === t
                     ? "border-phase bg-phase-soft text-phase-deep font-semibold"
                     : "border-line text-ink-3"
@@ -292,7 +294,7 @@ function EventModal({
           {/* Date + Time */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="mb-1 font-mono text-[10px] text-ink-3">Дата</p>
+              <p className="mb-1 font-mono text-[11px] text-ink-3">Дата</p>
               <input
                 type="date"
                 value={form.event_date}
@@ -301,7 +303,7 @@ function EventModal({
               />
             </div>
             <div>
-              <p className="mb-1 font-mono text-[10px] text-ink-3">Время (необяз.)</p>
+              <p className="mb-1 font-mono text-[11px] text-ink-3">Время (необяз.)</p>
               <input
                 type="time"
                 value={form.time_start}
@@ -314,7 +316,7 @@ function EventModal({
           {/* Duration (workout only) */}
           {form.type === "workout" && (
             <div>
-              <p className="mb-1 font-mono text-[10px] text-ink-3">Длительность, мин</p>
+              <p className="mb-1 font-mono text-[11px] text-ink-3">Длительность, мин</p>
               <input
                 type="number"
                 inputMode="numeric"
@@ -381,15 +383,15 @@ function EventRow({ ev, onTap }: { ev: CalendarEventRow; onTap: () => void }) {
       <div className="flex-1 min-w-0">
         <p className={`font-sans text-[13px] leading-snug ${ev.status === "skipped" ? "line-through text-ink-3" : ev.status === "done" ? "text-ink-3" : "text-ink"}`}>
           {ev.title}
-          {ev.status === "done" && <span className="ml-1.5 text-ink-4">✓</span>}
+          {ev.status === "done" && <span className="ml-1.5 text-ink-3">✓</span>}
         </p>
         {(ev.time_start || ev.duration_min) && (
-          <p className="font-mono text-[10px] text-ink-3">
+          <p className="font-mono text-[11px] text-ink-3">
             {[ev.time_start, ev.duration_min ? `${ev.duration_min} мин` : null].filter(Boolean).join(" · ")}
           </p>
         )}
       </div>
-      <span className="font-mono text-[10px] text-ink-4">{TYPE_LABELS[ev.type]}</span>
+      <span className="font-mono text-[11px] text-ink-3">{TYPE_LABELS[ev.type]}</span>
     </button>
   );
 }
@@ -454,7 +456,7 @@ function AgendaList({
     <div className="mt-3 space-y-4">
       {[...byDate.entries()].map(([iso, list]) => (
         <div key={iso}>
-          <p className="mb-1.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">
+          <p className="mb-1.5 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">
             {agendaDateLabel(iso, todayISO)}
           </p>
           <div className="space-y-1.5">
@@ -657,7 +659,8 @@ export function ScheduleCalendar({
             <button
               type="button"
               onClick={prevMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+              aria-label="Предыдущий месяц"
+              className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line font-mono text-[15px] text-ink-2 transition active:bg-surface-3"
             >
               ←
             </button>
@@ -667,7 +670,8 @@ export function ScheduleCalendar({
             <button
               type="button"
               onClick={nextMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-line font-mono text-[13px] text-ink-2 transition active:bg-surface-3"
+              aria-label="Следующий месяц"
+              className="flex h-11 w-11 items-center justify-center rounded-[3px] border border-line font-mono text-[15px] text-ink-2 transition active:bg-surface-3"
             >
               →
             </button>
@@ -676,7 +680,7 @@ export function ScheduleCalendar({
           {/* Day-of-week header */}
           <div className="grid grid-cols-7 gap-px border-b border-line mb-px">
             {DAYS_SHORT.map((d) => (
-              <div key={d} className="py-1 text-center font-mono text-[9px] uppercase text-ink-3">
+              <div key={d} className="py-1 text-center font-mono text-[11px] uppercase text-ink-3">
                 {d}
               </div>
             ))}
@@ -704,7 +708,7 @@ export function ScheduleCalendar({
                   className={`inline-block h-2 w-2 ${t === "reminder" ? "rounded-[1.5px]" : "rounded-full"}`}
                   style={{ background: TYPE_COLORS[t] }}
                 />
-                <span className="font-mono text-[10px] text-ink-3">{TYPE_LABELS[t].toLowerCase()}</span>
+                <span className="font-mono text-[11px] text-ink-3">{TYPE_LABELS[t].toLowerCase()}</span>
               </div>
             ))}
           </div>

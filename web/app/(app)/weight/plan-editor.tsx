@@ -56,7 +56,7 @@ export function PlanEditor({ rows, todayISO }: { rows: WeightRow[]; todayISO: st
   return (
     <div className="mt-3.5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">
           план похудения
         </p>
         <button
@@ -70,7 +70,7 @@ export function PlanEditor({ rows, todayISO }: { rows: WeightRow[]; todayISO: st
 
       {open && (
         <div className="mt-2 rounded-card border border-line bg-surface p-3.5">
-          <p className="font-mono text-[9px] leading-relaxed text-ink-3">
+          <p className="font-mono text-[11px] leading-relaxed text-ink-3">
             Точки «к этой дате хочу весить N кг» — график соединит их ломаной линией плана.
           </p>
 
@@ -82,21 +82,21 @@ export function PlanEditor({ rows, todayISO }: { rows: WeightRow[]; todayISO: st
                     {fmtDate(p.date)}
                   </span>
                   <span className="flex-1 font-mono text-[13px] font-semibold text-ink">
-                    {p.plan} <span className="text-[10px] font-normal text-ink-3">кг</span>
+                    {p.plan} <span className="text-[11px] font-normal text-ink-3">кг</span>
                   </span>
                   {confirmDelete === p.date ? (
                     <span className="flex shrink-0 items-center gap-2">
                       <button
                         type="button"
                         onClick={() => doDelete(p.date)}
-                        className="rounded-[2px] bg-red-600 px-2 py-0.5 font-mono text-[10px] text-white"
+                        className="rounded-[2px] bg-red-600 px-2 py-0.5 font-mono text-[11px] text-white"
                       >
                         Да
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDelete(null)}
-                        className="font-mono text-[10px] text-ink-3"
+                        className="font-mono text-[11px] text-ink-3"
                       >
                         Нет
                       </button>
@@ -105,7 +105,7 @@ export function PlanEditor({ rows, todayISO }: { rows: WeightRow[]; todayISO: st
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(p.date)}
-                      className="shrink-0 font-mono text-[14px] leading-none text-ink-4 transition active:text-ink-2"
+                      className="shrink-0 font-mono text-[14px] leading-none text-ink-3 transition active:text-ink-2"
                       aria-label={`Удалить точку плана ${p.date}`}
                     >
                       ×
@@ -144,7 +144,7 @@ export function PlanEditor({ rows, todayISO }: { rows: WeightRow[]; todayISO: st
             </button>
           </div>
           {status === "error" && (
-            <p className="mt-1.5 font-mono text-[10px] text-warn">
+            <p className="mt-1.5 font-mono text-[11px] text-warn">
               Проверь дату и вес (30–250 кг)
             </p>
           )}

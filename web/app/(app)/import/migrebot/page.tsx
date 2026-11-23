@@ -31,7 +31,7 @@ export default async function MigrebotImportPage() {
       </p>
 
       <div className="mt-4 rounded-card border border-line bg-surface p-4">
-        <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">Как экспортировать</p>
+        <p className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">Как экспортировать</p>
         <ul className="mt-2 space-y-1.5 font-sans text-[13px] text-ink-2 leading-snug">
           <li>• В Migrebot напиши <span className="font-mono text-ink">/help</span></li>
           <li>• Нажми кнопку <span className="font-mono text-ink">файл.xlsx</span></li>
@@ -46,7 +46,7 @@ export default async function MigrebotImportPage() {
       {/* Import history */}
       {log.length > 0 && (
         <div className="mt-6">
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3 mb-2">
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3 mb-2">
             История импортов
           </p>
           <div className="space-y-2">
@@ -63,17 +63,17 @@ export default async function MigrebotImportPage() {
                       )}
                     </p>
                     {entry.date_from && entry.date_to && (
-                      <p className="mt-0.5 font-mono text-[10px] text-ink-3">
+                      <p className="mt-0.5 font-mono text-[11px] text-ink-3">
                         {fmtDate(entry.date_from)} — {fmtDate(entry.date_to)}
                       </p>
                     )}
                     {entry.file_name && (
-                      <p className="mt-0.5 font-mono text-[9px] text-ink-4 truncate max-w-[220px]">
+                      <p className="mt-0.5 font-mono text-[11px] text-ink-3 truncate max-w-[220px]">
                         {entry.file_name}
                       </p>
                     )}
                   </div>
-                  <span className="shrink-0 font-mono text-[9px] text-ink-4 text-right">
+                  <span className="shrink-0 font-mono text-[11px] text-ink-3 text-right">
                     {fmtDateTime(entry.imported_at)}
                   </span>
                 </div>
