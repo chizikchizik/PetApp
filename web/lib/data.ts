@@ -6,6 +6,7 @@ import { isoDaysFromTodayMoscow } from "@/lib/format";
 import { detectMedLabels } from "@/lib/migrebot-meds";
 import * as seed from "@/lib/seed-data";
 import { sportColor } from "@/lib/sport-colors";
+import { buildSportList, DEFAULT_SPORT_TYPES, type SportType } from "@/lib/sports";
 
 // Returns the current user's UUID, "__legacy__", or null if not authenticated.
 async function getAppUserId(): Promise<string | null> {
@@ -789,34 +790,34 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
 }
 
 // ── Sport types with palette colors ──────────────────────────────────────────
+// Свой список у каждой: sport_type + виды из её тренировок (lib/sports.ts).
 
-export type SportType = { name: string; color: string };
+export type { SportType };
 
-export const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
+export { DEFAULT_SPORT_TYPES };
 const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
 
-function toSportTypes(names: string[]): SportType[] {
-  return names.map((name, i) => ({ name, color: sportColor(i) }));
+function toSportTypes(names: string[], suggested = false): SportType[] {
+  return names.map((name, i) => ({ name, color: sportColor(i), ...(suggested ? { suggested: true } : {}) }));
 }
 
 export async function getSportTypes(): Promise<SportType[]> {
   const db = supabaseAdmin();
   if (db) {
     const uid = await getAppUserId();
-    const { data, error } = await byUser(
-      db.from("sport_type").select("name, sort").order("sort", { ascending: true }),
-      uid,
+    if (uid === "__legacy__") return toSportTypes(LEGACY_SPORT_TYPES);
+    const [{ data, error }, { data: history, error: histErr }] = await Promise.all([
+      byUser(db.from("sport_type").select("name, sort").order("sort", { ascending: true }), uid),
+      fetchAllRows<{ workout_date: string; type: string | null; created_at: string | null }>(() =>
+        byUser(db.from("workout_log").select("workout_date, type, created_at").order("created_at").order("id"), uid),
+      ),
+    ]);
+    if (error || histErr) return toSportTypes(DEFAULT_SPORT_TYPES, true);
+    return buildSportList(
+      (data ?? []) as { name: string; sort: number | null }[],
+      history,
+      DEFAULT_SPORT_TYPES,
     );
-    if (!error && data && data.length) {
-      // Цвет — по постоянному номеру вида (sort), а не по месту в списке:
-      // удаление вида не перекрашивает остальные. Новые виды получают
-      // max(sort)+1, поэтому номера не повторяются.
-      return (data as { name: string; sort: number | null }[]).map((r, i) => ({
-        name: r.name,
-        color: sportColor(typeof r.sort === "number" && r.sort >= 0 ? r.sort : i),
-      }));
-    }
-    if (uid !== "__legacy__") return toSportTypes(DEFAULT_SPORT_TYPES);
   }
   return toSportTypes(LEGACY_SPORT_TYPES);
 }

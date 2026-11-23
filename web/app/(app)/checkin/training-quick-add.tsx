@@ -3,19 +3,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveWorkout } from "../training/actions";
 import type { SportType } from "@/lib/data";
-
-const FALLBACK_TYPES: SportType[] = [
-  { name: "Силовая",        color: "#e8a23a" },
-  { name: "Функциональная", color: "#2aa09a" },
-  { name: "Бег",            color: "#d05a30" },
-  { name: "Групповая",      color: "#8f5ec8" },
-];
+import { SportPicker, OTHER_SPORT } from "@/components/sport-picker";
 
 const labelCls = "font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3";
 
 export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sportTypes?: SportType[] }) {
   const router = useRouter();
-  const TYPES = sportTypes?.length ? sportTypes : FALLBACK_TYPES;
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<string | null>(null);
@@ -25,7 +18,7 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  const effectiveType = type === "__other__" ? customType.trim() : type;
+  const effectiveType = type === OTHER_SPORT ? customType.trim() : type;
 
   function close() {
     setOpen(false);
@@ -83,47 +76,13 @@ export function TrainingQuickAdd({ dayKey, sportTypes }: { dayKey: string; sport
       <div className="space-y-4 p-4">
         <div>
           <p className={labelCls}>Тип</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {TYPES.map((t) => {
-              const on = type === t.name;
-              return (
-                <button
-                  key={t.name}
-                  type="button"
-                  onClick={() => { setType(t.name); setCustomType(""); }}
-                  className={`flex items-center gap-1.5 rounded-[3px] border px-3 py-1.5 font-sans text-[13px] transition ${
-                    on ? "border-transparent font-semibold text-white" : "border-line bg-surface text-ink-2"
-                  }`}
-                  style={on ? { background: t.color, borderColor: t.color } : {}}
-                >
-                  <span
-                    className="inline-block h-2 w-2 shrink-0 rounded-full transition"
-                    style={{ background: on ? "rgba(255,255,255,0.8)" : t.color }}
-                  />
-                  {t.name}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setType("__other__")}
-              className={`rounded-[3px] border px-3 py-1.5 font-sans text-[13px] transition ${
-                type === "__other__" ? "border-ink-2 bg-ink-2 font-semibold text-surface" : "border-line text-ink-3"
-              }`}
-            >
-              Другое
-            </button>
-          </div>
-          {type === "__other__" && (
-            <input
-              type="text"
-              value={customType}
-              onChange={(e) => setCustomType(e.target.value)}
-              placeholder="Название занятия…"
-              autoFocus
-              className="mt-2 w-full rounded-[3px] border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
-            />
-          )}
+          <SportPicker
+            types={sportTypes ?? []}
+            value={type}
+            custom={customType}
+            onPick={(t) => { setType(t); if (t !== OTHER_SPORT) setCustomType(""); }}
+            onCustom={setCustomType}
+          />
         </div>
 
         <div>

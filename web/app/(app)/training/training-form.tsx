@@ -1,16 +1,10 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { saveWorkout, saveExercises, addSportType } from "./actions";
+import { saveWorkout, saveExercises } from "./actions";
 import type { WorkoutTemplate, ExerciseTemplate, SportType } from "@/lib/data";
 import { isoLocal } from "@/lib/format";
-
-const FALLBACK_TYPES: SportType[] = [
-  { name: "Силовая",        color: "#e8a23a" },
-  { name: "Функциональная", color: "#2aa09a" },
-  { name: "Бег",            color: "#d05a30" },
-  { name: "Групповая",      color: "#8f5ec8" },
-];
+import { SportPicker, OTHER_SPORT } from "@/components/sport-picker";
 
 type ExerciseRow = ExerciseTemplate & {
   actual_sets: string;
@@ -56,7 +50,6 @@ export function TrainingForm({
   sportTypes?: SportType[];
 }) {
   const router = useRouter();
-  const TYPES = sportTypes ?? FALLBACK_TYPES;
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("form");
   const [s, setS] = useState<FormState>(emptyForm());
@@ -64,9 +57,8 @@ export function TrainingForm({
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [exStatus, setExStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [, startT] = useTransition();
 
-  const effectiveType = s.type === "__other__" ? s.customType.trim() : s.type;
+  const effectiveType = s.type === OTHER_SPORT ? s.customType.trim() : s.type;
 
   function findTemplate(uiType: string | null): WorkoutTemplate | null {
     if (!uiType) return null;
@@ -92,14 +84,6 @@ export function TrainingForm({
     if (!effectiveType) return;
     setStatus("saving");
 
-    // Auto-add new sport type to user's list
-    if (s.type === "__other__" && s.customType.trim()) {
-      startT(async () => {
-        await addSportType(s.customType.trim());
-        router.refresh();
-      });
-    }
-
     const res = await saveWorkout(s.date, {
       type: effectiveType,
       duration: s.duration ? parseInt(s.duration) : null,
@@ -108,6 +92,7 @@ export function TrainingForm({
     });
     if (res.ok) {
       setStatus("saved");
+      router.refresh(); // новый вид и порядок «последних» в выборе
       const template = findTemplate(s.type);
       if (template && res.id) {
         setWorkoutId(res.id);
@@ -267,57 +252,13 @@ export function TrainingForm({
         {/* Sport type chips */}
         <div>
           <p className={labelCls}>Тип</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {TYPES.map((t) => {
-              const on = s.type === t.name;
-              return (
-                <button
-                  key={t.name}
-                  type="button"
-                  onClick={() => setS({ ...s, type: t.name, customType: "" })}
-                  className={`flex items-center gap-1.5 rounded-[3px] border px-3 py-1.5 font-sans text-[13px] transition ${
-                    on
-                      ? "border-transparent font-semibold text-white"
-                      : "border-line bg-surface text-ink-2"
-                  }`}
-                  style={on ? { background: t.color, borderColor: t.color } : {}}
-                >
-                  <span
-                    className="inline-block h-2 w-2 shrink-0 rounded-full transition"
-                    style={{ background: on ? "rgba(255,255,255,0.8)" : t.color }}
-                  />
-                  {t.name}
-                </button>
-              );
-            })}
-            {/* Other */}
-            <button
-              type="button"
-              onClick={() => setS({ ...s, type: "__other__" })}
-              className={`rounded-[3px] border px-3 py-1.5 font-sans text-[13px] transition ${
-                s.type === "__other__"
-                  ? "border-ink-2 bg-ink-2 font-semibold text-surface"
-                  : "border-line text-ink-3"
-              }`}
-            >
-              Другое
-            </button>
-          </div>
-          {s.type === "__other__" && (
-            <input
-              type="text"
-              value={s.customType}
-              onChange={(e) => setS({ ...s, customType: e.target.value })}
-              placeholder="Название занятия…"
-              autoFocus
-              className="mt-2 w-full rounded-[3px] border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
-            />
-          )}
-          {s.type === "__other__" && s.customType.trim() && (
-            <p className="mt-1 font-mono text-[11px] text-ink-3">
-              «{s.customType.trim()}» добавится в твой список видов
-            </p>
-          )}
+          <SportPicker
+            types={sportTypes ?? []}
+            value={s.type}
+            custom={s.customType}
+            onPick={(t) => setS({ ...s, type: t, customType: t === OTHER_SPORT ? s.customType : "" })}
+            onCustom={(text) => setS({ ...s, customType: text })}
+          />
         </div>
 
         {/* Date + Duration */}

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { WorkoutLogEntry, SportDay, MigraineEvent, SportType } from "@/lib/data";
 import { todayISOMoscow } from "@/lib/format";
 import { sportColor } from "@/lib/sport-colors";
+import { canonicalSport, SPORT_KEY } from "@/lib/sports";
 import { ChartLegend, type LegendItem } from "./chart-legend";
 
 // Fixed colors for non-workout data
@@ -10,26 +11,8 @@ const C_SPORT = "rgba(55,165,130,0.72)";   // спорт из привычек (
 const C_EMPTY = "rgba(130,130,130,0.09)";
 const C_MIG   = "#c8204a"; // малиновый — явно отличим от оранжевых тренировок
 
-// Название вида спорта, под которым тренировка идёт в легенду и цвет.
-// Совпадение с видом из справочника (без учёта регистра) — его название;
-// старые записи до справочника («Зал», «Зал и волейбол») — по ключевому
-// слову; всё остальное («Лыжи», «Батуты») — отдельным видом как есть.
-function canonicalType(sportTypes: SportType[], raw: string): string {
-  const name = raw.trim();
-  const lower = name.toLowerCase();
-  const exact = sportTypes.find((st) => st.name.toLowerCase() === lower);
-  if (exact) return exact.name;
-  const byKeyword = (kw: string) => sportTypes.find((st) => st.name.toLowerCase().includes(kw))?.name;
-  if (lower.includes("волейбол")) return byKeyword("волейбол") ?? name;
-  if (lower.includes("бег"))      return byKeyword("бег") ?? name;
-  if (lower.includes("зал") || lower.includes("сил")) return byKeyword("сил") ?? name;
-  if (lower.includes("сноуборд")) return byKeyword("сноуборд") ?? name;
-  if (lower.includes("функц"))    return byKeyword("функц") ?? name;
-  return name;
-}
-
-// «Спорт» из старых записей и отметок дня — один общий вид.
-const SPORT_KEY = "спорт";
+// Название вида — canonicalSport (lib/sports.ts): справочник, затем ключевые
+// слова («Зал и волейбол» → «Волейбол»), остальное как есть.
 
 const CELL = 13;
 const GAP  = 2;
@@ -68,8 +51,9 @@ export function TrainingChart({
   // берут цвет оттуда (как в форме записи), остальные — следующие свободные.
   const typeCounts = new Map<string, number>();
   const workoutTypeMap = new Map<string, string[]>();
+  const typeNames = sportTypes.map((st) => st.name);
   for (const w of workouts) {
-    const t = canonicalType(sportTypes, w.type);
+    const t = canonicalSport(typeNames, w.type);
     typeCounts.set(t, (typeCounts.get(t) ?? 0) + 1);
     const existing = workoutTypeMap.get(w.date) ?? [];
     workoutTypeMap.set(w.date, [...existing, t]);

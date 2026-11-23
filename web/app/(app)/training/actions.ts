@@ -4,7 +4,6 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { isLoggableDay } from "@/lib/format";
-import { DEFAULT_SPORT_TYPES } from "@/lib/data";
 
 // Нет сессии → фильтр, который не совпадёт ни с одной строкой (нулевой UUID
 // никому не выдаётся). Раньше было is(null) — поддельный cookie читал и писал
@@ -216,19 +215,10 @@ export async function addSportType(name: string): Promise<{ ok: boolean }> {
   const same = (a: string) => a.toLowerCase() === trimmed.toLowerCase();
   if (list.some((r) => same(r.name))) return { ok: true };
 
-  const toInsert: { name: string; sort: number; app_user_id: string }[] = [];
-  let nextSort: number;
-  if (list.length === 0) {
-    // Пока своих строк нет, форма показывает стандартный список. Первое
-    // добавление сохраняет его целиком: раньше вставлялся только новый вид,
-    // и стандартные пропадали из формы (QA раунд 8).
-    DEFAULT_SPORT_TYPES.forEach((n, i) => toInsert.push({ name: n, sort: i, app_user_id: uid }));
-    nextSort = DEFAULT_SPORT_TYPES.length;
-  } else {
-    nextSort = list[0].sort + 1;
-  }
-  if (!toInsert.some((r) => same(r.name))) toInsert.push({ name: trimmed, sort: nextSort, app_user_id: uid });
-  const { error } = await db.from("sport_type").insert(toInsert);
+  // Свой список у каждой (lib/sports.ts): добавляем только этот вид.
+  // Стандартные виды не сохраняем — они подсказки, пока своего списка нет.
+  const nextSort = list.length ? list[0].sort + 1 : 0;
+  const { error } = await db.from("sport_type").insert({ name: trimmed, sort: nextSort, app_user_id: uid });
   if (error) return { ok: false };
   revalidatePath("/training");
   revalidatePath("/dashboard");
