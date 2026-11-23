@@ -3,7 +3,7 @@ import { getCurrentCycle, PHASE_LABELS, type Phase } from "@/lib/cycle";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 import { todayISOMoscow } from "@/lib/format";
 import { WeightChart } from "@/components/weight-chart";
-import { WeightInput } from "./weight-input";
+import { DayNumbersCard } from "@/components/day-numbers-card";
 import { WeightHistory } from "./weight-history";
 import { CalorieInput } from "./calorie-input";
 import { PlanEditor } from "./plan-editor";
@@ -11,10 +11,10 @@ import { PlanEditor } from "./plan-editor";
 export const dynamic = "force-dynamic";
 
 const PHASE_NOTE: Record<Phase, string> = {
-  menstrual: "Менструация: вес может быть выше из-за задержки воды — это уйдёт.",
-  follicular: "Фолликулярная фаза: вес сейчас наиболее показателен. Минимум задержки воды.",
-  ovulatory: "Овуляция: возможна лёгкая задержка воды.",
-  luteal: "Лютеиновая фаза: задержка воды может прибавить +0.5–1.5 кг. Это не жир — не пугайся весов.",
+  menstrual: "Вес может быть выше из-за задержки воды — это уйдёт.",
+  follicular: "Вес сейчас наиболее показателен: минимум задержки воды.",
+  ovulatory: "Возможна лёгкая задержка воды.",
+  luteal: "Задержка воды может прибавить 0,5–1,5 кг. Это не жир — не пугайся весов.",
 };
 
 export default async function Weight() {
@@ -34,8 +34,18 @@ export default async function Weight() {
   const c = getCurrentCycle(starts, today, user?.avgCycleLength ?? 28, user?.menstrualDays ?? 5);
   const goalKg = user?.weightGoalKg ?? WEIGHT_GOAL.kg;
   const startKg = user?.weightStartKg ?? WEIGHT_GOAL.startKg;
-  const fromStart = current != null ? +(current - startKg).toFixed(1) : null;
-  const toGoal = current != null ? +(current - goalKg).toFixed(1) : null;
+  const actualRows = rows.filter((r): r is typeof r & { actual: number } => r.actual != null);
+  const todayWeight = actualRows.find((r) => r.date === dayKey)?.actual ?? null;
+  // Изменение за неделю — от последнего взвешивания не позже чем 7 дней назад.
+  const weekAgoISO = (() => { const d = new Date(dayKey + "T12:00:00"); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); })();
+  const weekAgo = [...actualRows].reverse().find((r) => r.date <= weekAgoISO) ?? null;
+  const weekDelta = current != null && weekAgo ? +(current - weekAgo.actual).toFixed(1) : null;
+  const fmtKg = (n: number) => String(n).replace(".", ",");
+  const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmtKg(Math.abs(n))}`;
+  // Прогресс от старта к цели (только когда цель ниже старта — похудение).
+  const progressPct = current != null && startKg > goalKg
+    ? Math.max(0, Math.min(100, Math.round(((startKg - current) / (startKg - goalKg)) * 100)))
+    : null;
 
   // Среднее ккал за 7 дней, заканчивая ВЧЕРА — но только если за вчера
   // реально введены калории (сегодняшний день обычно неполный, поэтому окно
@@ -48,41 +58,49 @@ export default async function Weight() {
   const avg7 = hasYesterday && weekWindow.length > 0
     ? Math.round(weekWindow.reduce((s, e) => s + e.kcal, 0) / weekWindow.length)
     : null;
+  const yesterdayKcal = calories.find((e) => e.date === yesterday)?.kcal ?? null;
+  const balance = avg7 != null && user?.calorieBalanceKcal ? avg7 - user.calorieBalanceKcal : null;
 
   return (
     <>
-      {/* ── Шапка ── */}
-      <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">ВЕС</h1>
-      <p className="mt-2 font-mono text-[11px] text-ink-2">
-        {pregnant ? "наблюдение · цели скрыты на время беременности" : `план и факт · цель ${goalKg} кг`}
+      {/* ── Шапка: текущий вес ── */}
+      <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3">вес</div>
+      <h1 className="mt-1 font-mono text-[40px] font-semibold leading-none text-ink">
+        {current != null ? fmtKg(current) : "—"}<span className="ml-1.5 text-[16px] font-normal text-ink-2">кг</span>
+      </h1>
+      <p className="mt-2 font-sans text-[13px] text-ink-2">
+        {current == null
+          ? "Запиши первый вес — ниже."
+          : [
+              weekDelta != null ? `${signed(weekDelta)} за неделю` : null,
+              !pregnant ? `цель ${fmtKg(goalKg)} кг` : "цели скрыты на время беременности",
+            ].filter(Boolean).join(" · ")}
       </p>
+      {!pregnant && progressPct != null && (
+        <div className="mt-3">
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+            <div className="h-full rounded-full bg-phase" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-2">
+            <span>старт {fmtKg(startKg)}</span>
+            <span>пройдено {progressPct}%</span>
+            <span>цель {fmtKg(goalKg)}</span>
+          </div>
+        </div>
+      )}
 
-      {/* ── Текущий вес ── */}
-      <section className="mt-4 flex items-end justify-between rounded-card border border-line bg-surface p-5">
-        <div>
-          <div className="font-mono text-[46px] font-semibold leading-[0.9] text-ink">
-            {current ?? "—"}
-          </div>
-          <div className="mt-1.5 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">
-            кг сегодня
-          </div>
-        </div>
-        <div className="text-right">
-          {pregnant ? null : fromStart != null && toGoal != null ? (
-            <>
-              <div className="font-mono font-semibold text-[15px] text-phase">
-                {fromStart} кг
-              </div>
-              <div className="mt-1 font-mono text-[10px] text-ink-2">от старта {startKg}</div>
-              <div className="mt-0.5 font-mono text-[10px] text-ink-2">
-                до цели {toGoal > 0 ? `−${toGoal}` : toGoal} кг
-              </div>
-            </>
-          ) : (
-            <div className="font-mono text-[11px] text-ink-3">запиши первый вес ↓</div>
-          )}
-        </div>
-      </section>
+      {/* ── Ввод: та же карточка, что на «Сегодня» ── */}
+      <div className="mt-5 rounded-card border border-line bg-surface p-4">
+        <DayNumbersCard
+          weightDay={dayKey}
+          kcalDay={yesterday}
+          initialWeight={todayWeight}
+          initialKcal={yesterdayKcal}
+          weightPlaceholder={todayWeight == null ? current : null}
+          kcalLabel="Ккал вчера"
+        />
+        <p className="mt-2 font-sans text-[12px] text-ink-2">Вес лучше утром, натощак, в одинаковых условиях.</p>
+      </div>
 
       {/* ── График ── */}
       <section className="mt-3.5 rounded-card border border-line bg-surface p-4">
@@ -129,10 +147,19 @@ export default async function Weight() {
           />
         </div>
         {avg7 != null && (
-          <div className="mt-3 flex items-baseline gap-2 border-t border-line pt-2.5">
-            <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-3">ср. 7 дней (по вчера)</span>
-            <span className="font-mono text-[16px] font-semibold text-ink">{avg7.toLocaleString("ru")}</span>
-            <span className="font-mono text-[10px] text-ink-3">ккал/день</span>
+          <div className="mt-3 grid grid-cols-2 divide-x divide-line border-t border-line pt-2.5">
+            <div className="pr-3">
+              <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">ккал · 7 дней по вчера</div>
+              <div className="mt-1 font-mono text-[18px] font-semibold text-ink">{avg7.toLocaleString("ru")}</div>
+            </div>
+            {balance != null && !pregnant && (
+              <div className="pl-3">
+                <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">к точке баланса</div>
+                <div className={`mt-1 font-mono text-[18px] font-semibold ${balance < 0 ? "text-deficit" : "text-ink"}`}>
+                  {balance > 0 ? "+" : balance < 0 ? "−" : ""}{Math.abs(balance).toLocaleString("ru")}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {calories.length > 0 && !user?.calorieBalanceKcal && !pregnant && (
@@ -145,31 +172,12 @@ export default async function Weight() {
       {/* ── План похудения ── */}
       {!pregnant && <PlanEditor rows={rows} todayISO={dayKey} />}
 
-      {/* ── Инсайт фазы ── */}
+      {/* ── Подсказка фазы ── */}
       {!pregnant && (
-      <section
-        className="mt-3.5 rounded-card border border-line bg-surface p-4"
-        style={{ borderLeft: "3px solid var(--phase)" }}
-      >
-        <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-phase">
-          {PHASE_LABELS[c.phase]} · день {c.day}
-        </div>
-        <p className="mt-2 font-sans text-[12.5px] leading-[1.55] text-ink-2">
-          {PHASE_NOTE[c.phase]}
+        <p className="mt-3.5 border-l-2 border-phase pl-2.5 font-sans text-[13px] leading-snug text-ink-2">
+          <b className="text-ink">{PHASE_LABELS[c.phase]}, день {c.day}.</b> {PHASE_NOTE[c.phase]}
         </p>
-      </section>
       )}
-
-      {/* ── Записать вес ── */}
-      <div className="mt-3.5">
-        <p className="mb-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          записать вес
-        </p>
-        <WeightInput dayKey={dayKey} placeholder={current} />
-        <p className="mt-1.5 font-mono text-[9px] tracking-[0.06em] text-ink-3">
-          лучше утром, натощак, в одинаковых условиях
-        </p>
-      </div>
 
       <WeightHistory todayISO={dayKey} rows={rows} />
 

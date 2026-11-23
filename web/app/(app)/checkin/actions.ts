@@ -380,7 +380,7 @@ export async function saveDayNumber(
   const value = trimmed === "" ? null : Number(trimmed);
   if (value != null) {
     if (!Number.isFinite(value)) return { ok: false, error: "Нужно число" };
-    if (field === "weight" && (value < 25 || value > 300)) return { ok: false, error: "Вес — от 25 до 300 кг" };
+    if (field === "weight" && (value < 30 || value > 250)) return { ok: false, error: "Вес — от 30 до 250 кг" };
     if (field === "kcal" && (value < 0 || value > 15000)) return { ok: false, error: "Калории — от 0 до 15 000" };
   }
 

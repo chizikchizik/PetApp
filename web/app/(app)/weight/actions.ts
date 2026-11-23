@@ -41,6 +41,12 @@ export async function saveWeight(
       { onConflict: "app_user_id,entry_date" },
     );
   if (error) return { ok: false, error: error.message };
+  // Строка дня тоже хранит вес (её пишет карточка «Вес и калории»). Обновляем,
+  // если она есть, чтобы правка прошлого веса не расходилась с «Сегодня».
+  await byUser(
+    db.from("daily_log").update({ weight_kg: kg }).eq("log_date", dateISO),
+    uid,
+  );
   // Was the only weight action with no revalidation (saveCalories/savePlanPoint
   // both revalidate). WeightHistory/WeightInput call router.refresh() for the
   // /weight page itself, but the dashboard's "current weight" card kept a stale
@@ -118,5 +124,6 @@ export async function saveCalories(
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/weight");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

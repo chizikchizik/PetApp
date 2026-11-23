@@ -299,7 +299,7 @@ export default async function Today({
         quickPain={quickPain}
         planned={planned}
         workouts={dayWorkouts}
-        dayWeight={log?.weight_kg ?? weights.find((w) => w.date === dayKey)?.actual ?? null}
+        dayWeight={weights.find((w) => w.date === dayKey)?.actual ?? log?.weight_kg ?? null}
         weightPlaceholder={isToday ? current?.actual ?? null : null}
         lastAttackLabel={lastAttackLabel}
         medNote={medNote}

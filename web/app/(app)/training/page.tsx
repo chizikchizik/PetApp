@@ -14,7 +14,9 @@ import { TrainingForm } from "./training-form";
 import { TrainingChart } from "./training-chart";
 import { WorkoutHistoryList } from "./workout-history";
 import { computeTrainingPatterns, type TrainingPattern } from "@/lib/training-patterns";
-import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow } from "@/lib/format";
+import { todayISOMoscow, isoDaysFromTodayMoscow, nowMoscow, isoLocal } from "@/lib/format";
+import { getCalendarEvents } from "./schedule/actions";
+import { PlannedToday } from "./planned-today";
 import { getCurrentUser, isPregnant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +71,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
             Самый активный день недели — <b className="text-ink">{pattern.topDowLabel}</b> ({pattern.topDowCount} тренировок).
           </p>
           <div className="mt-1 font-mono text-[10px] text-ink-3">
-            → если мигрени появятся — отмечай их через Чек-ин, и паттерны рассчитаются автоматически
+            → если мигрени появятся — отмечай их на экране «Сегодня», и паттерны рассчитаются автоматически
           </div>
         </div>
       </div>
@@ -107,7 +109,7 @@ function PatternsBlock({ pattern }: { pattern: TrainingPattern }) {
   return (
     <div className="mt-4 rounded-card border border-line bg-surface p-4" style={{ borderLeft: "3px solid #d04830" }}>
       <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "#d04830" }}>
-        паттерны · елена
+        паттерны · анализ
       </div>
       <div className="mt-3 space-y-3">
         <div>
@@ -171,13 +173,20 @@ function pluralTimes(n: number): string {
 export default async function TrainingPage() {
   const sinceISO = isoDaysFromTodayMoscow(-26 * 7);
   const year = nowMoscow().getUTCFullYear();
-  const today = new Date(todayISOMoscow() + "T12:00:00");
+  const todayISO = todayISOMoscow();
+  const today = new Date(todayISO + "T12:00:00");
+  const dow = (today.getDay() + 6) % 7; // Пн=0
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - dow + i);
+    return isoLocal(d);
+  });
   // История-хитмап показывает весь календарный год, а анализ паттернов —
   // скользящее полугодие (26 нед). Грузим с более ранней из двух дат и
   // режем на месте: в начале года 26 недель уходят в прошлый год.
   const yearStartISO = `${year}-01-01`;
   const fetchFrom = yearStartISO < sinceISO ? yearStartISO : sinceISO;
-  const [starts, workouts, templates, sportTypes, workoutHistoryAll, sportDaysAll, migrainesAll, yearCount, user] = await Promise.all([
+  const [starts, workouts, templates, sportTypes, workoutHistoryAll, sportDaysAll, migrainesAll, yearCount, user, weekEvents] = await Promise.all([
     getPeriodStarts(),
     getRecentWorkouts(),
     getWorkoutTemplates(),
@@ -187,6 +196,7 @@ export default async function TrainingPage() {
     getMigraineEventsSince(fetchFrom),
     getWorkoutCountForYear(year),
     getCurrentUser(),
+    getCalendarEvents(weekDates[0], weekDates[6]),
   ]);
   const workoutHistory = workoutHistoryAll.filter((w) => w.date >= sinceISO);
   const migraines = migrainesAll.filter((m) => m.date >= sinceISO);
@@ -198,52 +208,90 @@ export default async function TrainingPage() {
   const tip = PHASE_TIP[phase];
   const pattern = computeTrainingPatterns(workoutHistory, migraines);
 
+  // Неделя: точка — тренировка записана, кружок — запланирована и ещё не была.
+  const doneDays = new Set(workoutHistoryAll.filter((w) => w.date >= weekDates[0] && w.date <= weekDates[6]).map((w) => w.date));
+  const plannedDays = new Set(weekEvents.filter((e) => e.type === "workout" && e.status === "planned").map((e) => e.event_date));
+  const weekCount = workoutHistoryAll.filter((w) => w.date >= weekDates[0] && w.date <= todayISO).length;
+  const plannedToday = weekEvents.filter((e) => e.event_date === todayISO && e.type === "workout" && e.status === "planned");
+  const GOAL = user?.workoutYearGoal ?? 150;
+  const goalPct = Math.min(100, Math.round((yearCount / GOAL) * 100));
+  const left = GOAL - yearCount;
+
   return (
     <>
       {/* ── Шапка ── */}
-      <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">
-        ТРЕНИНГ
-      </h1>
-      <p className="mt-2 font-mono text-[11px] text-ink-2">
-        лог активности{!pregnant && ` · ${PHASE_LABELS[phase]}`}
-      </p>
+      <h1 className="font-serif font-bold text-[24px] uppercase leading-tight">ТРЕНИРОВКИ</h1>
+      {pregnant ? (
+        <p className="mt-2 border-l-2 border-phase pl-2.5 font-sans text-[13px] leading-snug text-ink-2">
+          Фазовые рекомендации скрыты на время беременности. Программу нагрузок согласуй с врачом.
+        </p>
+      ) : (
+        <p className="mt-2 border-l-2 border-phase pl-2.5 font-sans text-[13px] leading-snug text-ink-2">
+          <b className="text-ink">{PHASE_LABELS[phase]} · {tip.title}.</b> {tip.text}
+        </p>
+      )}
 
-      {/* ── Счётчик года ── */}
-      {(() => {
-        const GOAL = user?.workoutYearGoal ?? 150;
-        const pct = Math.min(100, Math.round((yearCount / GOAL) * 100));
-        const left = GOAL - yearCount;
-        return (
-          <div className="mt-4 rounded-card border border-line bg-surface p-4">
-            <div className="flex items-baseline justify-between">
-              <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-                тренировок в {year}
-              </span>
-              <span className="font-mono text-[11px] text-ink-3">
-                цель {GOAL}
-              </span>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-serif font-bold text-[36px] leading-none text-ink">{yearCount}</span>
-              <span className="font-mono text-[13px] text-ink-3">/ {GOAL}</span>
-              <span className="ml-auto font-mono text-[11px] text-ink-2">{pct}%</span>
-            </div>
-            <div className="mt-3 h-[6px] overflow-hidden rounded-full bg-surface-3">
-              <div
-                className="h-full rounded-full bg-phase transition-all"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <p className="mt-2 font-mono text-[10px] text-ink-3">
-              {left > 0
-                ? `ещё ${left} · ${paceText(yearCount, year)}`
-                : "цель достигнута 🎯"}
-            </p>
+      {/* ── Неделя из расписания ── */}
+      <section className="mt-4 rounded-card border border-line bg-surface p-4">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">эта неделя</span>
+          <Link href="/training/schedule" className="flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
+            расписание →
+          </Link>
+        </div>
+        <div className="mt-1 grid grid-cols-7 gap-1 text-center">
+          {weekDates.map((iso, i) => {
+            const isToday = iso === todayISO;
+            const done = doneDays.has(iso);
+            const planned = !done && plannedDays.has(iso);
+            return (
+              <div key={iso}>
+                <div className="font-mono text-[11px] text-ink-3">{["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][i]}</div>
+                <div className={`mx-auto mt-1 grid h-8 w-8 place-items-center rounded-full font-mono text-[12px] ${isToday ? "bg-phase font-semibold text-on-phase" : "text-ink-2"}`}>
+                  {parseInt(iso.slice(8), 10)}
+                </div>
+                <div className="mt-1 flex h-3 items-center justify-center" aria-label={done ? "тренировка была" : planned ? "запланирована" : undefined}>
+                  {done && <span className="h-1.5 w-1.5 rounded-full bg-phase" />}
+                  {planned && <span className="h-2 w-2 rounded-full border-[1.5px] border-phase" />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-1 flex gap-4 font-mono text-[11px] text-ink-2">
+          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-phase" /> была</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border-[1.5px] border-phase" /> по плану</span>
+        </div>
+      </section>
+
+      <PlannedToday events={plannedToday} dayKey={todayISO} />
+
+      {/* ── Записать тренировку ── */}
+      <TrainingForm templates={templates} sportTypes={sportTypes} />
+
+      {/* ── Счётчики ── */}
+      <section className="mt-4 rounded-card border border-line bg-surface p-4">
+        <div className="grid grid-cols-2 divide-x divide-line">
+          <div className="pr-3">
+            <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">за неделю</div>
+            <div className="mt-1 font-mono text-[24px] font-semibold leading-none text-ink">{weekCount}</div>
           </div>
-        );
-      })()}
+          <div className="pl-3">
+            <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">за {year}</div>
+            <div className="mt-1 font-mono text-[24px] font-semibold leading-none text-ink">
+              {yearCount}<span className="text-[13px] font-normal text-ink-2"> из {GOAL}</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-3">
+          <div className="h-full rounded-full bg-phase" style={{ width: `${goalPct}%` }} />
+        </div>
+        <p className="mt-1.5 font-mono text-[11px] text-ink-2">
+          {left > 0 ? `ещё ${left} · ${paceText(yearCount, year)}` : "цель на год достигнута"}
+        </p>
+      </section>
 
-      {/* ── Инфографика ── */}
+      {/* ── Инфографика (цветная по видам спорта — без изменений) ── */}
       <TrainingChart
         workouts={yearWorkouts}
         sports={yearSports}
@@ -254,48 +302,6 @@ export default async function TrainingPage() {
 
       {/* ── Паттерны (адаптивные) ── */}
       <PatternsBlock pattern={pattern} />
-
-      {/* ── Директива фазы / нейтральная заглушка при беременности ── */}
-      {pregnant ? (
-        <div
-          className="mt-5 rounded-card border border-line bg-surface p-4"
-          style={{ borderLeft: "3px solid var(--phase)" }}
-        >
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">
-            беременность
-          </div>
-          <p className="mt-2 font-sans text-[12.5px] leading-[1.5] text-ink-2">
-            Фазовые рекомендации скрыты на время беременности. Программу нагрузок
-            согласуй с врачом.
-          </p>
-        </div>
-      ) : (
-        <div
-          className="mt-5 rounded-card border border-line bg-surface p-4"
-          style={{ borderLeft: "3px solid var(--phase)" }}
-        >
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-phase">
-            директива фазы
-          </div>
-          <div className="mt-2 font-sans font-bold text-[16px] leading-[1.2] text-ink">
-            {tip.title}
-          </div>
-          <p className="mt-1.5 font-sans text-[12.5px] leading-[1.5] text-ink-2">
-            {tip.text}
-          </p>
-        </div>
-      )}
-
-      {/* ── Ссылка на расписание ── */}
-      <Link
-        href="/training/schedule"
-        className="mt-3.5 block font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3 text-right underline underline-offset-2"
-      >
-        расписание недели →
-      </Link>
-
-      {/* ── Добавить тренировку ── */}
-      <TrainingForm templates={templates} sportTypes={sportTypes} />
 
       {/* ── История ── */}
       <WorkoutHistoryList workouts={workouts} />

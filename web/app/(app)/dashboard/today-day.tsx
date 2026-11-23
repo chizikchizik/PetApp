@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   quickLogMigraine,
   saveMigraineDetails,
   setMedTaken,
-  saveDayNumber,
   logQuickPain,
   addMigraineTrigger,
   deleteMigraineTrigger,
@@ -17,69 +16,13 @@ import { TrainingQuickAdd } from "../checkin/training-quick-add";
 import { PainQuickLogSheet } from "../checkin/pain-quick-log-sheet";
 import { AttackSheet, type MigraineState } from "./attack-sheet";
 import { MedsCard } from "./meds-card";
+import { useSaveQueue, SaveStatus } from "@/components/save-queue";
+import { DayNumbersCard } from "@/components/day-numbers-card";
 import type { DailyLog, Med, MigraineTrigger, QuickPainEntry, SportType, WorkoutLogEntry } from "@/lib/data";
 import type { TrackedModules } from "@/lib/tracked-modules";
 
-type Result = { ok: boolean; error?: string };
-type SaveState = "idle" | "saving" | "saved" | "error";
 
 const labelCls = "font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3";
-
-// Все записи дня уходят по одной, строго по очереди: каждое серверное
-// действие перечитывает строку дня, и параллельные вызовы могли бы
-// перезаписать друг друга.
-function useSaveQueue() {
-  const chain = useRef<Promise<void>>(Promise.resolve());
-  const pending = useRef(0);
-  const [state, setState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (state !== "saved") return;
-    const t = setTimeout(() => setState("idle"), 1600);
-    return () => clearTimeout(t);
-  }, [state]);
-
-  const run = useCallback((fn: () => Promise<Result>, onFail?: () => void) => {
-    pending.current += 1;
-    setState("saving");
-    chain.current = chain.current.then(async () => {
-      let res: Result;
-      try {
-        res = await fn();
-      } catch {
-        res = { ok: false };
-      }
-      pending.current -= 1;
-      if (!res.ok) {
-        setError(res.error ?? "Не сохранилось. Проверь интернет и попробуй ещё раз.");
-        setState("error");
-        onFail?.();
-      } else if (pending.current === 0) {
-        setError(null);
-        setState("saved");
-      }
-    });
-  }, []);
-
-  return { state, error, run };
-}
-
-function SaveStatus({ state, error }: { state: SaveState; error: string | null }) {
-  if (state === "idle") return null;
-  const text = state === "saving" ? "сохраняю…" : state === "saved" ? "сохранено ✓" : error;
-  return (
-    <div
-      role="status"
-      className={`pointer-events-none fixed left-1/2 z-40 -translate-x-1/2 rounded-full border px-3.5 py-1.5 font-mono text-[12px] shadow-sm ${
-        state === "error" ? "border-warn bg-warn-soft text-warn" : "border-line bg-surface text-ink-2"
-      }`}
-      style={{ bottom: "calc(5.25rem + env(safe-area-inset-bottom))" }}
-    >
-      {text}
-    </div>
-  );
-}
 
 function fromLog(l: DailyLog | null): MigraineState {
   return {
@@ -140,9 +83,6 @@ export function TodayDay({
   const [painOpen, setPainOpen] = useState(false);
   const [confirmUndo, setConfirmUndo] = useState(false);
   const [takenKeys, setTakenKeys] = useState<Set<string>>(() => new Set(initial?.habits_done ?? []));
-  const [weight, setWeight] = useState(dayWeight != null ? String(dayWeight) : "");
-  const [kcal, setKcal] = useState(initial?.calorie_kcal != null ? String(initial.calorie_kcal) : "");
-  const savedNumbers = useRef({ weight, kcal });
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
 
@@ -179,20 +119,6 @@ export function TodayDay({
       });
     flip(on);
     run(() => setMedTaken(dayKey, med.id, on), () => flip(!on));
-  }
-
-  // ── Вес и калории: сохраняем при уходе из поля, если значение изменилось ──
-  function commitNumber(field: "weight" | "kcal") {
-    const value = field === "weight" ? weight : kcal;
-    if (value.trim() === savedNumbers.current[field].trim()) return;
-    const prev = savedNumbers.current[field];
-    savedNumbers.current = { ...savedNumbers.current, [field]: value };
-    run(
-      () => saveDayNumber(dayKey, field, value),
-      () => {
-        savedNumbers.current = { ...savedNumbers.current, [field]: prev };
-      },
-    );
   }
 
   // ── Тренировка из расписания ──
@@ -348,41 +274,16 @@ export function TodayDay({
 
       {/* ── Вес и калории ── */}
       {tracks.weight && (
-        <section className="mt-5">
-          <div className="flex gap-3">
-            <label className="flex-1">
-              <span className={labelCls}>Вес, кг</span>
-              <input
-                id="day-weight"
-                type="text"
-                inputMode="decimal"
-                value={weight}
-                placeholder={weightPlaceholder != null ? String(weightPlaceholder) : "кг"}
-                onChange={(e) => setWeight(e.target.value)}
-                onBlur={() => commitNumber("weight")}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="mt-2 min-h-[48px] w-full rounded-[3px] border border-line bg-surface px-4 font-mono text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-4 outline-none focus:border-phase"
-              />
-            </label>
-            <label className="flex-1">
-              <span className={labelCls}>Ккал за день</span>
-              <input
-                id="day-kcal"
-                type="text"
-                inputMode="numeric"
-                value={kcal}
-                placeholder="—"
-                onChange={(e) => setKcal(e.target.value)}
-                onBlur={() => commitNumber("kcal")}
-                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                className="mt-2 min-h-[48px] w-full rounded-[3px] border border-line bg-surface px-4 font-mono text-[17px] font-semibold text-ink placeholder:font-normal placeholder:text-ink-4 outline-none focus:border-phase"
-              />
-            </label>
-          </div>
-          {weightPlaceholder != null && !weight && (
-            <p className="mt-1.5 font-sans text-[12px] text-ink-2">Серым — последний записанный вес. Сохранится, только если введёшь.</p>
-          )}
-        </section>
+        <div className="mt-5">
+          <DayNumbersCard
+            weightDay={dayKey}
+            kcalDay={dayKey}
+            initialWeight={dayWeight}
+            initialKcal={initial?.calorie_kcal ?? null}
+            weightPlaceholder={dayWeight == null ? weightPlaceholder : null}
+            run={run}
+          />
+        </div>
       )}
 
       {sheetOpen && (

@@ -183,9 +183,9 @@ export function TrainingForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3.5 flex w-full items-center justify-center gap-2.5 rounded-card border border-dashed border-line py-4 font-mono text-[12px] tracking-[0.08em] uppercase text-ink-3 transition active:opacity-70"
+        className="mt-3.5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-card bg-phase font-sans text-[15px] font-bold text-on-phase transition active:scale-[0.99]"
       >
-        + записать тренировку
+        + Записать тренировку
       </button>
     );
   }

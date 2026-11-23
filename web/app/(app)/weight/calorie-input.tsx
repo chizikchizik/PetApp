@@ -100,6 +100,8 @@ export function CalorieInput({
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showAll, setShowAll] = useState(false);
+  // Сегодня и вчера вводятся в карточке наверху; здесь — другие дни и история.
+  const [adding, setAdding] = useState(false);
   const [, startT] = useTransition();
 
   const selectedEntry = history.find((e) => e.date === selectedDate);
@@ -129,9 +131,18 @@ export function CalorieInput({
   return (
     <div className="mt-3.5">
       <div className="mb-2 flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
-          калории
+        <p className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">
+          калории по дням
         </p>
+        {!adding ? (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="min-h-[36px] font-mono text-[11px] text-ink-2 underline underline-offset-2"
+          >
+            добавить за другой день
+          </button>
+        ) : (
         <input
           type="date"
           max={todayISO}
@@ -143,11 +154,12 @@ export function CalorieInput({
               setStatus("idle");
             }
           }}
-          className="rounded-[3px] border border-line bg-surface px-2 py-0.5 font-mono text-[11px] text-ink-2 outline-none focus:border-phase"
+          className="min-h-[36px] rounded-[3px] border border-line bg-surface px-2 font-mono text-[12px] text-ink-2 outline-none focus:border-phase"
         />
+        )}
       </div>
 
-      {selectedEntry && (
+      {adding && selectedEntry && (
         <div className="mb-2 rounded-[3px] border border-phase bg-surface px-4 py-3">
           <span className="font-mono text-[20px] font-semibold text-ink">
             {selectedEntry.kcal.toLocaleString("ru")}
@@ -158,6 +170,7 @@ export function CalorieInput({
         </div>
       )}
 
+      {adding && (
       <div className="flex gap-2">
         <input
           type="number"
@@ -184,6 +197,7 @@ export function CalorieInput({
           {status === "saving" ? "…" : status === "saved" ? "✓" : status === "error" ? "!" : "Записать"}
         </button>
       </div>
+      )}
 
       {pastEntries.length > 0 && (
         <div className="mt-3 space-y-1.5">
