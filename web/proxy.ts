@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Защита всего сайта паролем (cookie). Включается, только если задан
-// PETAPP_PASSWORD (на Vercel). Локально без него — гейта нет.
+// Гейт всего сайта: без cookie сессии (id аккаунта) — на /login. Включается,
+// только если задан PETAPP_PASSWORD (на Vercel); сам пароль больше не даёт
+// входа (2026-11-23). Локально без него — гейта нет.
 export function proxy(request: NextRequest) {
   const expected = process.env.PETAPP_PASSWORD;
   if (!expected) return NextResponse.next();
@@ -13,9 +14,8 @@ export function proxy(request: NextRequest) {
   }
 
   const cookie = request.cookies.get("verta_auth")?.value;
-  const isLegacy = cookie === expected;
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie ?? "");
-  if (isLegacy || isUUID) return NextResponse.next();
+  if (isUUID) return NextResponse.next();
 
   const url = request.nextUrl.clone();
   url.pathname = "/login";

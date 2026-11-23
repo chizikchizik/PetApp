@@ -167,6 +167,7 @@ export default async function Login({
           type="email"
           autoFocus
           autoComplete="email"
+          required
           placeholder="Email"
           className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
         />
@@ -174,9 +175,13 @@ export default async function Login({
           name="password"
           type="password"
           autoComplete="current-password"
+          required
           placeholder="Пароль"
           className="w-full rounded-[3px] border border-line bg-surface px-4 py-3.5 text-[16px] text-ink placeholder:text-ink-3 outline-none focus:border-phase"
         />
+        {e === "3" && (
+          <p className="text-[13px] font-medium text-warn">Введи email и пароль</p>
+        )}
         {e === "1" && (
           <p className="text-[13px] font-medium text-warn">Неверный пароль</p>
         )}

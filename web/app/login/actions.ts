@@ -2,26 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { loginUser, setAuthCookie } from "@/lib/auth";
-import { cookies } from "next/headers";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const pw = String(formData.get("password") || "");
 
-  // Legacy single-password login (empty email)
-  if (!email) {
-    const expected = process.env.PETAPP_PASSWORD;
-    if (!expected || pw !== expected) redirect("/login?e=1");
-    const cookieStore = await cookies();
-    cookieStore.set("verta_auth", pw, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 60,
-    });
-    redirect("/");
-  }
+  // Вход только по email и паролю. Вход по общему мастер-паролю (пустой
+  // email) убран: он открывал первый аккаунт без email (решение Марины, 2026-11-23).
+  if (!email || !pw) redirect("/login?e=3");
 
   // Email + password login
   const result = await loginUser(email, pw);

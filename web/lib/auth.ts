@@ -137,22 +137,8 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   if (!cookie?.value) return null
 
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cookie.value)
-  if (!isUUID) {
-    if (cookie.value === process.env.PETAPP_PASSWORD) {
-      const db = supabaseAdmin()
-      if (db) {
-        const { data } = await db
-          .from("app_user")
-          .select(USER_SELECT)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .single()
-        if (data) return rowToUser(data as Record<string, unknown>)
-      }
-      return { id: "__legacy__", email: "marina@verta", displayName: "Марина", weightGoalKg: null, weightStartKg: null, onboardingDone: true, avgCycleLength: null, menstrualDays: null, workoutYearGoal: null, calorieBalanceKcal: null, calorieGoalKcal: null, pregnantSince: null, pregnantUntil: null, tracks: ALL_TRACKED }
-    }
-    return null
-  }
+  // Cookie с мастер-паролем больше не даёт входа (убран 2026-11-23).
+  if (!isUUID) return null
 
   const db = supabaseAdmin()
   if (!db) return null
