@@ -234,7 +234,9 @@ export default async function TrainingPage() {
       {/* ── Неделя из расписания ── */}
       <section className="mt-4 rounded-card border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">эта неделя</span>
+          <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-ink-3">
+            эта неделя · {weekCount} {weekCount % 10 === 1 && weekCount % 100 !== 11 ? "тренировка" : [2, 3, 4].includes(weekCount % 10) && ![12, 13, 14].includes(weekCount % 100) ? "тренировки" : "тренировок"}
+          </span>
           <Link href="/training/schedule" className="flex min-h-[36px] items-center font-mono text-[11px] text-ink-2 underline underline-offset-2">
             расписание →
           </Link>
@@ -269,27 +271,33 @@ export default async function TrainingPage() {
       {/* ── Записать тренировку ── */}
       <TrainingForm templates={templates} sportTypes={sportTypes} />
 
-      {/* ── Счётчики ── */}
-      <section className="mt-4 rounded-card border border-line bg-surface p-4">
-        <div className="grid grid-cols-2 divide-x divide-line">
-          <div className="pr-3">
-            <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">за неделю</div>
-            <div className="mt-1 font-mono text-[24px] font-semibold leading-none text-ink">{weekCount}</div>
-          </div>
-          <div className="pl-3">
-            <div className="font-mono text-[11px] tracking-[0.06em] uppercase text-ink-3">за {year}</div>
-            <div className="mt-1 font-mono text-[24px] font-semibold leading-none text-ink">
-              {yearCount}<span className="text-[13px] font-normal text-ink-2"> из {GOAL}</span>
-            </div>
-          </div>
+      {/* ── Счётчик года ── */}
+      <div className="mt-4 rounded-card border border-line bg-surface p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-3">
+            тренировок в {year}
+          </span>
+          <span className="font-mono text-[11px] text-ink-3">
+            цель {GOAL}
+          </span>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-3">
-          <div className="h-full rounded-full bg-phase" style={{ width: `${goalPct}%` }} />
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="font-serif font-bold text-[36px] leading-none text-ink">{yearCount}</span>
+          <span className="font-mono text-[13px] text-ink-3">/ {GOAL}</span>
+          <span className="ml-auto font-mono text-[11px] text-ink-2">{goalPct}%</span>
         </div>
-        <p className="mt-1.5 font-mono text-[11px] text-ink-2">
-          {left > 0 ? `ещё ${left} · ${paceText(yearCount, year)}` : "цель на год достигнута"}
+        <div className="mt-3 h-[6px] overflow-hidden rounded-full bg-surface-3">
+          <div
+            className="h-full rounded-full bg-phase transition-all"
+            style={{ width: `${goalPct}%` }}
+          />
+        </div>
+        <p className="mt-2 font-mono text-[10px] text-ink-3">
+          {left > 0
+            ? `ещё ${left} · ${paceText(yearCount, year)}`
+            : "цель достигнута 🎯"}
         </p>
-      </section>
+      </div>
 
       {/* ── Инфографика (цветная по видам спорта — без изменений) ── */}
       <TrainingChart
