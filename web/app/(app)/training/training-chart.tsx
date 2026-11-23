@@ -177,10 +177,11 @@ export function TrainingChart({
   const WORK_W   = BAR_W - MIG_W - MIG_GAP;
 
   // Легенда: мигрень (кружок, как на карте) первой, чтобы не уходила под
-  // «ещё», дальше все виды спорта по частоте.
+  // «ещё», дальше все виды спорта по частоте. Виды с одной тренировкой за
+  // период — всегда под «ещё».
   const legendItems: LegendItem[] = [
     ...(migraines.length > 0 ? [{ key: "__migraine", label: "мигрень", color: C_MIG, circle: true }] : []),
-    ...typesByFreq.map(([t]) => ({ key: t, label: t.toLowerCase(), color: colorOf(t) })),
+    ...typesByFreq.map(([t, n]) => ({ key: t, label: t.toLowerCase(), color: colorOf(t), minor: n <= 1 })),
   ];
 
   return (
