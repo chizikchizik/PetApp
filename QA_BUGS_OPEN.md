@@ -10,9 +10,6 @@
 
 ## Раунд 8 — P2 (осталось после 43bbc56)
 
-**[P2] SVG-подписи на масштабируемых графиках меньше 11 px на узком экране**
-Файлы: `insights/pressure-block.tsx`, `bp/page.tsx` (viewBox 348, на 320 около 6 px), `insights/cycle-history.tsx` (6–8,5), `wearable/page.tsx` (7). Простое увеличение fontSize не поможет: нужно перевести подписи осей в HTML или пересчитать viewBox под реальную ширину. График веса (`weight-chart.tsx`) исправлен, 10–11 px.
-
 **[P2] Гонка read-modify-write на `daily_log` (`TrainingQuickAdd`/`saveWorkout` вне очереди), риск низкий**
 В одной вкладке гонки нет (Next сериализует actions). Две вкладки или устройства: возможна потеря «Спорт»/«Бег», их никто не читает. На будущее: `saveWorkout` через `patchDay` или атомарную RPC.
 
