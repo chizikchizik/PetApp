@@ -2,38 +2,34 @@
 import { useEffect, useRef } from "react";
 import type { WorkoutLogEntry, SportDay, MigraineEvent, SportType } from "@/lib/data";
 import { todayISOMoscow } from "@/lib/format";
+import { sportColor } from "@/lib/sport-colors";
+import { ChartLegend, type LegendItem } from "./chart-legend";
 
 // Fixed colors for non-workout data
 const C_SPORT = "rgba(55,165,130,0.72)";   // спорт из привычек (не из workout_log)
 const C_EMPTY = "rgba(130,130,130,0.09)";
 const C_MIG   = "#c8204a"; // малиновый — явно отличим от оранжевых тренировок
-const C_OTHER = "rgba(130,130,130,0.45)";  // тип не найден в sport_types
 
-// Build a case-insensitive lookup: lowercase name → color
-function buildColorMap(sportTypes: SportType[]): Map<string, string> {
-  return new Map(sportTypes.map((st) => [st.name.toLowerCase(), st.color]));
+// Название вида спорта, под которым тренировка идёт в легенду и цвет.
+// Совпадение с видом из справочника (без учёта регистра) — его название;
+// старые записи до справочника («Зал», «Зал и волейбол») — по ключевому
+// слову; всё остальное («Лыжи», «Батуты») — отдельным видом как есть.
+function canonicalType(sportTypes: SportType[], raw: string): string {
+  const name = raw.trim();
+  const lower = name.toLowerCase();
+  const exact = sportTypes.find((st) => st.name.toLowerCase() === lower);
+  if (exact) return exact.name;
+  const byKeyword = (kw: string) => sportTypes.find((st) => st.name.toLowerCase().includes(kw))?.name;
+  if (lower.includes("волейбол")) return byKeyword("волейбол") ?? name;
+  if (lower.includes("бег"))      return byKeyword("бег") ?? name;
+  if (lower.includes("зал") || lower.includes("сил")) return byKeyword("сил") ?? name;
+  if (lower.includes("сноуборд")) return byKeyword("сноуборд") ?? name;
+  if (lower.includes("функц"))    return byKeyword("функц") ?? name;
+  return name;
 }
 
-function resolveTypeColor(colorMap: Map<string, string>, types: string[]): string {
-  for (const t of types) {
-    const c = colorMap.get(t.toLowerCase());
-    if (c) return c;
-  }
-  // Keyword fallback for historical data that predates sport_type table
-  const s = types.join(" ").toLowerCase();
-  const byKeyword = (kw: string) => {
-    for (const [name, color] of colorMap) {
-      if (name.includes(kw) || kw.includes(name)) return color;
-    }
-    return null;
-  };
-  if (s.includes("волейбол")) return byKeyword("волейбол") ?? "#4a8fe8";
-  if (s.includes("бег"))      return byKeyword("бег")      ?? "#d05a30";
-  if (s.includes("зал") || s.includes("сил")) return byKeyword("силовая") ?? "#e8a23a";
-  if (s.includes("сноуборд")) return byKeyword("сноуборд") ?? "#d4a030";
-  if (s.includes("функц"))    return byKeyword("функцион") ?? "#2aa09a";
-  return C_OTHER;
-}
+// «Спорт» из старых записей и отметок дня — один общий вид.
+const SPORT_KEY = "спорт";
 
 const CELL = 13;
 const GAP  = 2;
@@ -68,16 +64,40 @@ export function TrainingChart({
   const heatmapScrollRef = useRef<HTMLDivElement>(null);
   const isYear = range === "year";
 
-  const colorMap = buildColorMap(sportTypes);
-
+  // Виды спорта по частоте; у каждого свой цвет. Виды из справочника
+  // берут цвет оттуда (как в форме записи), остальные — следующие свободные.
+  const typeCounts = new Map<string, number>();
   const workoutTypeMap = new Map<string, string[]>();
   for (const w of workouts) {
+    const t = canonicalType(sportTypes, w.type);
+    typeCounts.set(t, (typeCounts.get(t) ?? 0) + 1);
     const existing = workoutTypeMap.get(w.date) ?? [];
-    workoutTypeMap.set(w.date, [...existing, w.type]);
+    workoutTypeMap.set(w.date, [...existing, t]);
   }
 
   const sportSet = new Set<string>();
   for (const s of sports) sportSet.add(s.date);
+  // Дни, отмеченные только как «спорт» (без записи тренировки) — тоже вид.
+  let sportOnlyDays = 0;
+  for (const d of sportSet) if (!workoutTypeMap.has(d)) sportOnlyDays++;
+  if (sportOnlyDays > 0) {
+    const key = [...typeCounts.keys()].find((t) => t.toLowerCase() === SPORT_KEY) ?? "Спорт";
+    typeCounts.set(key, (typeCounts.get(key) ?? 0) + sportOnlyDays);
+  }
+
+  const typesByFreq = [...typeCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"));
+  const typeColor = new Map<string, string>();
+  for (const st of sportTypes) typeColor.set(st.name, st.color);
+  let extra = sportTypes.length;
+  for (const [t] of typesByFreq) {
+    if (t.toLowerCase() === SPORT_KEY) typeColor.set(t, C_SPORT);
+    else if (!typeColor.has(t)) typeColor.set(t, sportColor(extra++));
+  }
+  const colorOf = (t: string) => typeColor.get(t) ?? C_SPORT;
+  // Цвет клетки дня с несколькими тренировками — по самому частому виду.
+  const freqRank = new Map(typesByFreq.map(([t], i) => [t, i]));
+  const dayColor = (types: string[]) =>
+    colorOf([...types].sort((a, b) => (freqRank.get(a) ?? 99) - (freqRank.get(b) ?? 99))[0]);
 
   const migraineSet = new Set<string>();
   for (const m of migraines) migraineSet.add(m.date);
@@ -140,10 +160,8 @@ export function TrainingChart({
   const maxMig = Math.max(...mByDow, 1);
 
   // Bar chart highlight color: use most-frequent sport type's color
-  const typeCounts = new Map<string, number>();
-  for (const w of workouts) typeCounts.set(w.type, (typeCounts.get(w.type) ?? 0) + 1);
-  const topType = [...typeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const C_BAR = topType ? resolveTypeColor(colorMap, [topType]) : "#e8a23a";
+  const topWorkoutType = typesByFreq.find(([t]) => t.toLowerCase() !== SPORT_KEY)?.[0];
+  const C_BAR = topWorkoutType ? colorOf(topWorkoutType) : "#e8a23a";
 
   const BAR_W    = 38;
   const BAR_GAP  = 4;
@@ -158,19 +176,12 @@ export function TrainingChart({
   const MIG_GAP  = 2;
   const WORK_W   = BAR_W - MIG_W - MIG_GAP;
 
-  // Legend: top workout types by frequency, using palette colors
-  type LegendItem = { color: string; label: string; circle?: boolean };
-  const colorToLabel = new Map<string, string>();
-  for (const [type] of [...typeCounts.entries()].sort((a, b) => b[1] - a[1])) {
-    const col = resolveTypeColor(colorMap, [type]);
-    if (!colorToLabel.has(col)) {
-      colorToLabel.set(col, col === C_OTHER ? "прочее" : type.toLowerCase());
-    }
-    if (colorToLabel.size >= 5) break;
-  }
-  const legendItems: LegendItem[] = [...colorToLabel.entries()].map(([color, label]) => ({ color, label }));
-  if (sports.length > 0) legendItems.push({ color: C_SPORT, label: "спорт" });
-  if (migraines.length > 0) legendItems.push({ color: C_MIG, label: "мигрень" });
+  // Легенда: мигрень (кружок, как на карте) первой, чтобы не уходила под
+  // «ещё», дальше все виды спорта по частоте.
+  const legendItems: LegendItem[] = [
+    ...(migraines.length > 0 ? [{ key: "__migraine", label: "мигрень", color: C_MIG, circle: true }] : []),
+    ...typesByFreq.map(([t]) => ({ key: t, label: t.toLowerCase(), color: colorOf(t) })),
+  ];
 
   return (
     <div className="mt-5 space-y-4">
@@ -205,7 +216,7 @@ export function TrainingChart({
                 if (isYear && !date.startsWith(yearStr)) return null;
                 const future = date > todayISO;
                 const fill = future ? "none"
-                  : hasW ? resolveTypeColor(colorMap, types!)
+                  : hasW ? dayColor(types!)
                   : hasS ? C_SPORT
                   : C_EMPTY;
                 const x = DAY_LABEL_W + wi * STEP;
@@ -228,17 +239,7 @@ export function TrainingChart({
             )}
           </svg>
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          {legendItems.map(({ color, label, circle }, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              {circle
-                ? <svg width={9} height={9}><circle cx={4.5} cy={4.5} r={4.5} fill={color} /></svg>
-                : <svg width={9} height={9}><rect width={9} height={9} rx={2} fill={color} /></svg>
-              }
-              <span className="font-mono text-[10px] text-ink-3">{label}</span>
-            </div>
-          ))}
-        </div>
+        <ChartLegend items={legendItems} />
       </div>
 
       {/* ── По дням недели ── */}

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isoDaysFromTodayMoscow } from "@/lib/format";
 import { detectMedLabels } from "@/lib/migrebot-meds";
 import * as seed from "@/lib/seed-data";
+import { sportColor } from "@/lib/sport-colors";
 
 // Returns the current user's UUID, "__legacy__", or null if not authenticated.
 async function getAppUserId(): Promise<string | null> {
@@ -726,23 +727,11 @@ export async function getCycleHistory(): Promise<CycleHistoryRow[]> {
 
 export type SportType = { name: string; color: string };
 
-// 8 distinct colors that look good on dark backgrounds (VERTA palette)
-export const SPORT_PALETTE = [
-  "#e8a23a",  // янтарный   — сила, зал
-  "#4a8fe8",  // синий      — команда, волейбол
-  "#8f5ec8",  // фиолетовый — групповые, скалодром
-  "#d05a30",  // оранж-кр   — бег, HIIT
-  "#4fa85a",  // зелёный    — ходьба, природа
-  "#2aa09a",  // бирюзовый  — бассейн, функциональная
-  "#d4a030",  // золотой    — сноуборд, скайдайв
-  "#c85e88",  // розовый    — пилатес, танцы
-];
-
 const DEFAULT_SPORT_TYPES = ["Силовая", "Функциональная", "Бег", "Групповая"];
 const LEGACY_SPORT_TYPES  = ["Силовая", "Функциональная", "Бег", "Волейбол", "Скайдайв", "Сноуборд", "Скалодром", "Групповая"];
 
 function toSportTypes(names: string[]): SportType[] {
-  return names.map((name, i) => ({ name, color: SPORT_PALETTE[i % SPORT_PALETTE.length] }));
+  return names.map((name, i) => ({ name, color: sportColor(i) }));
 }
 
 export async function getSportTypes(): Promise<SportType[]> {
