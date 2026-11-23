@@ -22,10 +22,6 @@
 **[P2] График «приступы по месяцам»: столбцы про приступы, ориентир 10 про дни приёма**
 Линию «ориентир 10 дней» можно прочитать как «10 приступов — предел». Решение по визуализации к Елене и Наташе.
 
-**[P2] Медкнижка удалена, данные остались**: 1 запись `medical_record` и файл в Storage у одной пользовательницы. Решение за Мариной.
-
-**[P2] Расхождения `daily_log.weight_kg` и `weight_entry.actual_kg` на 2 датах**: «Сегодня» теперь берёт `weight_entry`, отображение совпадает; разовая чистка данных только с согласия Марины.
-
 ## Раунд 8 — проверено и подтверждено НЕ багом
 
 - **Изоляция в новом коде.** `setMedTaken` проверяет владение `medId` через `byUser`. `saveMigraineDetails`/`saveDayNumber` идут через `patchDay`: чтение `byUser`, запись с `app_user_id = uid`. `saveTrackedModules`/`saveModules` пишут через `.eq("id", uid)` (без пользователя `getUid` бросает исключение). `getMigraineMedStatsByMonth`, `getMigreDiaryMonth`, `getCycleHistory` фильтруют `byUser`. `updateCalendarEvent` — `byUser` + `eq id`, id приходит из серверных пропсов. `deleteMigraineTrigger` — `byUser`.
