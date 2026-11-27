@@ -215,7 +215,9 @@ export default async function TrainingPage() {
   const weekCount = workoutHistoryAll.filter((w) => w.date >= weekDates[0] && w.date <= todayISO).length;
   const plannedToday = weekEvents.filter((e) => e.event_date === todayISO && e.type === "workout" && e.status === "planned");
   const GOAL = user?.workoutYearGoal ?? 150;
-  const goalPct = Math.min(100, Math.round((yearCount / GOAL) * 100));
+  // Процент — настоящий (может быть больше 100), полоса — не шире карточки.
+  const goalPct = GOAL > 0 ? Math.round((yearCount / GOAL) * 100) : 0;
+  const barPct = Math.min(100, goalPct);
   const left = GOAL - yearCount;
 
   return (
@@ -291,13 +293,15 @@ export default async function TrainingPage() {
         <div className="mt-3 h-[6px] overflow-hidden rounded-full bg-surface-3">
           <div
             className="h-full rounded-full bg-phase transition-all"
-            style={{ width: `${goalPct}%` }}
+            style={{ width: `${barPct}%` }}
           />
         </div>
         <p className="mt-2 font-mono text-[11px] text-ink-3">
           {left > 0
             ? `ещё ${left} · ${paceText(yearCount, year)}`
-            : "цель достигнута 🎯"}
+            : left < 0
+              ? `цель достигнута 🎯 · +${-left} сверх цели`
+              : "цель достигнута 🎯"}
         </p>
       </div>
 
